@@ -56,6 +56,8 @@ public:
         MetricType metric_type
     );
 
+    ~Field() = default;
+
 public:
     /**
      * @brief 验证字段是否合法
