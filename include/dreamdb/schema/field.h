@@ -74,43 +74,43 @@ public:
      * @param type 字段类型
      */
     void set_type(FieldType type);
-    
+
     /**
      * @brief 设置字段长度
      * @param length 字段长度
      */
     void set_length(int length);
-    
+
     /**
      * @brief 设置字段小数点位数
      * @param precision 字段小数点位数
      */
     void set_precision(int precision);
-    
+
     /**
      * @brief 设置字段是否可为空
      * @param is_nullable 字段是否可为空
      */
     void set_is_nullable(bool is_nullable);
-    
+
     /**
      * @brief 设置字段是否为主键
      * @param is_primary 字段是否为主键
      */
     void set_is_primary(bool is_primary);
-    
+
     /**
      * @brief 设置字段注释
      * @param comment 字段注释
      */
     void set_comment(const std::string & comment);
-    
+
     /**
      * @brief 设置字段默认值
      * @param default_value 字段默认值
      */
     void set_default_value(const FieldDefaultValue & default_value);
-    
+
     /**
      * @brief 设置字段是否自动递增
      * @param is_auto_increment 字段是否自动递增
@@ -140,43 +140,43 @@ public:
      * @return 字段名称
      */
     const std::string & get_name() const;
-    
+
     /**
      * @brief 获取字段类型
      * @return 字段类型
      */
     FieldType get_type() const;
-    
+
     /**
      * @brief 获取字段长度
      * @return 字段长度
      */
     int get_length() const;
-    
+
     /**
      * @brief 获取字段小数点位数
      * @return 字段小数点位数
      */
     int get_precision() const;
-    
+
     /**
      * @brief 获取字段是否可为空
      * @return 字段是否可为空
      */
     bool get_is_nullable() const;
-    
+
     /**
      * @brief 获取字段是否为主键
      * @return 字段是否为主键
      */
     bool get_is_primary() const;
-    
+
     /**
      * @brief 获取字段注释
      * @return 字段注释
      */
     const std::string & get_comment() const;
-    
+
     /**
      * @brief 获取字段默认值
      * @return 字段默认值
