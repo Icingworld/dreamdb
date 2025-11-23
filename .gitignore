@@ -1,0 +1,74 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Compiled Object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Cache
+.cache/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Test coverage
+*.gcov
+*.gcda
+*.gcno
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
