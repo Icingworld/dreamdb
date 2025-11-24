@@ -35,3 +35,9 @@ target_include_directories(schema_entity_test PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"
 )
 target_link_libraries(schema_entity_test dreamdb)
+
+add_executable(schema_collection_test tests/schema_collection_test.cpp)
+target_include_directories(schema_collection_test PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
+target_link_libraries(schema_collection_test dreamdb)
