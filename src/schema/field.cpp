@@ -15,30 +15,18 @@ Field::Field(
     bool is_primary,
     const std::string & comment,
     const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    bool is_auto_increment
 )
-    : name(name),
-      type(type),
-      length(length),
-      precision(precision),
-      is_nullable(is_nullable),
-      is_primary(is_primary),
-      comment(comment),
-      default_value(default_value),
-      is_auto_increment(is_auto_increment),
-      is_vector(is_vector),
-      dimension(dimension),
-      metric_type(metric_type)
+    : name(name)
+    , type(type)
+    , length(length)
+    , precision(precision)
+    , is_nullable(is_nullable)
+    , is_primary(is_primary)
+    , comment(comment)
+    , default_value(default_value)
+    , is_auto_increment(is_auto_increment)
 {
-}
-
-bool Field::is_valid() const
-{
-    // TODO: 验证字段是否合法
-    return true;
 }
 
 void Field::set_name(const std::string & name)
@@ -53,24 +41,17 @@ void Field::set_type(FieldType type)
     // TODO: 根据类型做出不同的初始化处理
     switch (type)
     {
+        case FieldType::INT8:
+        case FieldType::INT16:
+        case FieldType::INT32:
         case FieldType::INT64:
-            break;
         case FieldType::FLOAT:
-            break;
         case FieldType::DOUBLE:
-            break;
         case FieldType::CHAR:
-            break;
         case FieldType::VARCHAR:
-            break;
-        case FieldType::STRING:
-            break;
         case FieldType::BOOLEAN:
-            break;
         case FieldType::TIMESTAMP:
-            break;
         case FieldType::ENUM:
-            break;
         case FieldType::FLOAT_VECTOR:
             break;
         default:
@@ -124,6 +105,12 @@ void Field::set_default_value(const FieldDefaultValue & default_value)
         using T = std::decay_t<decltype(value)>;
 
         switch (type) {
+            case FieldType::INT8:
+                return std::is_same_v<T, std::int8_t>;
+            case FieldType::INT16:
+                return std::is_same_v<T, std::int16_t>;
+            case FieldType::INT32:
+                return std::is_same_v<T, std::int32_t>;
             case FieldType::INT64:
                 return std::is_same_v<T, std::int64_t>;
             case FieldType::FLOAT:
@@ -131,8 +118,8 @@ void Field::set_default_value(const FieldDefaultValue & default_value)
             case FieldType::DOUBLE:
                 return std::is_same_v<T, double>;
             case FieldType::CHAR:
+                return std::is_same_v<T, char>;
             case FieldType::VARCHAR:
-            case FieldType::STRING:
                 return std::is_same_v<T, std::string>;
             case FieldType::BOOLEAN:
                 return std::is_same_v<T, bool>;
@@ -171,8 +158,8 @@ void Field::set_default_value(const FieldDefaultValue & default_value)
             else if constexpr (std::is_same_v<T, bool>) {
                 return "bool";
             }
-            else if constexpr (std::is_same_v<T, std::int64_t>) {
-                return "int64";
+            else if constexpr (std::is_same_v<T, char>) {
+                return "char";
             }
             else {
                 return "unknown";
@@ -191,38 +178,11 @@ void Field::set_default_value(const FieldDefaultValue & default_value)
 void Field::set_is_auto_increment(bool is_auto_increment)
 {
     // 自增仅支持整数类型，后续可能添加
-    if (type != FieldType::INT64) {
-        throw std::invalid_argument("Auto increment is only supported for INT64 fields");
+    if (type != FieldType::INT8 && type != FieldType::INT16 && type != FieldType::INT32 && type != FieldType::INT64) {
+        throw std::invalid_argument("Auto increment is only supported for integer fields");
     }
 
     this->is_auto_increment = is_auto_increment;
-}
-
-void Field::set_is_vector(bool is_vector)
-{
-    this->is_vector = is_vector;
-}
-
-void Field::set_dimension(int dimension)
-{
-    if (type != FieldType::FLOAT_VECTOR) {
-        throw std::invalid_argument("Dimension is only supported for FLOAT_VECTOR fields");
-    }
-
-    if (dimension <= 0) {
-        throw std::invalid_argument("Dimension must be greater than 0");
-    }
-
-    this->dimension = dimension;
-}
-
-void Field::set_metric_type(MetricType metric_type)
-{
-    if (type != FieldType::FLOAT_VECTOR) {
-        throw std::invalid_argument("Metric type is only supported for FLOAT_VECTOR fields");
-    }
-
-    this->metric_type = metric_type;
 }
 
 const std::string & Field::get_name() const
@@ -270,19 +230,72 @@ bool Field::get_is_auto_increment() const
     return is_auto_increment;
 }
 
-bool Field::get_is_vector() const
+Field Field::create_int8_field(
+    const std::string & name,
+    bool is_nullable,
+    bool is_primary,
+    const std::string & comment,
+    const FieldDefaultValue & default_value,
+    bool is_auto_increment
+)
 {
-    return is_vector;
+    return Field(
+        name,
+        FieldType::INT8,
+        0,
+        0,
+        is_nullable,
+        is_primary,
+        comment,
+        default_value,
+        is_auto_increment
+    );
 }
 
-int Field::get_dimension() const
+Field Field::create_int16_field(
+
+    const std::string & name,
+    bool is_nullable,
+    bool is_primary,
+    const std::string & comment,
+    const FieldDefaultValue & default_value,
+    bool is_auto_increment
+)
 {
-    return dimension;
+    return Field(
+        name,
+        FieldType::INT16,
+        0,
+        0,
+        is_nullable,
+        is_primary,
+        comment,
+        default_value,
+        is_auto_increment
+    );
 }
 
-MetricType Field::get_metric_type() const
+Field Field::create_int32_field(
+
+    const std::string & name,
+    bool is_nullable,
+    bool is_primary,
+    const std::string & comment,
+    const FieldDefaultValue & default_value,
+    bool is_auto_increment
+)
 {
-    return metric_type;
+    return Field(
+        name,
+        FieldType::INT32,
+        0,
+        0,
+        is_nullable,
+        is_primary,
+        comment,
+        default_value,
+        is_auto_increment
+    );
 }
 
 Field Field::create_int64_field(
@@ -291,10 +304,7 @@ Field Field::create_int64_field(
     bool is_primary,
     const std::string & comment,
     const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    bool is_auto_increment
 )
 {
     return Field(
@@ -306,10 +316,7 @@ Field Field::create_int64_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        is_auto_increment
     );
 }
 
@@ -318,11 +325,7 @@ Field Field::create_float_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -334,10 +337,7 @@ Field Field::create_float_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -346,11 +346,7 @@ Field Field::create_double_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -362,10 +358,7 @@ Field Field::create_double_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -374,11 +367,7 @@ Field Field::create_char_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -390,10 +379,7 @@ Field Field::create_char_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -402,11 +388,7 @@ Field Field::create_varchar_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -418,38 +400,7 @@ Field Field::create_varchar_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
-    );
-}
-
-Field Field::create_string_field(
-    const std::string & name,
-    bool is_nullable,
-    bool is_primary,
-    const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
-)
-{
-    return Field(
-        name,
-        FieldType::STRING,
-        0,
-        0,
-        is_nullable,
-        is_primary,
-        comment,
-        default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -458,11 +409,7 @@ Field Field::create_boolean_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -474,10 +421,7 @@ Field Field::create_boolean_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -486,11 +430,7 @@ Field Field::create_timestamp_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -502,10 +442,7 @@ Field Field::create_timestamp_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -514,11 +451,7 @@ Field Field::create_enum_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -530,10 +463,7 @@ Field Field::create_enum_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 
@@ -542,11 +472,7 @@ Field Field::create_float_vector_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
-    bool is_auto_increment,
-    bool is_vector,
-    int dimension,
-    MetricType metric_type
+    const FieldDefaultValue & default_value
 )
 {
     return Field(
@@ -558,10 +484,7 @@ Field Field::create_float_vector_field(
         is_primary,
         comment,
         default_value,
-        is_auto_increment,
-        is_vector,
-        dimension,
-        metric_type
+        false
     );
 }
 

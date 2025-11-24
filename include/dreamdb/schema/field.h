@@ -10,17 +10,6 @@ namespace dreamdb
 {
 
 /**
- * @brief 空值类型
- */
-class NullType
-{
-public:
-    NullType() = default;
-
-    ~NullType() = default;
-};
-
-/**
  * @brief 字段默认值类型
  */
 using FieldDefaultValue = std::variant<
@@ -30,8 +19,10 @@ using FieldDefaultValue = std::variant<
     std::int64_t,                   // INT64, TIMESTAMP
     float,                          // FLOAT
     double,                         // DOUBLE
-    std::string,                    // STRING
+    char,                           // CHAR
+    std::string,                    // VARCHAR, ENUM
     bool,                           // BOOLEAN
+    std::vector<float>,             // FLOAT_VECTOR
     NullType                        // NULL
 >;
 
@@ -50,20 +41,13 @@ public:
         bool is_primary,
         const std::string & comment,
         const FieldDefaultValue & default_value,
-        bool is_auto_increment,
-        bool is_vector,
-        int dimension,
-        MetricType metric_type
+        bool is_auto_increment
     );
 
     ~Field() = default;
 
 public:
-    /**
-     * @brief 验证字段是否合法
-     * @return 字段是否合法
-     */
-    bool is_valid() const;
+    /** 属性值访问接口 */
 
     /**
      * @brief 设置字段名称
@@ -120,24 +104,6 @@ public:
     void set_is_auto_increment(bool is_auto_increment);
 
     /**
-     * @brief 设置字段是否为向量字段
-     * @param is_vector 字段是否为向量字段
-     */
-    void set_is_vector(bool is_vector);
-
-    /**
-     * @brief 设置向量维度
-     * @param dimension 向量维度
-     */
-    void set_dimension(int dimension);
-
-    /**
-     * @brief 设置向量距离度量类型
-     * @param metric_type 向量距离度量类型
-     */
-    void set_metric_type(MetricType metric_type);
-
-    /**
      * @brief 获取字段名称
      * @return 字段名称
      */
@@ -191,23 +157,44 @@ public:
      */
     bool get_is_auto_increment() const;
 
-    /**
-     * @brief 获取字段是否为向量字段
-     * @return 字段是否为向量字段
-     */
-    bool get_is_vector() const;
+public:
+    /** 静态创建接口 */
 
     /**
-     * @brief 获取向量维度
-     * @return 向量维度
-     */
-    int get_dimension() const;
+     * @brief 创建 INT8 字段
+    */
+    static Field create_int8_field(
+        const std::string & name = "",
+        bool is_nullable = true,
+        bool is_primary = false,
+        const std::string & comment = "",
+        const FieldDefaultValue & default_value = NullType(),
+        bool is_auto_increment = false
+    );
 
     /**
-     * @brief 获取向量距离度量类型
-     * @return 向量距离度量类型
-     */
-    MetricType get_metric_type() const;
+     * @brief 创建 INT16 字段
+    */
+    static Field create_int16_field(
+        const std::string & name = "",
+        bool is_nullable = true,
+        bool is_primary = false,
+        const std::string & comment = "",
+        const FieldDefaultValue & default_value = NullType(),
+        bool is_auto_increment = false
+    );
+
+    /**
+     * @brief 创建 INT32 字段
+    */
+    static Field create_int32_field(
+        const std::string & name = "",
+        bool is_nullable = true,
+        bool is_primary = false,
+        const std::string & comment = "",
+        const FieldDefaultValue & default_value = NullType(),
+        bool is_auto_increment = false
+    );
 
     /**
      * @brief 创建 INT64 字段
@@ -218,10 +205,7 @@ public:
         bool is_primary = false,
         const std::string & comment = "",
         const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        bool is_auto_increment = false
     );
 
     /**
@@ -232,11 +216,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -247,11 +227,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -262,11 +238,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -277,26 +249,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
-    );
-
-    /**
-     * @brief 创建 STRING 字段
-    */
-    static Field create_string_field(
-        const std::string & name = "",
-        bool is_nullable = true,
-        bool is_primary = false,
-        const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -307,11 +260,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -322,11 +271,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -337,11 +282,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = false,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NullType()
     );
 
     /**
@@ -352,11 +293,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
-        bool is_auto_increment = false,
-        bool is_vector = true,
-        int dimension = 0,
-        MetricType metric_type = MetricType::NONE
+        const FieldDefaultValue & default_value = NULL_TYPE()
     );
 
 private:
@@ -372,11 +309,6 @@ private:
     // 特定类型字段属性
     FieldDefaultValue default_value;    // 字段默认值
     bool is_auto_increment;             // 字段是否自动递增
-
-    // 向量字段属性
-    bool is_vector;                     // 字段是否为向量字段
-    int dimension;                      // 向量维度
-    MetricType metric_type;             // 向量距离度量类型
 };
 
 } // namespace dreamdb

@@ -29,7 +29,7 @@ void test_field_creation()
     TEST_ASSERT(double_field.get_type() == FieldType::DOUBLE, "DOUBLE field type");
 
     // Test CHAR field
-    Field char_field = Field::create_char_field("code", true, false, "", NullType(), false, false, 0, MetricType::NONE);
+    Field char_field = Field::create_char_field("code", true, false, "", NullType());
     TEST_ASSERT(char_field.get_type() == FieldType::CHAR, "CHAR field type");
 
     // Test VARCHAR field
@@ -37,9 +37,9 @@ void test_field_creation()
     TEST_ASSERT(varchar_field.get_type() == FieldType::VARCHAR, "VARCHAR field type");
 
     // Test STRING field
-    Field string_field = Field::create_string_field("name");
-    TEST_ASSERT(string_field.get_type() == FieldType::STRING, "STRING field type");
-    TEST_ASSERT(string_field.get_name() == "name", "STRING field name");
+    Field string_field = Field::create_varchar_field("name");
+    TEST_ASSERT(string_field.get_type() == FieldType::VARCHAR, "VARCHAR field (string alias) type");
+    TEST_ASSERT(string_field.get_name() == "name", "VARCHAR field name");
 
     // Test BOOLEAN field
     Field bool_field = Field::create_boolean_field("is_active");
@@ -54,11 +54,8 @@ void test_field_creation()
     TEST_ASSERT(enum_field.get_type() == FieldType::ENUM, "ENUM field type");
 
     // Test FLOAT_VECTOR field
-    Field vector_field = Field::create_float_vector_field("embedding", true, false, "", NullType(), false, true, 128, MetricType::L2);
+    Field vector_field = Field::create_float_vector_field("embedding", true, false, "", NullType());
     TEST_ASSERT(vector_field.get_type() == FieldType::FLOAT_VECTOR, "FLOAT_VECTOR field type");
-    TEST_ASSERT(vector_field.get_is_vector() == true, "FLOAT_VECTOR field vector flag");
-    TEST_ASSERT(vector_field.get_dimension() == 128, "FLOAT_VECTOR field dimension");
-    TEST_ASSERT(vector_field.get_metric_type() == MetricType::L2, "FLOAT_VECTOR field metric type");
 
     std::cout << "  Field creation test passed" << std::endl;
 }
@@ -68,7 +65,7 @@ void test_getters_and_setters()
 {
     std::cout << "Testing getter and setter methods..." << std::endl;
 
-    Field field = Field::create_string_field("test_field");
+    Field field = Field::create_varchar_field("test_field");
 
     // Test name setter and getter
     field.set_name("new_name");
@@ -97,10 +94,6 @@ void test_getters_and_setters()
     // Test comment setter and getter
     field.set_comment("Test comment");
     TEST_ASSERT(field.get_comment() == "Test comment", "Field comment setter and getter");
-
-    // Test vector flag setter and getter
-    field.set_is_vector(true);
-    TEST_ASSERT(field.get_is_vector() == true, "Field vector flag setter and getter");
 
     std::cout << "  Getter and setter test passed" << std::endl;
 }
@@ -132,7 +125,7 @@ void test_default_values()
     TEST_ASSERT(std::get<double>(double_default) == 99.99, "DOUBLE default value content");
 
     // Test STRING field default value
-    Field string_field = Field::create_string_field("name");
+    Field string_field = Field::create_varchar_field("name");
     string_field.set_default_value(std::string("default_name"));
     const auto & string_default = string_field.get_default_value();
     TEST_ASSERT(std::holds_alternative<std::string>(string_default), "STRING default value type");
@@ -146,7 +139,7 @@ void test_default_values()
     TEST_ASSERT(std::get<bool>(bool_default) == true, "BOOLEAN default value content");
 
     // Test NULL default value
-    Field null_field = Field::create_string_field("optional");
+    Field null_field = Field::create_varchar_field("optional");
     null_field.set_default_value(NullType());
     const auto & null_default = null_field.get_default_value();
     TEST_ASSERT(std::holds_alternative<NullType>(null_default), "NULL default value type");
@@ -167,7 +160,7 @@ void test_default_value_validation()
         "INT64 field setting string default value should throw exception"
     );
 
-    Field string_field = Field::create_string_field("name");
+    Field string_field = Field::create_varchar_field("name");
     TEST_EXCEPTION(
         string_field.set_default_value(100),
         std::invalid_argument,
@@ -175,7 +168,7 @@ void test_default_value_validation()
     );
 
     // Test vector field does not support default value
-    Field vector_field = Field::create_float_vector_field("embedding", true, false, "", NullType(), false, true, 128, MetricType::L2);
+    Field vector_field = Field::create_float_vector_field("embedding", true, false, "", NullType());
     TEST_EXCEPTION(
         vector_field.set_default_value(1.0f),
         std::invalid_argument,
@@ -204,7 +197,7 @@ void test_auto_increment()
     TEST_ASSERT(int64_field.get_is_auto_increment() == true, "INT64 field auto increment setting");
 
     // Test non-INT64 field cannot set auto increment (should throw exception)
-    Field string_field = Field::create_string_field("name");
+    Field string_field = Field::create_varchar_field("name");
     TEST_EXCEPTION(
         string_field.set_is_auto_increment(true),
         std::invalid_argument,
@@ -214,81 +207,17 @@ void test_auto_increment()
     std::cout << "  Auto increment field test passed" << std::endl;
 }
 
-// Test vector fields
-void test_vector_fields()
-{
-    std::cout << "Testing vector fields..." << std::endl;
-
-    // Test vector dimension setting
-    Field vector_field = Field::create_float_vector_field("embedding", true, false, "", NullType(), false, true, 128, MetricType::L2);
-    vector_field.set_dimension(256);
-    TEST_ASSERT(vector_field.get_dimension() == 256, "Vector dimension setting");
-
-    // Test non-vector field cannot set dimension (should throw exception)
-    Field string_field = Field::create_string_field("name");
-    TEST_EXCEPTION(
-        string_field.set_dimension(128),
-        std::invalid_argument,
-        "Non-vector field setting dimension should throw exception"
-    );
-
-    // Test dimension must be greater than 0 (should throw exception)
-    Field vector_field2 = Field::create_float_vector_field("embedding2", true, false, "", NullType(), false, true, 128, MetricType::L2);
-    TEST_EXCEPTION(
-        vector_field2.set_dimension(0),
-        std::invalid_argument,
-        "Vector dimension being 0 should throw exception"
-    );
-    TEST_EXCEPTION(
-        vector_field2.set_dimension(-1),
-        std::invalid_argument,
-        "Vector dimension being negative should throw exception"
-    );
-
-    // Test vector metric type setting
-    vector_field.set_metric_type(MetricType::COSINE);
-    TEST_ASSERT(vector_field.get_metric_type() == MetricType::COSINE, "Vector metric type setting");
-
-    // Test non-vector field cannot set metric type (should throw exception)
-    TEST_EXCEPTION(
-        string_field.set_metric_type(MetricType::L2),
-        std::invalid_argument,
-        "Non-vector field setting metric type should throw exception"
-    );
-
-    // Test different metric types
-    vector_field.set_metric_type(MetricType::IP);
-    TEST_ASSERT(vector_field.get_metric_type() == MetricType::IP, "IP metric type");
-
-    vector_field.set_metric_type(MetricType::L2);
-    TEST_ASSERT(vector_field.get_metric_type() == MetricType::L2, "L2 metric type");
-
-    std::cout << "  Vector fields test passed" << std::endl;
-}
-
-// Test field validation
-void test_field_validation()
-{
-    std::cout << "Testing field validation..." << std::endl;
-
-    Field field = Field::create_string_field("test");
-    // Note: is_valid() currently always returns true, which is expected
-    TEST_ASSERT(field.is_valid() == true, "Field validation");
-
-    std::cout << "  Field validation test passed" << std::endl;
-}
-
 // Test edge cases
 void test_edge_cases()
 {
     std::cout << "Testing edge cases..." << std::endl;
 
     // Test empty name
-    Field empty_name_field = Field::create_string_field("");
+    Field empty_name_field = Field::create_varchar_field("");
     TEST_ASSERT(empty_name_field.get_name() == "", "Empty name field");
 
     // Test empty comment
-    Field empty_comment_field = Field::create_string_field("field", true, false, "");
+    Field empty_comment_field = Field::create_varchar_field("field", true, false, "");
     TEST_ASSERT(empty_comment_field.get_comment() == "", "Empty comment field");
 
     // Test all field type creation (no parameters)
@@ -301,8 +230,8 @@ void test_edge_cases()
     Field double_default = Field::create_double_field();
     TEST_ASSERT(double_default.get_type() == FieldType::DOUBLE, "Default DOUBLE field");
 
-    Field string_default = Field::create_string_field();
-    TEST_ASSERT(string_default.get_type() == FieldType::STRING, "Default STRING field");
+    Field string_default = Field::create_varchar_field();
+    TEST_ASSERT(string_default.get_type() == FieldType::VARCHAR, "Default VARCHAR field");
 
     Field bool_default = Field::create_boolean_field();
     TEST_ASSERT(bool_default.get_type() == FieldType::BOOLEAN, "Default BOOLEAN field");
@@ -321,8 +250,6 @@ int main()
         test_default_values();
         test_default_value_validation();
         test_auto_increment();
-        test_vector_fields();
-        test_field_validation();
         test_edge_cases();
 
         std::cout << std::endl;

@@ -12,7 +12,7 @@ void test_constructor()
     std::cout << "Testing constructor..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age"));
 
     Collection collection("test_collection", schema, 128, MetricType::L2);
@@ -47,7 +47,7 @@ void test_constructor_validation()
 
     // Test reserved field name "id"
     std::vector<Field> schema_with_id;
-    schema_with_id.push_back(Field::create_string_field("id"));
+    schema_with_id.push_back(Field::create_varchar_field("id"));
     TEST_EXCEPTION(
         Collection("test", schema_with_id, 128, MetricType::L2),
         std::invalid_argument,
@@ -56,7 +56,7 @@ void test_constructor_validation()
 
     // Test reserved field name "vector"
     std::vector<Field> schema_with_vector;
-    schema_with_vector.push_back(Field::create_string_field("vector"));
+    schema_with_vector.push_back(Field::create_varchar_field("vector"));
     TEST_EXCEPTION(
         Collection("test", schema_with_vector, 128, MetricType::L2),
         std::invalid_argument,
@@ -72,7 +72,7 @@ void test_schema_access()
     std::cout << "Testing schema access..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age"));
 
     Collection collection("test", schema, 128, MetricType::L2);
@@ -100,7 +100,7 @@ void test_field_access()
     std::cout << "Testing field access..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age"));
 
     Collection collection("test", schema, 128, MetricType::L2);
@@ -112,7 +112,7 @@ void test_field_access()
 
     const auto & vector_field = collection.get_field("vector");
     TEST_ASSERT(vector_field.get_name() == "vector", "Vector field name should match");
-    TEST_ASSERT(vector_field.get_is_vector() == true, "Vector field should be vector type");
+    TEST_ASSERT(vector_field.get_type() == FieldType::FLOAT_VECTOR, "Vector field should be vector type");
 
     const auto & name_field = collection.get_field("name");
     TEST_ASSERT(name_field.get_name() == "name", "Name field should match");
@@ -163,7 +163,7 @@ void test_entity_creation()
     std::cout << "Testing entity creation..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age"));
 
     Collection collection("test", schema, 128, MetricType::L2);
@@ -199,7 +199,7 @@ void test_entity_field_operations()
     std::cout << "Testing entity field operations..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age", false));  // not nullable
 
     Collection collection("test", schema, 128, MetricType::L2);
@@ -262,7 +262,7 @@ void test_vector_operations()
     std::cout << "Testing vector operations..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
 
     Collection collection("test", schema, 128, MetricType::L2);
 
@@ -307,7 +307,7 @@ void test_id_mapping()
     std::cout << "Testing ID mapping..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
 
     Collection collection("test", schema, 128, MetricType::L2);
 
@@ -363,7 +363,7 @@ void test_entity_retrieval()
     std::cout << "Testing entity retrieval..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
 
     Collection collection("test", schema, 128, MetricType::L2);
 
@@ -421,7 +421,7 @@ void test_entity_deletion()
     std::cout << "Testing entity deletion..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
 
     Collection collection("test", schema, 128, MetricType::L2);
 
@@ -470,8 +470,8 @@ void test_default_values()
     std::cout << "Testing default values..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name", true, false, "", std::string("Unknown")));
-    schema.push_back(Field::create_int64_field("age", true, false, "", std::int64_t(0)));
+    schema.push_back(Field::create_varchar_field("name", true, false, "", VARCHAR("Unknown")));
+    schema.push_back(Field::create_int64_field("age", true, false, "", INT64(0)));
 
     Collection collection("test", schema, 128, MetricType::L2);
 
@@ -495,7 +495,7 @@ void test_counts()
     std::cout << "Testing counts..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));
     schema.push_back(Field::create_int64_field("age"));
     schema.push_back(Field::create_boolean_field("active"));
 
@@ -519,8 +519,8 @@ void test_duplicate_field_names()
     std::cout << "Testing duplicate field names..." << std::endl;
 
     std::vector<Field> schema;
-    schema.push_back(Field::create_string_field("name"));
-    schema.push_back(Field::create_string_field("name"));  // duplicate
+    schema.push_back(Field::create_varchar_field("name"));
+    schema.push_back(Field::create_varchar_field("name"));  // duplicate
 
     TEST_EXCEPTION(
         Collection("test", schema, 128, MetricType::L2),

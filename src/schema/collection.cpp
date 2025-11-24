@@ -45,12 +45,12 @@ Collection::Collection(
     
     // 添加 id 字段（索引 0）
     full_schema.push_back(
-        Field::create_int64_field(ID_FIELD_NAME, false, true, "", NullType(), false, false, 0, MetricType::NONE)
+        Field::create_int64_field(ID_FIELD_NAME, false, true, "", NullType(), false)
     );
     
     // 添加 vector 字段（索引 1）
     full_schema.push_back(
-        Field::create_float_vector_field(VECTOR_FIELD_NAME, false, false, "", NullType(), false, true, vector_dimension, metric_type)
+        Field::create_float_vector_field(VECTOR_FIELD_NAME, false, false, "", NullType())
     );
     
     // 添加用户定义的字段（从索引 2 开始）
@@ -132,7 +132,13 @@ Entity & Collection::create_entity()
         
         if (!std::holds_alternative<NullType>(default_value)) {
             entity.set_value(i, std::visit([](const auto& val) -> EntityValue {
-                return val;
+                using T = std::decay_t<decltype(val)>;
+                if constexpr (std::is_same_v<T, char>) {
+                    return std::string(1, val);
+                }
+                else {
+                    return EntityValue(val);
+                }
             }, default_value));
         }
     }
@@ -194,10 +200,10 @@ void Collection::set_entity_field(Entity & entity, const std::string & field_nam
         }
         
         // 如果是向量字段，验证维度
-        if (field.get_is_vector()) {
+        if (field.get_type() == FieldType::FLOAT_VECTOR) {
             if (std::holds_alternative<std::vector<float>>(value)) {
                 const auto& vec = std::get<std::vector<float>>(value);
-                if (!validate_vector_dimension(field, vec)) {
+                if (!validate_vector_dimension(vec)) {
                     throw std::invalid_argument(
                         "Field '" + field_name + "' vector dimension mismatch"
                     );
@@ -228,14 +234,14 @@ void Collection::set_entity_vector(Entity & entity, const std::string & field_na
     const auto& field = full_schema[index];
     
     // 检查是否为向量字段
-    if (!field.get_is_vector()) {
+    if (field.get_type() != FieldType::FLOAT_VECTOR) {
         throw std::invalid_argument(
             "Field '" + field_name + "' is not a vector field"
         );
     }
     
     // 验证维度
-    if (!validate_vector_dimension(field, vector)) {
+    if (!validate_vector_dimension(vector)) {
         throw std::invalid_argument(
             "Field '" + field_name + "' vector dimension mismatch"
         );
@@ -250,7 +256,7 @@ const std::vector<float> & Collection::get_entity_vector(const Entity & entity, 
     const auto& field = full_schema[index];
     
     // 检查是否为向量字段
-    if (!field.get_is_vector()) {
+    if (field.get_type() != FieldType::FLOAT_VECTOR) {
         throw std::invalid_argument(
             "Field '" + field_name + "' is not a vector field"
         );
@@ -383,7 +389,6 @@ bool Collection::validate_field_type(const Field& field, const EntityValue& valu
                 return std::is_same_v<T, double>;
             case FieldType::CHAR:
             case FieldType::VARCHAR:
-            case FieldType::STRING:
                 return std::is_same_v<T, std::string>;
             case FieldType::BOOLEAN:
                 return std::is_same_v<T, bool>;
@@ -397,18 +402,13 @@ bool Collection::validate_field_type(const Field& field, const EntityValue& valu
     }, value);
 }
 
-bool Collection::validate_vector_dimension(const Field& field, const std::vector<float>& vector) const
+bool Collection::validate_vector_dimension(const std::vector<float>& vector) const
 {
-    if (!field.get_is_vector()) {
+    if (vector_dimension <= 0) {
         return false;
     }
-    
-    int dimension = field.get_dimension();
-    if (dimension <= 0) {
-        return false;
-    }
-    
-    return static_cast<std::size_t>(dimension) == vector.size();
+
+    return static_cast<std::size_t>(vector_dimension) == vector.size();
 }
 
 } // namespace dreamdb

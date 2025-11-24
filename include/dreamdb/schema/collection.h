@@ -265,7 +265,7 @@ private:
      * @param vector 向量数据
      * @return 如果维度匹配返回 true
      */
-    bool validate_vector_dimension(const Field& field, const std::vector<float>& vector) const;
+    bool validate_vector_dimension(const std::vector<float>& vector) const;
 
 private:
     std::string name;                                    // 集合名称
