@@ -111,3 +111,5 @@ private:
 };
 
 } // namespace dreamdb
+
+#include "dreamdb/schema/entity.inl"
