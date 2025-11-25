@@ -62,4 +62,19 @@ using ENUM = std::string;
 using FLOAT_VECTOR = std::vector<float>;
 using NULL_TYPE = NullType;
 
+/**
+ * @brief 操作结果类
+ */
+class MutationResult
+{
+public:
+    MutationResult() = default;
+
+    ~MutationResult() = default;
+
+public:
+    bool success;                   // 操作是否成功
+    std::string error_message;      // 错误信息
+};
+
 } // namespace dreamdb

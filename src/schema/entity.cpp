@@ -5,8 +5,9 @@
 namespace dreamdb
 {
 
-Entity::Entity(std::size_t field_count)
-    : values(field_count, NullType())
+Entity::Entity(std::int64_t id, std::size_t field_count)
+    : id(id)
+    , values(field_count, NullType())
 {
 }
 

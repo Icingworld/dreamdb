@@ -16,19 +16,20 @@ namespace dreamdb
 class Entity
 {
 public:
-    Entity() = default;
+    Entity() = delete;
 
     /**
      * @brief 创建实体
+     * @param id 内部 ID
      * @param field_count 预分配字段数量
      */
-    explicit Entity(std::size_t field_count);
+    explicit Entity(std::int64_t id, std::size_t field_count);
 
-    Entity(const Entity & other) = default;
+    Entity(const Entity & other) = delete;
 
     Entity(Entity && other) noexcept = default;
 
-    Entity & operator=(const Entity & other) = default;
+    Entity & operator=(const Entity & other) = delete;
 
     Entity & operator=(Entity && other) noexcept = default;
 
@@ -97,6 +98,7 @@ public:
     bool is_empty() const;
 
 private:
+    std::int64_t id;                 // 内部 ID
     std::vector<FieldValue> values;  // 字段值列表，按索引顺序存储
 };
 
