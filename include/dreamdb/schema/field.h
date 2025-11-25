@@ -12,7 +12,7 @@ namespace dreamdb
 /**
  * @brief 字段默认值类型
  */
-using FieldDefaultValue = std::variant<
+using FieldValue = std::variant<
     std::int8_t,                    // INT8
     std::int16_t,                   // INT16
     std::int32_t,                   // INT32
@@ -40,9 +40,17 @@ public:
         bool is_nullable,
         bool is_primary,
         const std::string & comment,
-        const FieldDefaultValue & default_value,
+        const FieldValue & default_value,
         bool is_auto_increment
     );
+
+    Field(const Field & other) = default;
+
+    Field(Field && other) noexcept = default;
+
+    Field & operator=(const Field & other) = default;
+
+    Field & operator=(Field && other) noexcept = default;
 
     ~Field() = default;
 
@@ -95,7 +103,7 @@ public:
      * @brief 设置字段默认值
      * @param default_value 字段默认值
      */
-    void set_default_value(const FieldDefaultValue & default_value);
+    void set_default_value(const FieldValue & default_value);
 
     /**
      * @brief 设置字段是否自动递增
@@ -149,7 +157,7 @@ public:
      * @brief 获取字段默认值
      * @return 字段默认值
      */
-    const FieldDefaultValue & get_default_value() const;
+    const FieldValue & get_default_value() const;
 
     /**
      * @brief 获取字段是否自动递增
@@ -168,7 +176,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
+        const FieldValue & default_value = NullType(),
         bool is_auto_increment = false
     );
 
@@ -180,7 +188,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
+        const FieldValue & default_value = NullType(),
         bool is_auto_increment = false
     );
 
@@ -192,7 +200,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
+        const FieldValue & default_value = NullType(),
         bool is_auto_increment = false
     );
 
@@ -204,7 +212,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType(),
+        const FieldValue & default_value = NullType(),
         bool is_auto_increment = false
     );
 
@@ -216,7 +224,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -227,7 +235,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -238,7 +246,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -249,7 +257,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -260,7 +268,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -271,7 +279,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -282,7 +290,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NullType()
+        const FieldValue & default_value = NullType()
     );
 
     /**
@@ -293,7 +301,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldDefaultValue & default_value = NULL_TYPE()
+        const FieldValue & default_value = NULL_TYPE()
     );
 
 private:
@@ -307,7 +315,7 @@ private:
     std::string comment;                // 字段注释
 
     // 特定类型字段属性
-    FieldDefaultValue default_value;    // 字段默认值
+    FieldValue default_value;    // 字段默认值
     bool is_auto_increment;             // 字段是否自动递增
 };
 

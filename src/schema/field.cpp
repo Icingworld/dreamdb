@@ -14,7 +14,7 @@ Field::Field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
+    const FieldValue & default_value,
     bool is_auto_increment
 )
     : name(name)
@@ -84,7 +84,7 @@ void Field::set_comment(const std::string & comment)
     this->comment = comment;
 }
 
-void Field::set_default_value(const FieldDefaultValue & default_value)
+void Field::set_default_value(const FieldValue & default_value)
 {
     // 检查是否为 NullType（允许空值）
     if (std::holds_alternative<NullType>(default_value)) {
@@ -220,7 +220,7 @@ const std::string & Field::get_comment() const
     return comment;
 }
 
-const FieldDefaultValue & Field::get_default_value() const
+const FieldValue & Field::get_default_value() const
 {
     return default_value;
 }
@@ -235,7 +235,7 @@ Field Field::create_int8_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
+    const FieldValue & default_value,
     bool is_auto_increment
 )
 {
@@ -258,7 +258,7 @@ Field Field::create_int16_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
+    const FieldValue & default_value,
     bool is_auto_increment
 )
 {
@@ -281,7 +281,7 @@ Field Field::create_int32_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
+    const FieldValue & default_value,
     bool is_auto_increment
 )
 {
@@ -303,7 +303,7 @@ Field Field::create_int64_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value,
+    const FieldValue & default_value,
     bool is_auto_increment
 )
 {
@@ -325,7 +325,7 @@ Field Field::create_float_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -346,7 +346,7 @@ Field Field::create_double_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -367,7 +367,7 @@ Field Field::create_char_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -388,7 +388,7 @@ Field Field::create_varchar_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -409,7 +409,7 @@ Field Field::create_boolean_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -430,7 +430,7 @@ Field Field::create_timestamp_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -451,7 +451,7 @@ Field Field::create_enum_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(
@@ -472,7 +472,7 @@ Field Field::create_float_vector_field(
     bool is_nullable,
     bool is_primary,
     const std::string & comment,
-    const FieldDefaultValue & default_value
+    const FieldValue & default_value
 )
 {
     return Field(

@@ -10,7 +10,7 @@ Entity::Entity(std::size_t field_count)
 {
 }
 
-void Entity::set_value(std::size_t index, const EntityValue & value)
+void Entity::set_value(std::size_t index, const FieldValue & value)
 {
     if (index >= values.size()) {
         throw std::out_of_range("Field index out of range");
@@ -19,7 +19,7 @@ void Entity::set_value(std::size_t index, const EntityValue & value)
     values[index] = value;
 }
 
-const EntityValue & Entity::get_value(std::size_t index) const
+const FieldValue & Entity::get_value(std::size_t index) const
 {
     if (index >= values.size()) {
         throw std::out_of_range("Field index out of range");
@@ -28,7 +28,7 @@ const EntityValue & Entity::get_value(std::size_t index) const
     return values[index];
 }
 
-EntityValue & Entity::get_value(std::size_t index)
+FieldValue & Entity::get_value(std::size_t index)
 {
     if (index >= values.size()) {
         throw std::out_of_range("Field index out of range");

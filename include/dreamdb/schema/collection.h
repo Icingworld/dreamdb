@@ -129,7 +129,7 @@ public:
      * @param value 字段值
      * @throw std::invalid_argument 如果字段不存在或类型不匹配
      */
-    void set_entity_field(Entity & entity, const std::string & field_name, const EntityValue & value) const;
+    void set_entity_field(Entity & entity, const std::string & field_name, const FieldValue & value) const;
     
     /**
      * @brief 获取实体字段值
@@ -138,7 +138,7 @@ public:
      * @return 字段值
      * @throw std::invalid_argument 如果字段不存在
      */
-    const EntityValue & get_entity_field(const Entity & entity, const std::string & field_name) const;
+    const FieldValue & get_entity_field(const Entity & entity, const std::string & field_name) const;
     
     /**
      * @brief 设置实体向量字段
@@ -257,7 +257,7 @@ private:
      * @param value 字段值
      * @return 如果类型匹配返回 true
      */
-    bool validate_field_type(const Field& field, const EntityValue& value) const;
+    bool validate_field_type(const Field& field, const FieldValue & value) const;
     
     /**
      * @brief 验证向量维度是否匹配
@@ -265,7 +265,7 @@ private:
      * @param vector 向量数据
      * @return 如果维度匹配返回 true
      */
-    bool validate_vector_dimension(const std::vector<float>& vector) const;
+    bool validate_vector_dimension(const std::vector<float> & vector) const;
 
 private:
     std::string name;                                    // 集合名称

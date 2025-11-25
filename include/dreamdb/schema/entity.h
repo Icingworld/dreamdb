@@ -11,23 +11,6 @@ namespace dreamdb
 {
 
 /**
- * @brief 实体字段值类型
- * 支持所有标量类型和向量类型
- */
-using EntityValue = std::variant<
-    std::int8_t,                    // INT8
-    std::int16_t,                   // INT16
-    std::int32_t,                   // INT32
-    std::int64_t,                   // INT64, TIMESTAMP
-    float,                          // FLOAT
-    double,                         // DOUBLE
-    std::string,                    // STRING, CHAR, VARCHAR
-    bool,                           // BOOLEAN
-    std::vector<float>,             // FLOAT_VECTOR
-    NullType                        // NULL
->;
-
-/**
  * @brief 实体类
  */
 class Entity
@@ -35,6 +18,10 @@ class Entity
 public:
     Entity() = default;
 
+    /**
+     * @brief 创建实体
+     * @param field_count 预分配字段数量
+     */
     explicit Entity(std::size_t field_count);
 
     Entity(const Entity & other) = default;
@@ -48,13 +35,15 @@ public:
     ~Entity() = default;
 
 public:
+    /** 属性值访问接口 */
+
     /**
      * @brief 设置字段值
      * @param index 字段索引
      * @param value 字段值
      * @throw std::out_of_range 如果索引越界
      */
-    void set_value(std::size_t index, const EntityValue & value);
+    void set_value(std::size_t index, const FieldValue & value);
 
     /**
      * @brief 获取字段值
@@ -62,7 +51,7 @@ public:
      * @return 字段值
      * @throw std::out_of_range 如果索引越界
      */
-    const EntityValue & get_value(std::size_t index) const;
+    const FieldValue & get_value(std::size_t index) const;
 
     /**
      * @brief 获取字段值
@@ -70,7 +59,7 @@ public:
      * @return 字段值
      * @throw std::out_of_range 如果索引越界
      */
-    EntityValue & get_value(std::size_t index);
+    FieldValue & get_value(std::size_t index);
 
     /**
      * @brief 获取字段值
@@ -86,6 +75,7 @@ public:
      * @brief 检查字段值是否为空
      * @param index 字段索引
      * @return 如果字段值为空返回 true
+     * @throw std::out_of_range 如果索引越界
      */
     bool is_null(std::size_t index) const;
 
@@ -107,7 +97,7 @@ public:
     bool is_empty() const;
 
 private:
-    std::vector<EntityValue> values;  // 字段值列表（按索引顺序）
+    std::vector<FieldValue> values;  // 字段值列表，按索引顺序存储
 };
 
 } // namespace dreamdb
