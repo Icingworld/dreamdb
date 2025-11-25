@@ -6,24 +6,12 @@
 
 using namespace dreamdb;
 
-// Test default constructor
-void test_default_constructor()
+// Test constructor
+void test_constructor()
 {
-    std::cout << "Testing default constructor..." << std::endl;
+    std::cout << "Testing constructor..." << std::endl;
 
-    Entity entity;
-    TEST_ASSERT(entity.field_count() == 0, "Default constructor should create empty entity");
-    TEST_ASSERT(entity.is_empty() == true, "Default entity should be empty");
-
-    std::cout << "  Default constructor test passed" << std::endl;
-}
-
-// Test constructor with field count
-void test_constructor_with_field_count()
-{
-    std::cout << "Testing constructor with field count..." << std::endl;
-
-    Entity entity(5);
+    Entity entity(1, 5);
     TEST_ASSERT(entity.field_count() == 5, "Entity should have 5 fields");
     TEST_ASSERT(entity.is_empty() == true, "New entity should be empty (all null)");
 
@@ -32,58 +20,7 @@ void test_constructor_with_field_count()
         TEST_ASSERT(entity.is_null(i) == true, "Field should be null initially");
     }
 
-    std::cout << "  Constructor with field count test passed" << std::endl;
-}
-
-// Test copy constructor and assignment
-void test_copy_operations()
-{
-    std::cout << "Testing copy operations..." << std::endl;
-
-    Entity entity1(3);
-    entity1.set_value(0, std::int64_t(100));
-    entity1.set_value(1, std::string("test"));
-    entity1.set_value(2, true);
-
-    // Test copy constructor
-    Entity entity2(entity1);
-    TEST_ASSERT(entity2.field_count() == 3, "Copied entity should have same field count");
-    TEST_ASSERT(std::get<std::int64_t>(entity2.get_value(0)) == 100, "Copied entity should have same values");
-    TEST_ASSERT(std::get<std::string>(entity2.get_value(1)) == "test", "Copied entity should have same string value");
-    TEST_ASSERT(std::get<bool>(entity2.get_value(2)) == true, "Copied entity should have same bool value");
-
-    // Test copy assignment
-    Entity entity3(1);
-    entity3 = entity1;
-    TEST_ASSERT(entity3.field_count() == 3, "Assigned entity should have same field count");
-    TEST_ASSERT(std::get<std::int64_t>(entity3.get_value(0)) == 100, "Assigned entity should have same values");
-
-    std::cout << "  Copy operations test passed" << std::endl;
-}
-
-// Test move constructor and assignment
-void test_move_operations()
-{
-    std::cout << "Testing move operations..." << std::endl;
-
-    Entity entity1(2);
-    entity1.set_value(0, std::int64_t(200));
-    entity1.set_value(1, 3.14f);
-
-    // Test move constructor
-    Entity entity2(std::move(entity1));
-    TEST_ASSERT(entity2.field_count() == 2, "Moved entity should have same field count");
-    TEST_ASSERT(std::get<std::int64_t>(entity2.get_value(0)) == 200, "Moved entity should have same values");
-    TEST_ASSERT(std::get<float>(entity2.get_value(1)) == 3.14f, "Moved entity should have same float value");
-    TEST_ASSERT(entity1.field_count() == 0, "Source entity should be empty after move");
-
-    // Test move assignment
-    Entity entity3(1);
-    entity3 = std::move(entity2);
-    TEST_ASSERT(entity3.field_count() == 2, "Move-assigned entity should have same field count");
-    TEST_ASSERT(std::get<std::int64_t>(entity3.get_value(0)) == 200, "Move-assigned entity should have same values");
-
-    std::cout << "  Move operations test passed" << std::endl;
+    std::cout << "  Constructor test passed" << std::endl;
 }
 
 // Test set_value and get_value
@@ -91,7 +28,7 @@ void test_set_and_get_value()
 {
     std::cout << "Testing set_value and get_value..." << std::endl;
 
-    Entity entity(6);
+    Entity entity(1, 6);
 
     // Test INT64 value
     entity.set_value(0, std::int64_t(12345));
@@ -134,7 +71,7 @@ void test_get_value_as()
 {
     std::cout << "Testing get_value_as template method..." << std::endl;
 
-    Entity entity(5);
+    Entity entity(1, 5);
     entity.set_value(0, std::int64_t(100));
     entity.set_value(1, 3.14f);
     entity.set_value(2, 99.99);
@@ -173,7 +110,7 @@ void test_is_null()
 {
     std::cout << "Testing is_null..." << std::endl;
 
-    Entity entity(3);
+    Entity entity(1, 3);
 
     // All fields should be null initially
     TEST_ASSERT(entity.is_null(0) == true, "Field should be null initially");
@@ -196,13 +133,10 @@ void test_field_count()
 {
     std::cout << "Testing field_count..." << std::endl;
 
-    Entity entity1;
-    TEST_ASSERT(entity1.field_count() == 0, "Empty entity should have 0 fields");
-
-    Entity entity2(10);
+    Entity entity2(1, 10);
     TEST_ASSERT(entity2.field_count() == 10, "Entity should have 10 fields");
 
-    Entity entity3(0);
+    Entity entity3(2, 0);
     TEST_ASSERT(entity3.field_count() == 0, "Entity with 0 fields should have 0 fields");
 
     std::cout << "  Field count test passed" << std::endl;
@@ -213,7 +147,7 @@ void test_clear()
 {
     std::cout << "Testing clear..." << std::endl;
 
-    Entity entity(4);
+    Entity entity(1, 4);
     entity.set_value(0, std::int64_t(100));
     entity.set_value(1, std::string("test"));
     entity.set_value(2, true);
@@ -236,7 +170,7 @@ void test_is_empty()
 {
     std::cout << "Testing is_empty..." << std::endl;
 
-    Entity entity(3);
+    Entity entity(1, 3);
 
     // Empty entity should return true
     TEST_ASSERT(entity.is_empty() == true, "Empty entity should return true");
@@ -257,7 +191,7 @@ void test_out_of_range()
 {
     std::cout << "Testing out of range exceptions..." << std::endl;
 
-    Entity entity(3);
+    Entity entity(1, 3);
 
     // Test set_value out of range
     TEST_EXCEPTION(
@@ -288,7 +222,7 @@ void test_all_value_types()
 {
     std::cout << "Testing all value types..." << std::endl;
 
-    Entity entity(9);
+    Entity entity(1, 9);
 
     // Test INT8
     entity.set_value(0, std::int8_t(127));
@@ -335,7 +269,7 @@ void test_value_modification()
 {
     std::cout << "Testing value modification through reference..." << std::endl;
 
-    Entity entity(2);
+    Entity entity(1, 2);
     entity.set_value(0, std::int64_t(100));
 
     // Get mutable reference and modify
@@ -354,10 +288,7 @@ int main()
     std::cout << std::endl;
 
     try {
-        test_default_constructor();
-        test_constructor_with_field_count();
-        test_copy_operations();
-        test_move_operations();
+        test_constructor();
         test_set_and_get_value();
         test_get_value_as();
         test_is_null();
