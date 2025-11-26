@@ -70,4 +70,14 @@ bool Entity::is_empty() const
     return true;
 }
 
+std::int64_t Entity::get_id() const noexcept
+{
+    return id;
+}
+
+void Entity::set_id(std::int64_t new_id) noexcept
+{
+    id = new_id;
+}
+
 } // namespace dreamdb

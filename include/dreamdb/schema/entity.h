@@ -97,6 +97,18 @@ public:
      */
     bool is_empty() const;
 
+    /**
+     * @brief 获取内部 ID
+     * @return 内部 ID
+     */
+    std::int64_t get_id() const noexcept;
+
+    /**
+     * @brief 设置内部 ID
+     * @param new_id 新的内部 ID
+     */
+    void set_id(std::int64_t new_id) noexcept;
+
 private:
     std::int64_t id;                 // 内部 ID
     std::vector<FieldValue> values;  // 字段值列表，按索引顺序存储
