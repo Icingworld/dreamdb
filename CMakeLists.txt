@@ -41,3 +41,9 @@ target_include_directories(schema_collection_test PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"
 )
 target_link_libraries(schema_collection_test dreamdb)
+
+add_executable(parser_lexer_test tests/parser_lexer_test.cpp)
+target_include_directories(parser_lexer_test PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
+target_link_libraries(parser_lexer_test dreamdb)
