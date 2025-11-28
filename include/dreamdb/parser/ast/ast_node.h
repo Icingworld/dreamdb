@@ -12,19 +12,19 @@ namespace dreamdb
 enum class AstNodeType : std::uint8_t
 {
     // 语句节点
-    SELECT_STMT,
-    INSERT_STMT,
-    DELETE_STMT,
-    UPDATE_STMT,
-    CREATE_COLLECTION_STMT,
-    DROP_COLLECTION_STMT,
+    SELECT_STMT,                // 查询语句
+    INSERT_STMT,                // 插入语句
+    DELETE_STMT,                // 删除语句
+    UPDATE_STMT,                // 更新语句
+    CREATE_STMT,                // 创建语句
+    DROP_STMT,                  // 删除语句
 
     // 表达式节点
-    IDENTIFIER_EXPR,
-    LITERAL_EXPR,
-    BINARY_EXPR,
-    UNARY_EXPR,
-    FUNCTION_CALL_EXPR
+    LITERAL_EXPR,               // 字面量表达式，如整数、浮点数、字符串等
+    IDENTIFIER_EXPR,            // 标识符表达式，如字段名、表名、别名等
+    UNARY_EXPR,                 // 一元表达式，如负号、取反等
+    BINARY_EXPR,                // 二元表达式，如加减乘除、比较等
+    FUNCTION_CALL_EXPR          // 函数调用表达式，如数学函数、字符串函数等
 };
 
 /**
@@ -35,6 +35,14 @@ class AstNode
 {
 public:
     AstNode(AstNodeType type, std::size_t line = 0, std::size_t column = 0);
+
+    AstNode(const AstNode &) = delete;
+
+    AstNode & operator=(const AstNode &) = delete;
+
+    AstNode(AstNode &&) noexcept = default;
+
+    AstNode & operator=(AstNode &&) noexcept = default;
 
     virtual ~AstNode() = default;
 
@@ -57,9 +65,10 @@ public:
      */
     std::size_t get_column() const noexcept;
 
+public:
     /**
      * @brief 调试输出
-     * @return 节点的字符串描述
+     * @return 调试输出
      */
     virtual std::string debug_string() const = 0;
 

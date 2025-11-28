@@ -30,6 +30,10 @@ SelectItem SelectItem::create_expression(std::unique_ptr<AstNode> expr, const st
 
 SelectStmt::SelectStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::SELECT_STMT, line, column)
+    , table_name("")
+    , select_items()
+    , where_clause(nullptr)
+    , limit(std::nullopt)
 {
 }
 
@@ -98,7 +102,6 @@ std::string SelectStmt::debug_string() const
             oss << "<expr:null>";
         }
     }
-
     oss << "]";
 
     if (where_clause) {
