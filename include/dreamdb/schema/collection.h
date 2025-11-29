@@ -3,9 +3,11 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <optional>
 
 #include "dreamdb/schema/field.h"
 #include "dreamdb/schema/entity.h"
+#include "dreamdb/storage/segment_manager.h"
 #include "dreamdb/common/type.h"
 
 namespace dreamdb
@@ -24,16 +26,17 @@ public:
      */
     Collection(
         const std::string & name, 
-        const std::vector<Field> & schema
+        const std::vector<Field> & schema,
+        SegmentManager & segment_manager
     );
 
-    Collection(const Collection & other) = default;
+    Collection(const Collection & other) = delete;
 
-    Collection(Collection && other) noexcept = default;
+    Collection(Collection && other) noexcept = delete;
 
-    Collection & operator=(Collection & other) = default;
+    Collection & operator=(const Collection & other) = delete;
 
-    Collection & operator=(Collection && other) noexcept = default;
+    Collection & operator=(Collection && other) noexcept = delete;
 
     ~Collection() = default;
 
@@ -105,6 +108,11 @@ private:
     std::string name;               // 集合名称
     std::vector<Field> schema;      // 字段定义列表
     std::int64_t next_id;           // 自增 ID 生成器
+    SegmentManager & segment_manager;
+
+private:
+    std::optional<std::size_t> find_field_index(const std::string & key) const;
+    FieldValue parse_literal(const Field & field, const std::string & literal) const;
 };
 
 } // namespace dreamdb
