@@ -31,7 +31,6 @@ enum class TokenType : std::uint8_t
     OR,
     NOT,
     AS,
-    TABLE,
     COLLECTION,
 
     // 标识符
