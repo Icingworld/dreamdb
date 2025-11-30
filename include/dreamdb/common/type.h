@@ -46,6 +46,11 @@ public:
     NullType() = default;
 
     ~NullType() = default;
+
+public:
+    bool operator==(const NullType & other) const noexcept;
+
+    bool operator!=(const NullType & other) const noexcept;
 };
 
 using INT8 = std::int8_t;
@@ -73,8 +78,9 @@ public:
     ~MutationResult() = default;
 
 public:
-    bool success;                   // 操作是否成功
-    std::string error_message;      // 错误信息
+    bool success = false;                   // 操作是否成功
+    std::string error_message;              // 错误信息
+    std::size_t affected_count = 0;         // 受影响的记录数
 };
 
 } // namespace dreamdb
