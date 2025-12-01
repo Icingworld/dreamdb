@@ -163,13 +163,11 @@ void Lexer::skip_whitespace()
         if (c == ' ' || c == '\t') {
             advance();
             ++column;
-        }
-        else if (c == '\n') {
+        } else if (c == '\n') {
             advance();
             ++line;
             column = 1;
-        }
-        else if (c == '\r') {
+        } else if (c == '\r') {
             advance();
             // Windows 换行符 \r\n，跳过 \r
             if (peek() == '\n') {
@@ -177,8 +175,7 @@ void Lexer::skip_whitespace()
             }
             ++line;
             column = 1;
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -263,24 +260,20 @@ Token Lexer::read_string()
             escaped = false;
             advance();
             ++column;
-        }
-        else if (c == '\\') {
+        } else if (c == '\\') {
             escaped = true;
             advance();
             ++column;
-        }
-        else if (c == quote) {
+        } else if (c == quote) {
             advance(); // 跳过结束引号
             ++column;
             return Token(TokenType::STRING_LITERAL, value, start_line, start_column);
-        }
-        else if (c == '\n') {
+        } else if (c == '\n') {
             throw std::runtime_error(
                 "Unterminated string literal at line " + std::to_string(start_line) + 
                 ", column " + std::to_string(start_column)
             );
-        }
-        else {
+        } else {
             value += c;
             advance();
             ++column;
@@ -357,8 +350,8 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "OR") return TokenType::OR;
     if (upper_keyword == "NOT") return TokenType::NOT;
     if (upper_keyword == "AS") return TokenType::AS;
-    if (upper_keyword == "TABLE") return TokenType::TABLE;
     if (upper_keyword == "COLLECTION") return TokenType::COLLECTION;
+    if (upper_keyword == "INDEX") return TokenType::INDEX;
     if (upper_keyword == "TRUE") return TokenType::BOOLEAN_LITERAL;
     if (upper_keyword == "FALSE") return TokenType::BOOLEAN_LITERAL;
 

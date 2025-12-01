@@ -68,8 +68,9 @@ std::unique_ptr<AstNode> Parser::parse()
     // 跳过分号（如果存在）
     skip_semicolon();
 
-    // 检查是否还有更多内容（不应该有）
+    // 检查是否还有更多内容
     if (current_token.get_type() != TokenType::EOF_TOKEN) {
+        // 不应该有更多内容，有则非法
         error("Unexpected token after statement: " + current_token.to_string());
     }
 
@@ -185,8 +186,40 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
 
 std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 {
-    // TODO: 实现 DELETE 语句解析
-    error("parse_delete_stmt() not yet implemented");
+    // DELETE 语句示例
+    // DELETE FROM my_collection;
+    // DELETE FROM my_collection WHERE my_column = 'value';
+
+    // 获取 DELETE 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+
+    // 创建 DeleteStmt 节点
+    auto stmt = std::make_unique<DeleteStmt>(line, column);
+
+    // 消耗 DELETE 关键字
+    advance();
+
+    // 解析 FROM 关键字
+    if (match(TokenType::FROM)) {
+        // 解析集合名称
+        if (current_token.get_type() != TokenType::IDENTIFIER) {
+            error("Expected identifier (collection name) after FROM, but got: " + current_token.to_string());
+        }
+        std::string collection_name = current_token.get_value();
+        advance();
+        stmt->set_collection_name(collection_name);
+    }
+
+    // 如果有 WHERE 关键字，则解析 WHERE 条件
+    if (match(TokenType::WHERE)) {
+        // 解析 WHERE 条件
+        auto where_clause = parse_expression();
+        stmt->set_where_clause(std::move(where_clause));
+    }
+
+    // DELETE 语句解析完成
+    return stmt;
 }
 
 std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
@@ -197,8 +230,10 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
 
 std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 {
+    // DROP 语句示例
+    // DROP COLLECTION my_collection;
+
     // 获取 DROP 关键字的位置信息
-    // 注意：parse_statement() 中的 switch 没有消耗 token，所以当前 token 仍然是 DROP
     std::size_t line = current_token.get_line();
     std::size_t column = current_token.get_column();
 
@@ -208,10 +243,14 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
     // 消耗 DROP 关键字
     advance();
 
-    // 解析对象类型：COLLECTION 或 INDEX(TODO)
+    // 解析对象类型：COLLECTION 或 INDEX
     DropStmt::ObjectType object_type;
     if (match(TokenType::COLLECTION)) {
         object_type = DropStmt::ObjectType::COLLECTION;
+    } else if (match(TokenType::INDEX)) {
+        object_type = DropStmt::ObjectType::INDEX;
+        // TODO: 实现 INDEX 解析
+        error("parse_drop_stmt(index) not yet implemented");
     } else {
         error("Expected COLLECTION after DROP, but got: " + current_token.to_string());
     }
@@ -224,17 +263,65 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
     }
 
     std::string object_name = current_token.get_value();
-    advance(); // 消耗标识符 token
+    // 消耗标识符 token
+    advance();
 
     stmt->set_object_name(object_name);
 
+    // DROP 语句解析完成
     return stmt;
 }
 
 std::unique_ptr<AstNode> Parser::parse_expression()
 {
-    // TODO: 实现表达式解析
-    error("parse_expression() not yet implemented");
+    // 该接口只是表达式解析入口，具体解析逻辑在各个解析函数中实现
+    // 递归下降解析器会自动处理所有优先级
+
+    // 表达式优先级：
+    // 1. OR          (最低优先级，如: a OR b)
+    // 2. AND         (如: a AND b)
+    // 3. 比较运算符   (如: =, !=, <, >, <=, >=)
+    // 4. 加减        (如: +, -)
+    // 5. 乘除        (如: *, /, %)
+    // 6. 一元运算符   (如: +, -, NOT)
+    // 7. 基础表达式   (最高优先级，如: 字面量、标识符、括号、函数调用)
+
+    // 完整解析流程：
+    // parse_expression()
+    //   └─> parse_or_expression()
+    //    ├─> 解析左侧: parse_and_expression()
+    //    │     ├─> 解析左侧: parse_comparison_expression()
+    //    │     │     ├─> 解析左侧: parse_additive_expression()
+    //    │     │     │     ├─> 解析左侧: parse_multiplicative_expression()
+    //    │     │     │     │     ├─> 解析左侧: parse_unary_expression()
+    //    │     │     │     │     │     └─> parse_primary_expression()  ← 基础表达式
+    //    │     │     │     │     └─> 解析右侧: parse_unary_expression()
+    //    │     │     │     └─> 解析右侧: parse_multiplicative_expression()
+    //    │     │     └─> 解析右侧: parse_additive_expression()
+    //    │     └─> 解析右侧: parse_comparison_expression()
+    //    └─> 解析右侧: parse_and_expression()
+
+    // 根据当前 Token 的类型判断是哪种表达式
+    switch (current_token.get_type()) {
+        // 字面量：数字、字符串、布尔值
+        case TokenType::NUMBER_LITERAL:
+        case TokenType::STRING_LITERAL:
+        case TokenType::BOOLEAN_LITERAL:
+        // 标识符：字段名、变量等
+        case TokenType::IDENTIFIER:
+        // 一元运算符：+、-、NOT
+        case TokenType::PLUS:
+        case TokenType::MINUS:
+        case TokenType::NOT:
+        // 括号表达式
+        case TokenType::LEFT_PAREN:
+            // 调用最低优先级解析函数
+            return parse_or_expression();
+        default:
+            // 非法的表达式开始 token
+            error("Expected expression, but got: " + current_token.to_string());
+            return nullptr;
+    }
 }
 
 std::unique_ptr<AstNode> Parser::parse_or_expression()

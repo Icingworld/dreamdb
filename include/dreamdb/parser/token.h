@@ -32,6 +32,7 @@ enum class TokenType : std::uint8_t
     NOT,
     AS,
     COLLECTION,
+    INDEX,
 
     // 标识符
     IDENTIFIER,         // 表名、字段名等（如 users, id）

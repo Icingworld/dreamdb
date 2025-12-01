@@ -31,13 +31,13 @@ public:
      * @brief 设置表名
      * @param table 表名
      */
-    void set_table_name(const std::string & table);
+    void set_collection_name(const std::string & collection_name);
 
     /**
      * @brief 获取表名
      * @return 表名
      */
-    const std::string & get_table_name() const;
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 设置 where 条件子句
@@ -65,7 +65,7 @@ public:
     std::string debug_string() const override;
 
 private:
-    std::string table_name;                     // 表名
+    std::string collection_name;                // 集合名
     std::unique_ptr<AstNode> where_clause;      // where 条件子句
 };
 
