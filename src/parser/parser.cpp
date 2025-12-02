@@ -326,14 +326,72 @@ std::unique_ptr<AstNode> Parser::parse_expression()
 
 std::unique_ptr<AstNode> Parser::parse_or_expression()
 {
-    // TODO: 实现 OR 表达式解析
-    error("parse_or_expression() not yet implemented");
+    // 解析左侧的 AND 表达式
+    auto left = parse_and_expression();
+    
+    // 循环处理多个 OR 运算符（左结合）
+    // 例如: a OR b OR c 解析为 ((a OR b) OR c)
+    while (check(TokenType::OR)) {
+        // 保存 OR token 的位置信息
+        std::size_t line = current_token.get_line();
+        std::size_t column = current_token.get_column();
+        
+        // 消耗 OR token
+        advance();
+        
+        // 创建二元表达式节点
+        auto expr = std::make_unique<BinaryExpr>(line, column);
+        
+        // 设置运算符类型为 OR
+        expr->set_op_type(BinaryOperatorType::OR);
+        
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+        
+        // 解析右侧的 AND 表达式
+        auto right = parse_and_expression();
+        expr->set_right(std::move(right));
+        
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+    
+    return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_and_expression()
 {
-    // TODO: 实现 AND 表达式解析
-    error("parse_and_expression() not yet implemented");
+    // 解析左侧的比较表达式
+    auto left = parse_comparison_expression();
+    
+    // 循环处理多个 AND 运算符（左结合）
+    // 例如: a AND b AND c 解析为 ((a AND b) AND c)
+    while (check(TokenType::AND)) {
+        // 保存 AND token 的位置信息
+        std::size_t line = current_token.get_line();
+        std::size_t column = current_token.get_column();
+        
+        // 消耗 AND token
+        advance();
+        
+        // 创建二元表达式节点
+        auto expr = std::make_unique<BinaryExpr>(line, column);
+        
+        // 设置运算符类型为 AND
+        expr->set_op_type(BinaryOperatorType::AND);
+        
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+        
+        // 解析右侧的比较表达式
+        auto right = parse_comparison_expression();
+        expr->set_right(std::move(right));
+        
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+    
+    return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_comparison_expression()
