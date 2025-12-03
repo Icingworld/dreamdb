@@ -62,7 +62,10 @@ enum class TokenType : std::uint8_t
     LEFT_BRACKET,       // [
     RIGHT_BRACKET,      // ]
     LEFT_BRACE,         // {
-    RIGHT_BRACE         // }
+    RIGHT_BRACE,        // }
+
+    // 特殊值
+    NULL_LITERAL,       // NULL
 };
 
 /**

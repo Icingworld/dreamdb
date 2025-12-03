@@ -1,5 +1,8 @@
 #include "dreamdb/parser/parser.h"
 
+#include <algorithm>
+#include <cctype>
+
 #include "dreamdb/parser/ast/select_stmt.h"
 #include "dreamdb/parser/ast/insert_stmt.h"
 #include "dreamdb/parser/ast/update_stmt.h"
@@ -396,74 +399,442 @@ std::unique_ptr<AstNode> Parser::parse_and_expression()
 
 std::unique_ptr<AstNode> Parser::parse_comparison_expression()
 {
-    // TODO: 实现比较表达式解析
-    error("parse_comparison_expression() not yet implemented");
+    // 解析左侧的加减表达式
+    auto left = parse_additive_expression();
+    
+    // 检查是否有比较运算符
+    BinaryOperatorType op_type;
+    bool has_comparison = false;
+    std::size_t line = 0;
+    std::size_t column = 0;
+    
+    // 根据当前 token 判断比较运算符类型
+    switch (current_token.get_type()) {
+        case TokenType::EQUAL:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::EQUAL;
+            has_comparison = true;
+            advance();
+            break;
+        case TokenType::NOT_EQUAL:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::NOT_EQUAL;
+            has_comparison = true;
+            advance();
+            break;
+        case TokenType::LESS_THAN:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::LESS_THAN;
+            has_comparison = true;
+            advance();
+            break;
+        case TokenType::GREATER_THAN:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::GREATER_THAN;
+            has_comparison = true;
+            advance();
+            break;
+        case TokenType::LESS_EQUAL:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::LESS_EQUAL;
+            has_comparison = true;
+            advance();
+            break;
+        case TokenType::GREATER_EQUAL:
+            line = current_token.get_line();
+            column = current_token.get_column();
+            op_type = BinaryOperatorType::GREATER_EQUAL;
+            has_comparison = true;
+            advance();
+            break;
+        default:
+            // 没有比较运算符，直接返回左侧表达式
+            return left;
+    }
+    
+    // 如果有比较运算符，创建二元表达式节点
+    if (has_comparison) {
+        auto expr = std::make_unique<BinaryExpr>(line, column);
+        expr->set_op_type(op_type);
+        expr->set_left(std::move(left));
+        
+        // 解析右侧的加减表达式
+        auto right = parse_additive_expression();
+        expr->set_right(std::move(right));
+        
+        return expr;
+    }
+    
+    // 理论上不会执行到这里，但为了完整性保留
+    return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_additive_expression()
 {
-    // TODO: 实现加减表达式解析
-    error("parse_additive_expression() not yet implemented");
+    // 解析左侧的乘除表达式
+    auto left = parse_multiplicative_expression();
+
+    // 循环处理加减运算符（左结合）
+    while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+        // 保存运算符信息
+        TokenType op_token_type = current_token.get_type();
+        std::size_t line = current_token.get_line();
+        std::size_t column = current_token.get_column();
+
+        // 消耗运算符
+        advance();
+
+        // 创建二元表达式节点
+        auto expr = std::make_unique<BinaryExpr>(line, column);
+
+        // 设置运算符类型
+        if (op_token_type == TokenType::PLUS) {
+            expr->set_op_type(BinaryOperatorType::PLUS);
+        } else {
+            expr->set_op_type(BinaryOperatorType::MINUS);
+        }
+
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+
+        // 解析右侧的乘除表达式
+        auto right = parse_multiplicative_expression();
+        expr->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+
+    return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
 {
-    // TODO: 实现乘除表达式解析
-    error("parse_multiplicative_expression() not yet implemented");
+    // 解析左侧的一元表达式
+    auto left = parse_unary_expression();
+
+    // 循环处理乘除模运算符（左结合）
+    while (check(TokenType::MULTIPLY) ||
+           check(TokenType::DIVIDE) ||
+           check(TokenType::MODULO)) {
+        // 保存运算符信息
+        TokenType op_token_type = current_token.get_type();
+        std::size_t line = current_token.get_line();
+        std::size_t column = current_token.get_column();
+
+        // 消耗运算符
+        advance();
+
+        // 创建二元表达式节点
+        auto expr = std::make_unique<BinaryExpr>(line, column);
+
+        // 设置运算符类型
+        switch (op_token_type) {
+            case TokenType::MULTIPLY:
+                expr->set_op_type(BinaryOperatorType::MULTIPLY);
+                break;
+            case TokenType::DIVIDE:
+                expr->set_op_type(BinaryOperatorType::DIVIDE);
+                break;
+            case TokenType::MODULO:
+                expr->set_op_type(BinaryOperatorType::MODULO);
+                break;
+            default:
+                // 理论上不会到这里
+                error("Unexpected token in multiplicative expression: " + current_token.to_string());
+        }
+
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+
+        // 解析右侧的一元表达式
+        auto right = parse_unary_expression();
+        expr->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+
+    return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_unary_expression()
 {
-    // TODO: 实现一元表达式解析
-    error("parse_unary_expression() not yet implemented");
+    // 一元运算符：NOT, +, -
+    if (check(TokenType::NOT) ||
+        check(TokenType::PLUS) ||
+        check(TokenType::MINUS)) {
+        TokenType op_token_type = current_token.get_type();
+        std::size_t line = current_token.get_line();
+        std::size_t column = current_token.get_column();
+
+        // 消耗一元运算符
+        advance();
+
+        auto expr = std::make_unique<UnaryExpr>(line, column);
+
+        // 设置运算符类型
+        switch (op_token_type) {
+            case TokenType::NOT:
+                expr->set_op_type(UnaryOperatorType::NOT);
+                break;
+            case TokenType::PLUS:
+                expr->set_op_type(UnaryOperatorType::PLUS);
+                break;
+            case TokenType::MINUS:
+                expr->set_op_type(UnaryOperatorType::MINUS);
+                break;
+            default:
+                // 理论上不会到这里
+                error("Unexpected token in unary expression: " + current_token.to_string());
+        }
+
+        // 递归解析操作数（仍然是 unary_expression，保证右结合）
+        auto operand = parse_unary_expression();
+        expr->set_operand(std::move(operand));
+
+        return expr;
+    }
+
+    // 否则解析基础表达式
+    return parse_primary_expression();
 }
 
 std::unique_ptr<AstNode> Parser::parse_primary_expression()
 {
-    // TODO: 实现基础表达式解析
-    error("parse_primary_expression() not yet implemented");
+    // 括号表达式
+    if (check(TokenType::LEFT_PAREN)) {
+        // 消耗 '('
+        advance();
+
+        // 解析括号中的表达式
+        auto expr = parse_expression();
+
+        // 期望并消耗 ')'
+        consume(TokenType::RIGHT_PAREN, "Expected ')' after expression");
+        return expr;
+    }
+
+    // 标识符：可能是函数调用或普通标识符
+    if (check(TokenType::IDENTIFIER)) {
+        // 通过 Lexer 的 peek_token 判断是否为函数调用
+        Token next = lexer->peek_token();
+        if (next.get_type() == TokenType::LEFT_PAREN) {
+            return parse_function_call();
+        } else {
+            return parse_identifier_expr();
+        }
+    }
+
+    // 字面量：数字、字符串、布尔值、NULL
+    if (check(TokenType::NUMBER_LITERAL) ||
+        check(TokenType::STRING_LITERAL) ||
+        check(TokenType::BOOLEAN_LITERAL) ||
+        check(TokenType::NULL_LITERAL)) {
+        return parse_literal_expr();
+    }
+
+    // 其他情况都是错误
+    error("Expected primary expression, but got: " + current_token.to_string());
+    return nullptr;
 }
 
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 {
-    // TODO: 实现函数调用解析
-    error("parse_function_call() not yet implemented");
+    // 当前 token 应该是函数名（标识符）
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected function name before '(' in function call, but got: " + current_token.to_string());
+    }
+
+    std::string function_name = current_token.get_value();
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+
+    // 消耗函数名
+    advance();
+
+    // 期望 '('
+    consume(TokenType::LEFT_PAREN, "Expected '(' after function name");
+
+    auto func = std::make_unique<FunctionCallExpr>(line, column);
+    func->set_function_name(function_name);
+
+    // 处理无参数情况：立即遇到 ')'
+    if (check(TokenType::RIGHT_PAREN)) {
+        advance(); // 消耗 ')'
+        return func;
+    }
+
+    // 解析第一个参数
+    func->add_argument(parse_expression());
+
+    // 解析后续参数
+    while (match(TokenType::COMMA)) {
+        func->add_argument(parse_expression());
+    }
+
+    // 期望 ')'
+    consume(TokenType::RIGHT_PAREN, "Expected ')' after function arguments");
+
+    return func;
 }
 
 std::unique_ptr<IdentifierExpr> Parser::parse_identifier_expr()
 {
-    // TODO: 实现标识符表达式解析
-    error("parse_identifier_expr() not yet implemented");
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected identifier, but got: " + current_token.to_string());
+    }
+
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    std::string first_part = current_token.get_value();
+
+    auto ident = std::make_unique<IdentifierExpr>(line, column);
+    ident->set_type(IdentifierType::COLUMN); // 默认视为列名，后续可根据上下文调整
+    ident->add_part(first_part);
+    ident->set_original_text(first_part);
+
+    // 消耗第一个标识符
+    advance();
+
+    // 处理限定名：schema.table.column
+    while (match(TokenType::DOT)) {
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected identifier after '.', but got: " + current_token.to_string());
+        }
+        std::string part = current_token.get_value();
+        ident->add_part(part);
+        // 更新 original_text 表示完整限定名
+        ident->set_original_text(ident->get_original_text() + "." + part);
+
+        advance();
+    }
+
+    return ident;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_literal_expr()
 {
-    // TODO: 实现字面量表达式解析
-    error("parse_literal_expr() not yet implemented");
+    switch (current_token.get_type()) {
+        case TokenType::STRING_LITERAL:
+            return parse_string_literal();
+        case TokenType::NUMBER_LITERAL:
+            return parse_number_literal();
+        case TokenType::BOOLEAN_LITERAL:
+            return parse_boolean_literal();
+        case TokenType::NULL_LITERAL:
+            return parse_null_literal();
+        default:
+            error("Expected literal expression, but got: " + current_token.to_string());
+            return nullptr;
+    }
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_string_literal()
 {
-    // TODO: 实现字符串字面量解析
-    error("parse_string_literal() not yet implemented");
+    if (!check(TokenType::STRING_LITERAL)) {
+        error("Expected string literal, but got: " + current_token.to_string());
+    }
+
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    std::string value = current_token.get_value();
+
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+    literal->set_literal_type(LiteralType::STRING);
+    literal->set_value(LiteralValue{value});
+
+    advance(); // 消耗字面量 token
+    return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_number_literal()
 {
-    // TODO: 实现数字字面量解析
-    error("parse_number_literal() not yet implemented");
+    if (!check(TokenType::NUMBER_LITERAL)) {
+        error("Expected number literal, but got: " + current_token.to_string());
+    }
+
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    const std::string & text = current_token.get_value();
+
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+
+    try {
+        // 判断是否为浮点数：包含 '.' 或 'e'/'E'
+        bool is_float = (text.find('.') != std::string::npos) ||
+                        (text.find('e') != std::string::npos) ||
+                        (text.find('E') != std::string::npos);
+
+        if (is_float) {
+            double v = std::stod(text);
+            literal->set_literal_type(LiteralType::FLOAT);
+            literal->set_value(LiteralValue{v});
+        } else {
+            long long v = std::stoll(text);
+            literal->set_literal_type(LiteralType::INTERGER);
+            literal->set_value(LiteralValue{static_cast<std::int64_t>(v)});
+        }
+    } catch (const std::exception & e) {
+        error(std::string("Invalid number literal '") + text + "': " + e.what());
+    }
+
+    advance(); // 消耗字面量 token
+    return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_boolean_literal()
 {
-    // TODO: 实现布尔字面量解析
-    error("parse_boolean_literal() not yet implemented");
+    if (!check(TokenType::BOOLEAN_LITERAL)) {
+        error("Expected boolean literal, but got: " + current_token.to_string());
+    }
+
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    std::string text = current_token.get_value();
+
+    // 转为大写进行比较
+    std::transform(text.begin(), text.end(), text.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+    bool value;
+    if (text == "TRUE") {
+        value = true;
+    } else if (text == "FALSE") {
+        value = false;
+    } else {
+        error("Invalid boolean literal: " + current_token.to_string());
+        return nullptr;
+    }
+
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+    literal->set_literal_type(LiteralType::BOOLEAN);
+    literal->set_value(LiteralValue{value});
+
+    advance(); // 消耗字面量 token
+    return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 {
-    // TODO: 实现 NULL 字面量解析
-    error("parse_null_literal() not yet implemented");
+    if (!check(TokenType::NULL_LITERAL)) {
+        error("Expected NULL literal, but got: " + current_token.to_string());
+    }
+
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+    literal->set_literal_type(LiteralType::NULL_VALUE);
+    literal->set_value(LiteralValue{NullType()});
+
+    advance(); // 消耗 NULL token
+    return literal;
 }
 
 } // namespace dreamdb

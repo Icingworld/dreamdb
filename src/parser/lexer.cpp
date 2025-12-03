@@ -354,6 +354,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "INDEX") return TokenType::INDEX;
     if (upper_keyword == "TRUE") return TokenType::BOOLEAN_LITERAL;
     if (upper_keyword == "FALSE") return TokenType::BOOLEAN_LITERAL;
+    if (upper_keyword == "NULL") return TokenType::NULL_LITERAL;
 
     return TokenType::IDENTIFIER;
 }

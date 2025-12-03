@@ -98,13 +98,12 @@ std::string Token::to_string() const
         case TokenType::AS:
             result += "AS";
             break;
-        case TokenType::TABLE:
-            result += "TABLE";
-            break;
         case TokenType::COLLECTION:
             result += "COLLECTION";
             break;
-
+        case TokenType::INDEX:
+            result += "INDEX";
+            break;
         // 标识符和字面量
         case TokenType::IDENTIFIER:
             result += "IDENTIFIER";
@@ -182,7 +181,10 @@ std::string Token::to_string() const
         case TokenType::RIGHT_BRACE:
             result += "}";
             break;
-
+        // 特殊值
+        case TokenType::NULL_LITERAL:
+            result += "NULL";
+            break;
         default:
             result += "UNKNOWN";
     }
