@@ -98,13 +98,27 @@ std::string Token::to_string() const
         case TokenType::AS:
             result += "AS";
             break;
-        case TokenType::TABLE:
-            result += "TABLE";
-            break;
         case TokenType::COLLECTION:
             result += "COLLECTION";
             break;
-
+        case TokenType::INDEX:
+            result += "INDEX";
+            break;
+        case TokenType::LIMIT:
+            result += "LIMIT";
+            break;
+        case TokenType::PRIMARY:
+            result += "PRIMARY";
+            break;
+        case TokenType::KEY:
+            result += "KEY";
+            break;
+        case TokenType::AUTO_INCREMENT:
+            result += "AUTO_INCREMENT";
+            break;
+        case TokenType::DEFAULT:
+            result += "DEFAULT";
+            break;
         // 标识符和字面量
         case TokenType::IDENTIFIER:
             result += "IDENTIFIER";
@@ -182,7 +196,10 @@ std::string Token::to_string() const
         case TokenType::RIGHT_BRACE:
             result += "}";
             break;
-
+        // 特殊值
+        case TokenType::NULL_LITERAL:
+            result += "NULL";
+            break;
         default:
             result += "UNKNOWN";
     }

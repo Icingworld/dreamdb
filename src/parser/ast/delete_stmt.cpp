@@ -7,19 +7,19 @@ namespace dreamdb
 
 DeleteStmt::DeleteStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::DELETE_STMT, line, column)
-    , table_name("")
+    , collection_name("")
     , where_clause(nullptr)
 {
 }
 
-void DeleteStmt::set_table_name(const std::string & name)
+void DeleteStmt::set_collection_name(const std::string & name)
 {
-    table_name = name;
+    collection_name = name;
 }
 
-const std::string & DeleteStmt::get_table_name() const
+const std::string & DeleteStmt::get_collection_name() const
 {
-    return table_name;
+    return collection_name;
 }
 
 void DeleteStmt::set_where_clause(std::unique_ptr<AstNode> where)
@@ -40,7 +40,7 @@ bool DeleteStmt::has_where_clause() const
 std::string DeleteStmt::debug_string() const
 {
     std::ostringstream oss;
-    oss << "DeleteStmt(table=" << (table_name.empty() ? "<none>" : table_name);
+    oss << "DeleteStmt(collection=" << (collection_name.empty() ? "<none>" : collection_name);
 
     if (has_where_clause()) {
         oss << ", where=" << where_clause->debug_string();

@@ -23,6 +23,10 @@ class BinaryExpr;
 class FunctionCallExpr;
 class IdentifierExpr;
 class LiteralExpr;
+class ColumnDefinition;
+
+// 前向声明类型
+enum class FieldType : std::uint8_t;
 
 /**
  * @brief 语法分析异常
@@ -226,6 +230,20 @@ private:
      * @brief 解析 NULL 字面量
      */
     std::unique_ptr<LiteralExpr> parse_null_literal();
+
+    // ========== CREATE 语句辅助方法 ==========
+
+    /**
+     * @brief 解析列定义
+     * column_name type [parameters] [attributes]
+     */
+    ColumnDefinition parse_column_definition();
+
+    /**
+     * @brief 解析字段类型
+     * INT8 | INT16 | INT32 | INT64 | FLOAT | DOUBLE | CHAR | VARCHAR | BOOLEAN | TIMESTAMP | ENUM | FLOAT_VECTOR
+     */
+    FieldType parse_field_type();
 
     // ========== 辅助方法 ==========
 

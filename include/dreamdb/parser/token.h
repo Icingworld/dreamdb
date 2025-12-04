@@ -32,6 +32,12 @@ enum class TokenType : std::uint8_t
     NOT,
     AS,
     COLLECTION,
+    INDEX,
+    LIMIT,
+    PRIMARY,
+    KEY,
+    AUTO_INCREMENT,
+    DEFAULT,
 
     // 标识符
     IDENTIFIER,         // 表名、字段名等（如 users, id）
@@ -61,7 +67,10 @@ enum class TokenType : std::uint8_t
     LEFT_BRACKET,       // [
     RIGHT_BRACKET,      // ]
     LEFT_BRACE,         // {
-    RIGHT_BRACE         // }
+    RIGHT_BRACE,        // }
+
+    // 特殊值
+    NULL_LITERAL,       // NULL
 };
 
 /**
