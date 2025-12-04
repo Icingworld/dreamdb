@@ -352,6 +352,11 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "AS") return TokenType::AS;
     if (upper_keyword == "COLLECTION") return TokenType::COLLECTION;
     if (upper_keyword == "INDEX") return TokenType::INDEX;
+    if (upper_keyword == "LIMIT") return TokenType::LIMIT;
+    if (upper_keyword == "PRIMARY") return TokenType::PRIMARY;
+    if (upper_keyword == "KEY") return TokenType::KEY;
+    if (upper_keyword == "AUTO_INCREMENT") return TokenType::AUTO_INCREMENT;
+    if (upper_keyword == "DEFAULT") return TokenType::DEFAULT;
     if (upper_keyword == "TRUE") return TokenType::BOOLEAN_LITERAL;
     if (upper_keyword == "FALSE") return TokenType::BOOLEAN_LITERAL;
     if (upper_keyword == "NULL") return TokenType::NULL_LITERAL;

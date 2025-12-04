@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <limits>
 
 #include "dreamdb/parser/ast/select_stmt.h"
 #include "dreamdb/parser/ast/insert_stmt.h"
@@ -171,20 +172,231 @@ void Parser::skip_semicolon()
 
 std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
 {
-    // TODO: 实现 SELECT 语句解析
-    error("parse_select_stmt() not yet implemented");
+    // SELECT 语句示例
+    // SELECT * FROM my_collection;
+    // SELECT my_column FROM my_collection;
+    // SELECT my_column1, my_column2 FROM my_collection;
+    // SELECT * FROM my_collection WHERE my_column = 'value';
+    // SELECT * FROM my_collection WHERE my_column = 'value' AND my_column2 = 'value2';
+    
+    // 获取 SELECT 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+
+    // 创建 SelectStmt 节点
+    auto stmt = std::make_unique<SelectStmt>(line, column);
+
+    // 消耗 SELECT 关键字
+    advance();
+
+    // 解析 SELECT 列表
+    // 支持两种形式：
+    // SELECT * FROM ...
+    // SELECT column1, column2, ... FROM ...
+    // SELECT COUNT(*) FROM ...
+    // SELECT column1 AS alias FROM ...
+
+    if (check(TokenType::MULTIPLY)) {
+        // 处理 SELECT *
+        stmt->add_select_item(SelectItem::create_star());
+        advance(); // 消耗 '*'
+    } else {
+        // 处理 SELECT column1, column2, ...
+        // 至少需要一个表达式
+        do {
+            // 解析表达式（可以是标识符、函数调用等）
+            auto expr = parse_expression();
+            std::string alias = "";
+
+            // 检查是否有别名（仅支持 AS alias 形式）
+            if (match(TokenType::AS)) {
+                // AS 关键字后必须有标识符作为别名
+                if (!check(TokenType::IDENTIFIER)) {
+                    error("Expected alias name after AS, but got: " + current_token.to_string());
+                }
+                alias = current_token.get_value();
+                advance(); // 消耗别名标识符
+            }
+
+            stmt->add_select_item(SelectItem::create_expression(std::move(expr), alias));
+
+            // 如果遇到逗号，继续解析下一个表达式
+        } while (match(TokenType::COMMA));
+    }
+
+    // 解析 FROM 关键字
+    consume(TokenType::FROM, "Expected FROM after SELECT list");
+
+    // 解析表名
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected table name after FROM, but got: " + current_token.to_string());
+    }
+    std::string table_name = current_token.get_value();
+    stmt->set_table_name(table_name);
+    advance(); // 消耗表名
+
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::WHERE)) {
+        auto where_expr = parse_expression();
+        stmt->set_where_clause(std::move(where_expr));
+    }
+
+    // 解析可选的 LIMIT 子句
+    if (match(TokenType::LIMIT)) {
+        // LIMIT 后必须是数字字面量
+        if (!check(TokenType::NUMBER_LITERAL)) {
+            error("Expected number after LIMIT, but got: " + current_token.to_string());
+        }
+        
+        // 解析 LIMIT 数字
+        const std::string & limit_text = current_token.get_value();
+        try {
+            // LIMIT 必须是正整数
+            long long limit_value = std::stoll(limit_text);
+            if (limit_value < 0) {
+                error("LIMIT value must be non-negative, but got: " + limit_text);
+            }
+            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
+            if (limit_value > static_cast<long long>(max_limit)) {
+                error("LIMIT value too large: " + limit_text);
+            }
+            stmt->set_limit(static_cast<std::size_t>(limit_value));
+        } catch (const std::exception & e) {
+            error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+        }
+        
+        advance(); // 消耗数字字面量
+    }
+
+    return stmt;
 }
 
 std::unique_ptr<InsertStmt> Parser::parse_insert_stmt()
 {
-    // TODO: 实现 INSERT 语句解析
-    error("parse_insert_stmt() not yet implemented");
+    // INSERT 语句示例
+    // INSERT INTO my_collection VALUES ('value1', 'value2', 123);
+    // INSERT INTO my_collection (col1, col2, col3) VALUES ('value1', 'value2', 123);
+    
+    // 获取 INSERT 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    
+    // 创建 InsertStmt 节点
+    auto stmt = std::make_unique<InsertStmt>(line, column);
+    
+    // 消耗 INSERT 关键字
+    advance();
+    
+    // 解析 INTO 关键字
+    consume(TokenType::INTO, "Expected INTO after INSERT");
+    
+    // 解析表名
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected table name after INTO, but got: " + current_token.to_string());
+    }
+    std::string table_name = current_token.get_value();
+    stmt->set_table_name(table_name);
+    advance(); // 消耗表名
+    
+    // 解析可选的列名列表
+    if (check(TokenType::LEFT_PAREN)) {
+        // 有列名列表：INSERT INTO table (col1, col2, ...)
+        advance(); // 消耗 '('
+        
+        // 解析列名列表
+        do {
+            if (!check(TokenType::IDENTIFIER)) {
+                error("Expected column name, but got: " + current_token.to_string());
+            }
+            std::string column_name = current_token.get_value();
+            stmt->add_column_name(column_name);
+            advance(); // 消耗列名
+            
+            // 如果遇到逗号，继续解析下一个列名
+        } while (match(TokenType::COMMA));
+        
+        // 期望 ')'
+        consume(TokenType::RIGHT_PAREN, "Expected ')' after column list");
+    }
+    // 如果没有列名列表，则按照表结构顺序插入
+    
+    // 解析 VALUES 关键字
+    consume(TokenType::VALUES, "Expected VALUES after table name or column list");
+    
+    // 解析值列表
+    // 期望 '('
+    consume(TokenType::LEFT_PAREN, "Expected '(' after VALUES");
+    
+    // 解析第一个值（至少需要一个值）
+    auto first_value = parse_expression();
+    stmt->add_value(std::move(first_value));
+    
+    // 解析后续值
+    while (match(TokenType::COMMA)) {
+        auto value = parse_expression();
+        stmt->add_value(std::move(value));
+    }
+    
+    // 期望 ')'
+    consume(TokenType::RIGHT_PAREN, "Expected ')' after value list");
+    
+    return stmt;
 }
 
 std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
 {
-    // TODO: 实现 UPDATE 语句解析
-    error("parse_update_stmt() not yet implemented");
+    // UPDATE 语句示例
+    // UPDATE my_collection SET col1 = 'value1', col2 = 123;
+    // UPDATE my_collection SET col1 = 'value1' WHERE col2 = 10;
+    
+    // 获取 UPDATE 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    
+    // 创建 UpdateStmt 节点
+    auto stmt = std::make_unique<UpdateStmt>(line, column);
+    
+    // 消耗 UPDATE 关键字
+    advance();
+    
+    // 解析表名
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected table name after UPDATE, but got: " + current_token.to_string());
+    }
+    std::string table_name = current_token.get_value();
+    stmt->set_table_name(table_name);
+    advance(); // 消耗表名
+    
+    // 解析 SET 关键字
+    consume(TokenType::SET, "Expected SET after table name");
+    
+    // 解析 SET 子句：col1 = val1, col2 = val2, ...
+    // 至少需要一个赋值
+    do {
+        // 解析列名
+        if (!check(TokenType::IDENTIFIER)) {
+            error("Expected column name in SET clause, but got: " + current_token.to_string());
+        }
+        std::string column_name = current_token.get_value();
+        advance(); // 消耗列名
+        
+        // 解析 '='
+        consume(TokenType::EQUAL, "Expected '=' after column name in SET clause");
+        
+        // 解析值表达式
+        auto value_expr = parse_expression();
+        stmt->add_assignment(column_name, std::move(value_expr));
+        
+        // 如果遇到逗号，继续解析下一个赋值
+    } while (match(TokenType::COMMA));
+    
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::WHERE)) {
+        auto where_expr = parse_expression();
+        stmt->set_where_clause(std::move(where_expr));
+    }
+    
+    return stmt;
 }
 
 std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
@@ -212,6 +424,8 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
         std::string collection_name = current_token.get_value();
         advance();
         stmt->set_collection_name(collection_name);
+    } else {
+        error("Expected FROM after DELETE, but got: " + current_token.to_string());
     }
 
     // 如果有 WHERE 关键字，则解析 WHERE 条件
@@ -227,8 +441,190 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 
 std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
 {
-    // TODO: 实现 CREATE 语句解析
-    error("parse_create_stmt() not yet implemented");
+    // CREATE 语句示例
+    // CREATE COLLECTION users (
+    //     id INT64 PRIMARY KEY AUTO_INCREMENT,
+    //     name VARCHAR(255) NOT NULL,
+    //     age INT32,
+    //     vector FLOAT_VECTOR(128)
+    // );
+    
+    // 获取 CREATE 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+    
+    // 创建 CreateStmt 节点
+    auto stmt = std::make_unique<CreateStmt>(line, column);
+    
+    // 消耗 CREATE 关键字
+    advance();
+    
+    // 解析对象类型：COLLECTION 或 INDEX
+    CreateStmt::ObjectType object_type;
+    if (match(TokenType::COLLECTION)) {
+        object_type = CreateStmt::ObjectType::COLLECTION;
+    } else if (match(TokenType::INDEX)) {
+        object_type = CreateStmt::ObjectType::INDEX;
+        // TODO: 实现 INDEX 解析
+        error("CREATE INDEX is not yet implemented");
+    } else {
+        error("Expected COLLECTION or INDEX after CREATE, but got: " + current_token.to_string());
+    }
+    stmt->set_object_type(object_type);
+    
+    // 解析对象名称
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected object name after COLLECTION, but got: " + current_token.to_string());
+    }
+    std::string object_name = current_token.get_value();
+    stmt->set_object_name(object_name);
+    advance(); // 消耗对象名
+    
+    // 如果是 COLLECTION，解析列定义列表
+    if (object_type == CreateStmt::ObjectType::COLLECTION) {
+        // 期望 '('
+        consume(TokenType::LEFT_PAREN, "Expected '(' after collection name");
+        
+        // 解析列定义列表（至少需要一个列定义）
+        do {
+            ColumnDefinition col_def = parse_column_definition();
+            stmt->add_column_definition(std::move(col_def));
+            
+            // 如果遇到逗号，继续解析下一个列定义
+        } while (match(TokenType::COMMA));
+        
+        // 期望 ')'
+        consume(TokenType::RIGHT_PAREN, "Expected ')' after column definitions");
+    }
+    
+    return stmt;
+}
+
+ColumnDefinition Parser::parse_column_definition()
+{
+    // 列定义示例：
+    // id INT64 PRIMARY KEY AUTO_INCREMENT
+    // name VARCHAR(255) NOT NULL
+    // age INT32 DEFAULT 0
+    // vector FLOAT_VECTOR(128)
+    
+    ColumnDefinition col_def;
+    
+    // 1. 解析列名
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected column name, but got: " + current_token.to_string());
+    }
+    std::string column_name = current_token.get_value();
+    col_def.set_name(column_name);
+    advance(); // 消耗列名
+    
+    // 2. 解析字段类型
+    FieldType field_type = parse_field_type();
+    col_def.set_type(field_type);
+    
+    // 3. 解析类型参数（长度、精度等）
+    // 例如：VARCHAR(255), FLOAT_VECTOR(128), FLOAT(10,2)
+    if (check(TokenType::LEFT_PAREN)) {
+        advance(); // 消耗 '('
+        
+        // 解析第一个数字（长度或精度）
+        if (!check(TokenType::NUMBER_LITERAL)) {
+            error("Expected number in type parameter, but got: " + current_token.to_string());
+        }
+        int first_param = std::stoi(current_token.get_value());
+        advance(); // 消耗数字
+        
+        // 检查是否有第二个参数（精度）
+        if (match(TokenType::COMMA)) {
+            // 有精度参数，如 FLOAT(10,2)
+            if (!check(TokenType::NUMBER_LITERAL)) {
+                error("Expected precision number, but got: " + current_token.to_string());
+            }
+            int precision = std::stoi(current_token.get_value());
+            col_def.set_precision(precision);
+            advance(); // 消耗精度数字
+            col_def.set_length(first_param); // 第一个参数是长度
+        } else {
+            // 只有长度参数，如 VARCHAR(255), FLOAT_VECTOR(128)
+            col_def.set_length(first_param);
+        }
+        
+        // 期望 ')'
+        consume(TokenType::RIGHT_PAREN, "Expected ')' after type parameters");
+    }
+    
+    // 4. 解析列属性（可以以任意顺序出现）
+    // 属性包括：NOT NULL, PRIMARY KEY, AUTO_INCREMENT, DEFAULT value
+    while (true) {
+        if (match(TokenType::NOT)) {
+            // NOT NULL
+            consume(TokenType::NULL_LITERAL, "Expected NULL after NOT");
+            col_def.set_nullable(false);
+        } else if (match(TokenType::PRIMARY)) {
+            // PRIMARY KEY
+            consume(TokenType::KEY, "Expected KEY after PRIMARY");
+            col_def.set_primary_key(true);
+        } else if (match(TokenType::AUTO_INCREMENT)) {
+            // AUTO_INCREMENT（需要添加这个关键字）
+            col_def.set_auto_increment(true);
+        } else if (match(TokenType::DEFAULT)) {
+            // DEFAULT value
+            auto default_expr = parse_expression();
+            col_def.set_default_value(std::move(default_expr));
+        } else {
+            // 没有更多属性，退出循环
+            break;
+        }
+    }
+    
+    return col_def;
+}
+
+FieldType Parser::parse_field_type()
+{
+    // 解析字段类型关键字
+    // 支持的类型：INT8, INT16, INT32, INT64, FLOAT, DOUBLE, CHAR, VARCHAR, BOOLEAN, TIMESTAMP, ENUM, FLOAT_VECTOR
+    
+    if (!check(TokenType::IDENTIFIER)) {
+        error("Expected field type, but got: " + current_token.to_string());
+    }
+    
+    std::string type_name = current_token.get_value();
+    // 转为大写进行比较
+    std::transform(type_name.begin(), type_name.end(), type_name.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    
+    advance(); // 消耗类型关键字
+    
+    // 映射类型名称到 FieldType
+    if (type_name == "INT8") {
+        return FieldType::INT8;
+    } else if (type_name == "INT16") {
+        return FieldType::INT16;
+    } else if (type_name == "INT32" || type_name == "INT") {
+        return FieldType::INT32;
+    } else if (type_name == "INT64" || type_name == "BIGINT") {
+        return FieldType::INT64;
+    } else if (type_name == "FLOAT") {
+        return FieldType::FLOAT;
+    } else if (type_name == "DOUBLE") {
+        return FieldType::DOUBLE;
+    } else if (type_name == "CHAR") {
+        return FieldType::CHAR;
+    } else if (type_name == "VARCHAR") {
+        return FieldType::VARCHAR;
+    } else if (type_name == "BOOLEAN" || type_name == "BOOL") {
+        return FieldType::BOOLEAN;
+    } else if (type_name == "TIMESTAMP") {
+        return FieldType::TIMESTAMP;
+    } else if (type_name == "ENUM") {
+        return FieldType::ENUM;
+    } else if (type_name == "FLOAT_VECTOR" || type_name == "VECTOR") {
+        return FieldType::FLOAT_VECTOR;
+    } else {
+        error("Unknown field type: " + type_name);
+        return FieldType::INT32; // 不会执行到这里
+    }
 }
 
 std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
