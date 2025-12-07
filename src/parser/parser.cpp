@@ -10,6 +10,7 @@
 #include "dreamdb/parser/ast/delete_stmt.h"
 #include "dreamdb/parser/ast/create_stmt.h"
 #include "dreamdb/parser/ast/drop_stmt.h"
+#include "dreamdb/parser/ast/use_stmt.h"
 #include "dreamdb/parser/ast/unary_expr.h"
 #include "dreamdb/parser/ast/binary_expr.h"
 #include "dreamdb/parser/ast/function_call_expr.h"
@@ -99,6 +100,8 @@ std::unique_ptr<AstNode> Parser::parse_statement()
             return parse_create_stmt();
         case TokenType::DROP:
             return parse_drop_stmt();
+        case TokenType::USE:
+            return parse_use_stmt();
         default:
             error("Expected a statement (SELECT, INSERT, UPDATE, DELETE, CREATE, or DROP), but got: " + current_token.to_string());
             return nullptr;
@@ -442,6 +445,7 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
 {
     // CREATE 语句示例
+    // CREATE DATABASE my_database;
     // CREATE COLLECTION users (
     //     id INT64 PRIMARY KEY AUTO_INCREMENT,
     //     name VARCHAR(255) NOT NULL,
@@ -461,14 +465,16 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
     
     // 解析对象类型：COLLECTION 或 INDEX
     CreateStmt::ObjectType object_type;
-    if (match(TokenType::COLLECTION)) {
+    if (match(TokenType::DATABASE)) {
+        object_type = CreateStmt::ObjectType::DATABASE;
+    } else if (match(TokenType::COLLECTION)) {
         object_type = CreateStmt::ObjectType::COLLECTION;
     } else if (match(TokenType::INDEX)) {
         object_type = CreateStmt::ObjectType::INDEX;
         // TODO: 实现 INDEX 解析
         error("CREATE INDEX is not yet implemented");
     } else {
-        error("Expected COLLECTION or INDEX after CREATE, but got: " + current_token.to_string());
+        error("Expected DATABASE, COLLECTION or INDEX after CREATE, but got: " + current_token.to_string());
     }
     stmt->set_object_type(object_type);
     
@@ -630,6 +636,7 @@ FieldType Parser::parse_field_type()
 std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 {
     // DROP 语句示例
+    // DROP DATABASE my_database;
     // DROP COLLECTION my_collection;
 
     // 获取 DROP 关键字的位置信息
@@ -644,14 +651,16 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 
     // 解析对象类型：COLLECTION 或 INDEX
     DropStmt::ObjectType object_type;
-    if (match(TokenType::COLLECTION)) {
+    if (match(TokenType::DATABASE)) {
+        object_type = DropStmt::ObjectType::DATABASE;
+    } else if (match(TokenType::COLLECTION)) {
         object_type = DropStmt::ObjectType::COLLECTION;
     } else if (match(TokenType::INDEX)) {
         object_type = DropStmt::ObjectType::INDEX;
         // TODO: 实现 INDEX 解析
         error("parse_drop_stmt(index) not yet implemented");
     } else {
-        error("Expected COLLECTION after DROP, but got: " + current_token.to_string());
+        error("Expected DATABASE, COLLECTION or INDEX after DROP, but got: " + current_token.to_string());
     }
 
     stmt->set_object_type(object_type);
@@ -668,6 +677,34 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
     stmt->set_object_name(object_name);
 
     // DROP 语句解析完成
+    return stmt;
+}
+
+std::unique_ptr<UseStmt> Parser::parse_use_stmt()
+{
+    // USE 语句示例
+    // USE database_name;
+
+    // 获取 USE 关键字的位置信息
+    std::size_t line = current_token.get_line();
+    std::size_t column = current_token.get_column();
+
+    // 创建 UseStmt 节点
+    auto stmt = std::make_unique<UseStmt>(line, column);
+
+    // 消耗 USE 关键字
+    advance();
+
+    // 解析数据库名称
+    if (current_token.get_type() != TokenType::IDENTIFIER) {
+        error("Expected identifier (database name) after USE, but got: " + current_token.to_string());
+    }
+    std::string database_name = current_token.get_value();
+    advance();
+
+    stmt->set_database_name(database_name);
+
+    // USE 语句解析完成
     return stmt;
 }
 

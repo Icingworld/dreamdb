@@ -104,7 +104,9 @@ bool ColumnDefinition::has_default_value() const noexcept
 
 CreateStmt::CreateStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::CREATE_STMT, line, column)
-    , object_type(ObjectType::COLLECTION)
+    , object_type(ObjectType::DATABASE)
+    , object_name("")
+    , column_definitions()
 {
 }
 
@@ -150,6 +152,9 @@ std::string CreateStmt::debug_string() const
 
     // 对象类型
     switch (object_type) {
+        case ObjectType::DATABASE:
+            oss << "DATABASE";
+            break;
         case ObjectType::COLLECTION:
             oss << "COLLECTION";
             break;

@@ -7,7 +7,7 @@ namespace dreamdb
 
 DropStmt::DropStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::DROP_STMT, line, column)
-    , object_type(ObjectType::COLLECTION)
+    , object_type(ObjectType::DATABASE)
 {
 }
 
@@ -38,6 +38,9 @@ std::string DropStmt::debug_string() const
 
     // 对象类型
     switch (object_type) {
+        case ObjectType::DATABASE:
+            oss << "DATABASE";
+            break;
         case ObjectType::COLLECTION:
             oss << "COLLECTION";
             break;

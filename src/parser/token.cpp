@@ -71,6 +71,9 @@ std::string Token::to_string() const
         case TokenType::DROP:
             result += "DROP";
             break;
+        case TokenType::USE:
+            result += "USE";
+            break;
         case TokenType::FROM:
             result += "FROM";
             break;
@@ -97,6 +100,9 @@ std::string Token::to_string() const
             break;
         case TokenType::AS:
             result += "AS";
+            break;
+        case TokenType::DATABASE:
+            result += "DATABASE";
             break;
         case TokenType::COLLECTION:
             result += "COLLECTION";

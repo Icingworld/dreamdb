@@ -18,6 +18,7 @@ class UpdateStmt;
 class DeleteStmt;
 class CreateStmt;
 class DropStmt;
+class UseStmt;
 class UnaryExpr;
 class BinaryExpr;
 class FunctionCallExpr;
@@ -143,6 +144,12 @@ private:
      * DROP TABLE/COLLECTION table_name
      */
     std::unique_ptr<DropStmt> parse_drop_stmt();
+
+    /**
+     * @brief 解析 USE 语句
+     * USE database_name
+     */
+    std::unique_ptr<UseStmt> parse_use_stmt();
 
     // ========== 表达式解析 ==========
 
