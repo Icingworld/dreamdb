@@ -6,6 +6,7 @@
 
 #include "dreamdb/parser/ast/ast_node.h"
 #include "dreamdb/schema/entity.h"
+#include "dreamdb/schema/database_manager.h"
 
 namespace dreamdb
 {
@@ -17,6 +18,7 @@ class InsertStmt;
 class UpdateStmt;
 class CreateStmt;
 class DropStmt;
+class UseStmt;
 
 /**
  * @brief 执行器结果
@@ -54,16 +56,16 @@ public:
     bool is_success() const noexcept;
 
     /**
-     * @brief 设置错误信息
-     * @param message 错误消息
+     * @brief 设置消息（用于成功或错误信息）
+     * @param message 消息内容
      */
-    void set_error_message(const std::string & message);
+    void set_message(const std::string & message);
 
     /**
-     * @brief 获取错误信息
-     * @return 错误消息
+     * @brief 获取消息
+     * @return 消息内容
      */
-    const std::string & get_error_message() const noexcept;
+    const std::string & get_message() const noexcept;
 
     /**
      * @brief 设置受影响的行数（用于 INSERT/UPDATE/DELETE）
@@ -102,7 +104,7 @@ public:
 
 private:
     bool success;                           // 执行是否成功
-    std::string error_message;              // 错误信息
+    std::string message;                    // 消息（成功或错误信息）
     std::size_t affected_count;             // 受影响的行数
     std::vector<Entity> rows;               // 查询结果
 };
@@ -113,9 +115,9 @@ private:
 class Executor
 {
 public:
-    Executor() = default;
+    Executor(DatabaseManager & database_manager);
 
-    ~Executor() = default;
+    ~Executor();
 
 public:
     /**
@@ -168,7 +170,57 @@ private:
      */
     ExecutorResult execute_drop(const DropStmt & drop_stmt);
 
+    /**
+     * @brief 执行 USE 语句
+     * @param use_stmt 切换数据库语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_use(const UseStmt & use_stmt);
+
+    /**
+     * @brief 执行 CREATE DATABASE 语句
+     * @param create_stmt 创建语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_create_database(const CreateStmt & create_stmt);
+
+    /**
+     * @brief 执行 CREATE COLLECTION 语句
+     * @param create_stmt 创建语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_create_collection(const CreateStmt & create_stmt);
+
+    /**
+     * @brief 执行 CREATE INDEX 语句
+     * @param create_stmt 创建语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_create_index(const CreateStmt & create_stmt);
+
+    /**
+     * @brief 执行 DROP DATABASE 语句
+     * @param drop_stmt 删除语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_drop_database(const DropStmt & drop_stmt);
+
+    /**
+     * @brief 执行 DROP COLLECTION 语句
+     * @param drop_stmt 删除语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_drop_collection(const DropStmt & drop_stmt);
+
+    /**
+     * @brief 执行 DROP INDEX 语句
+     * @param drop_stmt 删除语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_drop_index(const DropStmt & drop_stmt);
+
 private:
+    DatabaseManager database_manager_;      // 数据库管理器
 };
 
 } // namespace dreamdb

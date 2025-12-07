@@ -23,6 +23,7 @@ public:
      * @brief 构造函数
      * @param name 集合名称
      * @param schema 字段定义列表
+     * @param segment_manager 段管理器
      */
     Collection(
         const std::string & name, 
@@ -105,10 +106,10 @@ public:
     MutationResult upsert(const std::string & key, const std::string & value, const Entity & entity);
 
 private:
-    std::string name;               // 集合名称
-    std::vector<Field> schema;      // 字段定义列表
-    std::int64_t next_id;           // 自增 ID 生成器
-    SegmentManager & segment_manager;
+    std::string name;                       // 集合名称
+    std::vector<Field> schema;              // 字段定义列表
+    SegmentManager & segment_manager;       // 段管理器
+    std::int64_t next_id;                   // 自增 ID 生成器
 
 private:
     std::optional<std::size_t> find_field_index(const std::string & key) const;
