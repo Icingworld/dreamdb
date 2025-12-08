@@ -19,6 +19,7 @@ public:
      */
     enum class ObjectType : std::uint8_t
     {
+        DATABASE,    // 数据库
         COLLECTION,  // 集合
         INDEX        // TODO: 索引
     };

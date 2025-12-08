@@ -341,6 +341,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "UPDATE") return TokenType::UPDATE;
     if (upper_keyword == "CREATE") return TokenType::CREATE;
     if (upper_keyword == "DROP") return TokenType::DROP;
+    if (upper_keyword == "USE") return TokenType::USE;
     if (upper_keyword == "FROM") return TokenType::FROM;
     if (upper_keyword == "WHERE") return TokenType::WHERE;
     if (upper_keyword == "INTO") return TokenType::INTO;
@@ -350,6 +351,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "OR") return TokenType::OR;
     if (upper_keyword == "NOT") return TokenType::NOT;
     if (upper_keyword == "AS") return TokenType::AS;
+    if (upper_keyword == "DATABASE") return TokenType::DATABASE;
     if (upper_keyword == "COLLECTION") return TokenType::COLLECTION;
     if (upper_keyword == "INDEX") return TokenType::INDEX;
     if (upper_keyword == "LIMIT") return TokenType::LIMIT;

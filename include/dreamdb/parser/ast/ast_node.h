@@ -18,6 +18,7 @@ enum class AstNodeType : std::uint8_t
     UPDATE_STMT,                // 更新语句
     CREATE_STMT,                // 创建语句
     DROP_STMT,                  // 删除语句
+    USE_STMT,                   // 切换数据库语句
 
     // 表达式节点
     LITERAL_EXPR,               // 字面量表达式，如整数、浮点数、字符串等
