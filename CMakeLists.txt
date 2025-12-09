@@ -22,34 +22,3 @@ add_library(dreamdb STATIC
 target_include_directories(dreamdb PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
-
-# 编译测试用例
-add_executable(schema_field_test tests/schema_field_test.cpp)
-target_include_directories(schema_field_test PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-)
-target_link_libraries(schema_field_test dreamdb)
-
-add_executable(schema_entity_test tests/schema_entity_test.cpp)
-target_include_directories(schema_entity_test PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-)
-target_link_libraries(schema_entity_test dreamdb)
-
-add_executable(schema_collection_test tests/schema_collection_test.cpp)
-target_include_directories(schema_collection_test PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-)
-target_link_libraries(schema_collection_test dreamdb)
-
-add_executable(parser_lexer_test tests/parser_lexer_test.cpp)
-target_include_directories(parser_lexer_test PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-)
-target_link_libraries(parser_lexer_test dreamdb)
-
-add_executable(decimal_test tests/decimal_test.cpp)
-target_include_directories(decimal_test PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-)
-target_link_libraries(decimal_test dreamdb)

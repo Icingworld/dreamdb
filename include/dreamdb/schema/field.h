@@ -41,6 +41,7 @@ public:
         FieldType type,
         int length,
         int precision,
+        const std::vector<std::string> & options,
         bool is_nullable,
         bool is_primary,
         const std::string & comment,
@@ -84,6 +85,12 @@ public:
      * @param precision 字段小数点位数
      */
     void set_precision(int precision);
+
+    /**
+     * @brief 设置字段选项
+     * @param options ENUM 字段选项
+     */
+    void set_options(const std::vector<std::string> & options);
 
     /**
      * @brief 设置字段是否可为空
@@ -140,6 +147,12 @@ public:
     int get_precision() const;
 
     /**
+     * @brief 获取字段选项
+     * @return 字段选项
+     */
+    const std::vector<std::string> & get_options() const;
+
+    /**
      * @brief 获取字段是否可为空
      * @return 字段是否可为空
      */
@@ -173,9 +186,9 @@ public:
     /** 静态创建接口 */
 
     /**
-     * @brief 创建 INT8 字段
-    */
-    static Field create_int8_field(
+     * @brief 创建 TINYINT 字段
+     */
+    static Field create_tinyint_field(
         const std::string & name = "",
         bool is_nullable = true,
         bool is_primary = false,
@@ -185,9 +198,9 @@ public:
     );
 
     /**
-     * @brief 创建 INT16 字段
-    */
-    static Field create_int16_field(
+     * @brief 创建 SMALLINT 字段
+     */
+    static Field create_smallint_field(
         const std::string & name = "",
         bool is_nullable = true,
         bool is_primary = false,
@@ -197,9 +210,9 @@ public:
     );
 
     /**
-     * @brief 创建 INT32 字段
-    */
-    static Field create_int32_field(
+     * @brief 创建 INTEGER 字段
+     */
+    static Field create_integer_field(
         const std::string & name = "",
         bool is_nullable = true,
         bool is_primary = false,
@@ -209,9 +222,9 @@ public:
     );
 
     /**
-     * @brief 创建 INT64 字段
-    */
-    static Field create_int64_field(
+     * @brief 创建 BIGINT 字段
+     */
+    static Field create_bigint_field(
         const std::string & name = "",
         bool is_nullable = true,
         bool is_primary = false,
@@ -222,7 +235,7 @@ public:
 
     /**
      * @brief 创建 FLOAT 字段
-    */
+     */
     static Field create_float_field(
         const std::string & name = "",
         bool is_nullable = true,
@@ -233,7 +246,7 @@ public:
 
     /**
      * @brief 创建 DOUBLE 字段
-    */
+     */
     static Field create_double_field(
         const std::string & name = "",
         bool is_nullable = true,
@@ -243,10 +256,24 @@ public:
     );
 
     /**
+     * @brief 创建 DECIMAL 字段
+     */
+    static Field create_decimal_field(
+        const std::string & name = "",
+        int precision = 0,
+        int scale = 0,
+        bool is_nullable = true,
+        bool is_primary = false,
+        const std::string & comment = "",
+        const FieldValue & default_value = Null()
+    );
+
+    /**
      * @brief 创建 CHAR 字段
-    */
+     */
     static Field create_char_field(
         const std::string & name = "",
+        int length = 1,
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
@@ -255,9 +282,10 @@ public:
 
     /**
      * @brief 创建 VARCHAR 字段
-    */
+     */
     static Field create_varchar_field(
         const std::string & name = "",
+        int length = 1,
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
@@ -266,7 +294,7 @@ public:
 
     /**
      * @brief 创建 BOOLEAN 字段
-    */
+     */
     static Field create_boolean_field(
         const std::string & name = "",
         bool is_nullable = true,
@@ -277,7 +305,7 @@ public:
 
     /**
      * @brief 创建 TIMESTAMP 字段
-    */
+     */
     static Field create_timestamp_field(
         const std::string & name = "",
         bool is_nullable = true,
@@ -288,9 +316,10 @@ public:
 
     /**
      * @brief 创建 ENUM 字段
-    */
+     */
     static Field create_enum_field(
         const std::string & name = "",
+        const std::vector<std::string> & enum_options = {},
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
@@ -298,10 +327,11 @@ public:
     );
 
     /**
-     * @brief 创建 FLOAT_VECTOR 字段
-    */
-    static Field create_float_vector_field(
+     * @brief 创建 VECTOR 字段
+     */
+    static Field create_vector_field(
         const std::string & name = "",
+        int dimension = 0,
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
@@ -310,18 +340,18 @@ public:
 
 private:
     // 基本属性
-    std::string name_;                  // 字段名称
-    FieldType type_;                    // 字段类型
-    int length_;                        // 字段长度
-    int precision_;                     // 字段小数点位数
-    std::optional<std::vector<std::string>> options_;  // ENUM 字段选项
-    bool is_nullable_;                  // 字段是否可为空
-    bool is_primary_;                   // 字段是否为主键
-    std::string comment_;               // 字段注释
+    std::string name_;                                      // 字段名称
+    FieldType type_;                                        // 字段类型
+    int length_;                                            // 字段长度
+    int precision_;                                         // 字段小数点位数
+    std::optional<std::vector<std::string>> options_;       // ENUM 字段选项
+    bool is_nullable_;                                      // 字段是否可为空
+    bool is_primary_;                                       // 字段是否为主键
+    std::string comment_;                                   // 字段注释
 
     // 特定类型字段属性
-    FieldValue default_value_;          // 字段默认值
-    bool is_auto_increment_;            // 字段是否自动递增
+    FieldValue default_value_;                              // 字段默认值
+    bool is_auto_increment_;                                // 字段是否自动递增
 };
 
 } // namespace dreamdb
