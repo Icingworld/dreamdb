@@ -86,8 +86,8 @@ void Field::set_comment(const std::string & comment)
 
 void Field::set_default_value(const FieldValue & default_value)
 {
-    // 检查是否为 NullType（允许空值）
-    if (std::holds_alternative<NullType>(default_value)) {
+    // 检查是否为 Null（允许空值）
+    if (std::holds_alternative<Null>(default_value)) {
         this->default_value = default_value;
         return;
     }

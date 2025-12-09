@@ -3,27 +3,31 @@
 #include <string>
 #include <variant>
 #include <cstdint>
+#include <vector>
+#include <optional>
 
 #include "dreamdb/common/type.h"
+#include "dreamdb/common/decimal.h"
+#include "dreamdb/common/null.h"
 
 namespace dreamdb
 {
 
 /**
- * @brief 字段默认值类型
+ * @brief 字段值类型
  */
 using FieldValue = std::variant<
-    std::int8_t,                    // INT8
-    std::int16_t,                   // INT16
-    std::int32_t,                   // INT32
-    std::int64_t,                   // INT64, TIMESTAMP
+    std::int8_t,                    // TINYINT
+    std::int16_t,                   // SMALLINT
+    std::int32_t,                   // INTEGER
+    std::int64_t,                   // BIGINT, TIMESTAMP
     float,                          // FLOAT
     double,                         // DOUBLE
-    char,                           // CHAR
-    std::string,                    // VARCHAR, ENUM
+    Decimal,                        // DECIMAL
+    std::string,                    // CHAR, VARCHAR, ENUM
     bool,                           // BOOLEAN
-    std::vector<float>,             // FLOAT_VECTOR
-    NullType                        // NULL
+    std::vector<float>,             // VECTOR
+    Null                            // NULL
 >;
 
 /**
@@ -176,7 +180,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType(),
+        const FieldValue & default_value = Null(),
         bool is_auto_increment = false
     );
 
@@ -188,7 +192,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType(),
+        const FieldValue & default_value = Null(),
         bool is_auto_increment = false
     );
 
@@ -200,7 +204,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType(),
+        const FieldValue & default_value = Null(),
         bool is_auto_increment = false
     );
 
@@ -212,7 +216,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType(),
+        const FieldValue & default_value = Null(),
         bool is_auto_increment = false
     );
 
@@ -224,7 +228,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -235,7 +239,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -246,7 +250,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -257,7 +261,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -268,7 +272,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -279,7 +283,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -290,7 +294,7 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NullType()
+        const FieldValue & default_value = Null()
     );
 
     /**
@@ -301,22 +305,23 @@ public:
         bool is_nullable = true,
         bool is_primary = false,
         const std::string & comment = "",
-        const FieldValue & default_value = NULL_TYPE()
+        const FieldValue & default_value = Null()
     );
 
 private:
     // 基本属性
-    std::string name;                   // 字段名称
-    FieldType type;                     // 字段类型
-    int length;                         // 字段长度
-    int precision;                      // 字段小数点位数
-    bool is_nullable;                   // 字段是否可为空
-    bool is_primary;                    // 字段是否为主键
-    std::string comment;                // 字段注释
+    std::string name_;                  // 字段名称
+    FieldType type_;                    // 字段类型
+    int length_;                        // 字段长度
+    int precision_;                     // 字段小数点位数
+    std::optional<std::vector<std::string>> options_;  // ENUM 字段选项
+    bool is_nullable_;                  // 字段是否可为空
+    bool is_primary_;                   // 字段是否为主键
+    std::string comment_;               // 字段注释
 
     // 特定类型字段属性
-    FieldValue default_value;    // 字段默认值
-    bool is_auto_increment;             // 字段是否自动递增
+    FieldValue default_value_;          // 字段默认值
+    bool is_auto_increment_;            // 字段是否自动递增
 };
 
 } // namespace dreamdb
