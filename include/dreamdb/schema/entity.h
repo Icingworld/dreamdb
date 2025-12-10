@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <variant>
 #include <vector>
 #include <cstdint>
 
@@ -45,6 +44,12 @@ public:
      * @throw std::out_of_range 如果索引越界
      */
     void set_value(std::size_t index, const FieldValue & value);
+
+    /**
+     * @brief 获取内部 ID
+     * @return 内部 ID
+     */
+    std::int64_t get_id() const;
 
     /**
      * @brief 获取字段值
@@ -96,18 +101,6 @@ public:
      * @return 如果所有字段都是 null 返回 true
      */
     bool is_empty() const;
-
-    /**
-     * @brief 获取内部 ID
-     * @return 内部 ID
-     */
-    std::int64_t get_id() const noexcept;
-
-    /**
-     * @brief 设置内部 ID
-     * @param new_id 新的内部 ID
-     */
-    void set_id(std::int64_t new_id) noexcept;
 
 private:
     std::int64_t id;                 // 内部 ID

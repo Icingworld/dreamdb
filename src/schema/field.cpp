@@ -45,6 +45,7 @@ void Field::set_type(FieldType type)
     type_ = type;
 
     // TODO: 根据类型做出不同的初始化处理
+    // 由于暂不支持修改集合结构，所以这里不需要做任何处理
     switch (type)
     {
         case FieldType::TINYINT:
