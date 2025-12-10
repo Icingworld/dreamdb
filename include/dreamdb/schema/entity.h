@@ -103,8 +103,8 @@ public:
     bool is_empty() const;
 
 private:
-    std::int64_t id;                 // 内部 ID
-    std::vector<FieldValue> values;  // 字段值列表，按索引顺序存储
+    std::int64_t id_;                    // 内部 ID
+    std::vector<FieldValue> values_;     // 字段值列表，按索引顺序存储
 };
 
 } // namespace dreamdb
