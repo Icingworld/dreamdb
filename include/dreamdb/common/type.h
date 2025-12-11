@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 namespace dreamdb
 {
@@ -102,22 +101,6 @@ enum class LogicOperator : std::uint8_t
 {
     AND,                // 与
     OR                  // 或
-};
-
-/**
- * @brief 操作结果类
- */
-class MutationResult
-{
-public:
-    MutationResult() = default;
-
-    ~MutationResult() = default;
-
-public:
-    bool success = false;                   // 操作是否成功
-    std::string error_message;              // 错误信息
-    std::size_t affected_count = 0;         // 受影响的记录数
 };
 
 } // namespace dreamdb

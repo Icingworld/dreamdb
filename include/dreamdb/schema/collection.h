@@ -7,7 +7,6 @@
 
 #include "dreamdb/schema/field.h"
 #include "dreamdb/schema/entity.h"
-#include "dreamdb/common/type.h"
 
 namespace dreamdb
 {

@@ -1,198 +1,71 @@
 #include "dreamdb/storage/memory_storage.h"
 
-#include <stdexcept>
-
 namespace dreamdb
 {
 
-namespace
-{
-
-MutationResult make_error(const std::string & message)
-{
-    MutationResult result;
-    result.success = false;
-    result.error_message = message;
-    return result;
-}
-
-MutationResult make_success(std::size_t affected = 1)
-{
-    MutationResult result;
-    result.success = true;
-    result.affected_count = affected;
-    return result;
-}
-
-} // namespace
-
-MemoryStorage::MemoryStorage(std::size_t field_count)
-    : expected_field_count_(field_count)
+MemoryStorage::MemoryStorage(std::size_t field_count) noexcept
+    : field_count_(field_count)
+    , entity_map_()
 {
 }
 
 MutationResult MemoryStorage::insert(const Entity & entity)
 {
-    if (expected_field_count_ != 0 && entity.field_count() != expected_field_count_) {
-        return make_error("Entity field count mismatch");
+    // 查找是否有该 id 的实体
+    auto it = entity_map_.find(entity.get_id());
+    if (it != entity_map_.end()) {
+        // 已经存在了，失败
+        // 理论上不应该出现该情况
+        return MutationResult::make_failure("Entity id already exists");
     }
 
-    const auto id = entity.get_id();
-    if (entities_.find(id) != entities_.end()) {
-        return make_error("Entity already exists");
-    }
-
-    entities_.emplace(id, clone_entity(entity));
-    return make_success();
+    // 插入实体
+    entity_map_[entity.get_id()] = entity;
+    return MutationResult::make_success(1);
 }
 
 MutationResult MemoryStorage::remove_by_id(std::int64_t id)
 {
-    std::size_t removed = entities_.erase(id);
-    if (removed == 0) {
-        return make_error("Entity not found");
-    }
-    return make_success(removed);
-}
-
-MutationResult MemoryStorage::remove_by_field(std::size_t field_index, const FieldValue & value)
-{
-    if (expected_field_count_ != 0 && field_index >= expected_field_count_) {
-        return make_error("Field index out of range");
+    // 查找是否有该 id 的实体
+    auto it = entity_map_.find(id);
+    if (it == entity_map_.end()) {
+        return MutationResult::make_failure("Entity id not found");
     }
 
-    std::vector<std::int64_t> ids;
-    ids.reserve(entities_.size());
-    for (const auto & [id, entity] : entities_) {
-        if (match_field_value(entity, field_index, value)) {
-            ids.push_back(id);
-        }
-    }
-
-    for (auto id : ids) {
-        entities_.erase(id);
-    }
-
-    if (ids.empty()) {
-        return make_error("No entity matches the field condition");
-    }
-
-    return make_success(ids.size());
-}
-
-MutationResult MemoryStorage::update_by_id(std::int64_t id, const Entity & entity)
-{
-    if (expected_field_count_ != 0 && entity.field_count() != expected_field_count_) {
-        return make_error("Entity field count mismatch");
-    }
-
-    auto it = entities_.find(id);
-    if (it == entities_.end()) {
-        return make_error("Entity not found");
-    }
-
-    it->second = clone_entity(entity);
-    it->second.set_id(id);
-    return make_success();
-}
-
-MutationResult MemoryStorage::upsert_by_field(std::size_t field_index, const FieldValue & value, const Entity & entity)
-{
-    if (expected_field_count_ != 0 && entity.field_count() != expected_field_count_) {
-        return make_error("Entity field count mismatch");
-    }
-
-    for (auto & [id, stored_entity] : entities_) {
-        if (match_field_value(stored_entity, field_index, value)) {
-            stored_entity = clone_entity(entity);
-            stored_entity.set_id(id);
-            return make_success();
-        }
-    }
-
-    return insert(entity);
+    entity_map_.erase(it);
+    return MutationResult::make_success(1);
 }
 
 std::unique_ptr<Entity> MemoryStorage::get_by_id(std::int64_t id) const
 {
-    auto it = entities_.find(id);
-    if (it == entities_.end()) {
+    auto it = entity_map_.find(id);
+    if (it == entity_map_.end()) {
         return nullptr;
     }
 
-    return std::make_unique<Entity>(clone_entity(it->second));
-}
-
-std::vector<std::unique_ptr<Entity>> MemoryStorage::query_by_field(std::size_t field_index, const FieldValue & value) const
-{
-    if (expected_field_count_ != 0 && field_index >= expected_field_count_) {
-        throw std::out_of_range("Field index out of range");
-    }
-
-    std::vector<std::unique_ptr<Entity>> results;
-    for (const auto & [_, entity] : entities_) {
-        if (match_field_value(entity, field_index, value)) {
-            results.push_back(std::make_unique<Entity>(clone_entity(entity)));
-        }
-    }
-
-    return results;
+    // 构造一个新的实体返回
+    return std::make_unique<Entity>(it->second);
 }
 
 std::size_t MemoryStorage::size() const
 {
-    return entities_.size();
+    return entity_map_.size();
 }
 
 bool MemoryStorage::empty() const
 {
-    return entities_.empty();
+    return entity_map_.empty();
 }
 
 bool MemoryStorage::contains(std::int64_t id) const
 {
-    return entities_.find(id) != entities_.end();
-}
-
-MutationResult MemoryStorage::insert_batch(const std::vector<Entity> & entities)
-{
-    MutationResult result;
-    for (const auto & entity : entities) {
-        auto single = insert(entity);
-        if (!single.success) {
-            return single;
-        }
-        result.affected_count += single.affected_count;
-    }
-    result.success = true;
-    return result;
+    return entity_map_.find(id) != entity_map_.end();
 }
 
 MutationResult MemoryStorage::clear()
 {
-    const auto removed = entities_.size();
-    entities_.clear();
-    return make_success(removed);
-}
-
-Entity MemoryStorage::clone_entity(const Entity & entity) const
-{
-    Entity clone(entity.get_id(), entity.field_count());
-    for (std::size_t i = 0; i < entity.field_count(); ++i) {
-        clone.set_value(i, entity.get_value(i));
-    }
-
-    return clone;
-}
-
-bool MemoryStorage::match_field_value(const Entity & entity, std::size_t field_index, const FieldValue & value) const
-{
-    if (field_index >= entity.field_count()) {
-        throw std::out_of_range("Field index out of range");
-    }
-
-    return entity.get_value(field_index) == value;
+    entity_map_.clear();
+    return MutationResult::make_success(1);
 }
 
 } // namespace dreamdb
-

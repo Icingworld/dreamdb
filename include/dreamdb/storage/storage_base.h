@@ -2,10 +2,11 @@
 
 #include <cstdint>
 #include <vector>
+#include <utility>
 #include <memory>
 
 #include "dreamdb/schema/entity.h"
-#include "dreamdb/common/type.h"
+#include "dreamdb/common/mutation_result.h"
 #include "dreamdb/query/query.h"
 
 namespace dreamdb
@@ -35,6 +36,7 @@ public:
      * @brief 按内部 ID 删除实体
      * @param id 内部 ID
      * @return 操作结果
+     * @note 如果 ID 不存在，操作失败
      */
     virtual MutationResult remove_by_id(std::int64_t id) = 0;
 
@@ -45,7 +47,7 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    virtual MutationResult update_by_id(std::int64_t id, const Entity & entity) = 0;
+    virtual MutationResult update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields) = 0;
 
 public:
     /** 查询操作 */

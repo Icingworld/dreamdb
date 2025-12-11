@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <vector>
 #include <cstdint>
 
@@ -24,11 +23,11 @@ public:
      */
     explicit Entity(std::int64_t id, std::size_t field_count);
 
-    Entity(const Entity & other) = delete;
+    Entity(const Entity & other) = default;
 
     Entity(Entity && other) noexcept = default;
 
-    Entity & operator=(const Entity & other) = delete;
+    Entity & operator=(const Entity & other) = default;
 
     Entity & operator=(Entity && other) noexcept = default;
 
