@@ -35,7 +35,7 @@ const std::vector<Field> & Collection::get_schema() const
 Entity Collection::create_entity()
 {
     // 预分配字段数量
-    Entity entity(next_id_, schema_.size());
+    Entity entity(next_id_++, schema_.size());
 
     return entity;
 }
