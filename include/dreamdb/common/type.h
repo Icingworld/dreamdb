@@ -59,6 +59,52 @@ enum class MetricType : std::uint8_t
 };
 
 /**
+ * @brief 排序方向
+ */
+enum class Direction : std::uint8_t
+{
+    ASC,                // 升序
+    DESC                // 降序
+};
+
+/**
+ * @brief 条件类型
+ */
+enum class ConditionType : std::uint8_t
+{
+    EQ,                 // 等于
+    NE,                 // 不等于
+    GT,                 // 大于
+    GE,                 // 大于等于
+    LT,                 // 小于
+    LE,                 // 小于等于
+    BETWEEN,            // 在范围内
+    IN,                 // 在列表中
+    LIKE                // 模糊匹配
+};
+
+/**
+ * @brief 条件类型枚举
+ */
+enum class ConditionKind : std::uint8_t
+{
+    SINGLE,         // 单个值条件（EQ, NE, GT, GE, LT, LE）
+    BETWEEN,        // BETWEEN 条件
+    IN,             // IN 条件
+    LIKE,           // LIKE 条件
+    COMPOSITE       // 组合条件（AND, OR）
+};
+
+/**
+ * @brief 逻辑操作符
+ */
+enum class LogicOperator : std::uint8_t
+{
+    AND,                // 与
+    OR                  // 或
+};
+
+/**
  * @brief 操作结果类
  */
 class MutationResult
