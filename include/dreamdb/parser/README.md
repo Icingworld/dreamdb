@@ -87,10 +87,10 @@ Error: Database 'database_name' already exists
 
 **字段类型**
 
-- `INT8`: 8位整数
-- `INT16`: 16位整数
-- `INT32`: 32位整数
-- `INT64`: 64位整数
+- `TINYINT`: 8位整数
+- `SMALLINT`: 16位整数
+- `INTEGER`: 32位整数
+- `BIGINT`: 64位整数
 - `FLOAT`: 单精度浮点数
 - `DOUBLE`: 双精度浮点数
 - `DECIMAL(p, s)`: 定点数，精度为`p`，小数位数为`s`

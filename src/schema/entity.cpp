@@ -2,82 +2,79 @@
 
 #include <stdexcept>
 
+#include "dreamdb/common/null.h"
+
 namespace dreamdb
 {
 
 Entity::Entity(std::int64_t id, std::size_t field_count)
-    : id(id)
-    , values(field_count, NullType())
+    : id_(id)
+    , values_(field_count, Null())
 {
 }
 
 void Entity::set_value(std::size_t index, const FieldValue & value)
 {
-    if (index >= values.size()) {
+    if (index >= values_.size()) {
         throw std::out_of_range("Field index out of range");
     }
 
-    values[index] = value;
+    values_[index] = value;
+}
+
+std::int64_t Entity::get_id() const
+{
+    return id_;
 }
 
 const FieldValue & Entity::get_value(std::size_t index) const
 {
-    if (index >= values.size()) {
+    if (index >= values_.size()) {
         throw std::out_of_range("Field index out of range");
     }
 
-    return values[index];
+    return values_[index];
 }
 
 FieldValue & Entity::get_value(std::size_t index)
 {
-    if (index >= values.size()) {
+    if (index >= values_.size()) {
         throw std::out_of_range("Field index out of range");
     }
 
-    return values[index];
+    return values_[index];
 }
 
 bool Entity::is_null(std::size_t index) const
 {
-    if (index >= values.size()) {
+    if (index >= values_.size()) {
         throw std::out_of_range("Field index out of range");
     }
 
-    return std::holds_alternative<NullType>(values[index]);
+    return std::holds_alternative<Null>(values_[index]);
 }
 
 std::size_t Entity::field_count() const
 {
-    return values.size();
+    return values_.size();
 }
 
 void Entity::clear()
 {
-    for (auto & value : values) {
-        value = NullType();
+    for (auto & value : values_) {
+        value = Null();
     }
 }
 
 bool Entity::is_empty() const
 {
-    for (const auto & value : values) {
-        if (!std::holds_alternative<NullType>(value)) {
+    for (const auto & value : values_) {
+        if (!std::holds_alternative<Null>(value)) {
             return false;
         }
     }
 
     return true;
-}
-
-std::int64_t Entity::get_id() const noexcept
-{
-    return id;
-}
-
-void Entity::set_id(std::int64_t new_id) noexcept
-{
-    id = new_id;
 }
 
 } // namespace dreamdb
