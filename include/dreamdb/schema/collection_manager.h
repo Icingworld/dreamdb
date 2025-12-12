@@ -6,10 +6,11 @@
 #include <memory>
 
 #include "dreamdb/schema/collection.h"
-#include "dreamdb/storage/segment_manager.h"
 
 namespace dreamdb
 {
+
+class SegmentManager;
 
 /**
  * @brief 集合管理器
@@ -18,13 +19,7 @@ namespace dreamdb
 class CollectionManager
 {
 public:
-    using StorageFactory = SegmentManager::StorageFactory;
-
-    /**
-     * @brief 构造函数
-     * @param storage_factory 存储工厂函数，用于创建段的底层存储
-     */
-    explicit CollectionManager(StorageFactory storage_factory = nullptr);
+    CollectionManager() noexcept;
 
     CollectionManager(const CollectionManager &) = delete;
 
@@ -86,27 +81,6 @@ public:
      * @return 集合数量
      */
     std::size_t collection_count() const noexcept;
-
-public:
-    /** SegmentManager 访问接口 */
-
-    /**
-     * @brief 获取段管理器引用
-     * @return 段管理器引用
-     */
-    SegmentManager & get_segment_manager() noexcept;
-
-    /**
-     * @brief 获取段管理器引用（常量版本）
-     * @return 段管理器引用
-     */
-    const SegmentManager & get_segment_manager() const noexcept;
-
-    /**
-     * @brief 设置存储工厂
-     * @param factory 工厂函数
-     */
-    void set_storage_factory(StorageFactory factory);
 
 private:
     std::unique_ptr<SegmentManager> segment_manager_;                                   // 段管理器（拥有）

@@ -2,90 +2,89 @@
 
 #include <stdexcept>
 
+#include "dreamdb/storage/memory_storage.h"
+
 namespace dreamdb
 {
 
-Segment::Segment(SegmentId id, std::unique_ptr<StorageBase> storage)
-    : id(id)
-    , storage(std::move(storage))
-    , status(SegmentStatus::GROWING)
-    , created_at(std::chrono::system_clock::now())
+Segment::Segment(std::int64_t id)
+    : id_(id)
+    , status_(SegmentStatus::GROWING)
+    , storage_(std::make_unique<MemoryStorage>())
+    , created_at_(std::chrono::system_clock::now())
+    , sealed_at_(std::nullopt)
 {
-    if (!this->storage) {
-        throw std::invalid_argument("Segment requires a valid storage implementation");
-    }
 }
 
-SegmentId Segment::get_id() const noexcept
+void Segment::set_status(SegmentStatus status) noexcept
 {
-    return id;
+    status_ = status;
+}
+
+std::int64_t Segment::get_id() const noexcept
+{
+    return id_;
 }
 
 SegmentStatus Segment::get_status() const noexcept
 {
-    return status;
+    return status_;
 }
 
 std::chrono::system_clock::time_point Segment::get_created_at() const noexcept
 {
-    return created_at;
+    return created_at_;
 }
 
 std::optional<std::chrono::system_clock::time_point> Segment::get_sealed_at() const noexcept
 {
-    return sealed_at;
+    return sealed_at_;
 }
 
-bool Segment::can_accept_writes() const noexcept
+MutationResult Segment::insert(const Entity & entity)
 {
-    return status == SegmentStatus::GROWING;
+    return storage_->insert(entity);
 }
 
-void Segment::set_status(SegmentStatus new_status) noexcept
+MutationResult Segment::remove_by_id(std::int64_t id)
 {
-    status = new_status;
-    if (status == SegmentStatus::SEALED) {
-        sealed_at = std::chrono::system_clock::now();
-    }
+    return storage_->remove_by_id(id);
+}
+
+MutationResult Segment::update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
+{
+    return storage_->update_by_id(id, fields);
+}
+
+std::unique_ptr<Entity> Segment::get_by_id(std::int64_t id) const
+{
+    return storage_->get_by_id(id);
+}
+
+std::vector<std::unique_ptr<Entity>> Segment::query(const Query & query) const
+{
+    return storage_->query(query);
+}
+
+std::size_t Segment::size() const noexcept
+{
+    return storage_->size();
+}
+
+bool Segment::empty() const noexcept
+{
+    return storage_->empty();
 }
 
 void Segment::seal()
 {
-    if (status != SegmentStatus::GROWING) {
-        throw std::runtime_error("Segment is not in a writable state");
+    if (status_ != SegmentStatus::GROWING) {
+        throw std::runtime_error("Segment is not growing");
     }
+    status_ = SegmentStatus::SEALED;
+    sealed_at_ = std::chrono::system_clock::now();
 
-    set_status(SegmentStatus::SEALED);
-}
-
-void Segment::mark_flushed()
-{
-    set_status(SegmentStatus::FLUSHED);
-}
-
-void Segment::mark_dropped()
-{
-    set_status(SegmentStatus::DROPPED);
-}
-
-std::size_t Segment::get_entity_count() const noexcept
-{
-    return storage ? storage->size() : 0;
-}
-
-bool Segment::is_empty() const noexcept
-{
-    return !storage || storage->empty();
-}
-
-StorageBase * Segment::get_storage() noexcept
-{
-    return storage.get();
-}
-
-const StorageBase * Segment::get_storage() const noexcept
-{
-    return storage.get();
+    // TODO: 将数据写入磁盘
 }
 
 } // namespace dreamdb

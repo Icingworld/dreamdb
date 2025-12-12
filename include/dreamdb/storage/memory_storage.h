@@ -15,11 +15,7 @@ namespace dreamdb
 class MemoryStorage : public StorageBase
 {
 public:
-    /**
-     * @brief 构造函数
-     * @param field_count 期望的字段数量
-     */
-    explicit MemoryStorage(std::size_t field_count) noexcept;
+    MemoryStorage() noexcept;
 
     ~MemoryStorage() override = default;
 
@@ -43,7 +39,7 @@ public:
     /**
      * @brief 按内部 ID 更新实体
      * @param id 内部 ID
-     * @param entity 新的实体数据
+     * @param fields 要更新的字段
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
@@ -89,7 +85,6 @@ public:
     MutationResult clear() override;
 
 private:
-    std::size_t field_count_;                               // 期望的字段数量
     std::unordered_map<std::int64_t, Entity> entity_map_;   // 实体映射
 };
 
