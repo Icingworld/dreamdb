@@ -14,7 +14,7 @@ namespace dreamdb
 class Database
 {
 public:
-    Database(const std::string & name, CollectionManager::StorageFactory storage_factory);
+    Database(const std::string & name);
 
     Database(const Database &) = delete;
 
@@ -34,16 +34,26 @@ public:
     const std::string & get_name() const;
 
     /**
-     * @brief 获取集合管理器
-     * @return 集合管理器
+     * @brief 创建集合
+     * @param name 集合名称
+     * @param schema 字段定义列表
+     * @return 创建的集合指针，如果集合已存在或创建失败则返回 nullptr
      */
-    CollectionManager & get_collection_manager();
+    Collection * create_collection(const std::string & name, const std::vector<Field> & schema);
 
     /**
-     * @brief 获取集合管理器（常量版本）
-     * @return 集合管理器
+     * @brief 删除集合
+     * @param name 集合名称
+     * @return 删除结果
      */
-    const CollectionManager & get_collection_manager() const;
+    bool drop_collection(const std::string & name);
+
+    /**
+     * @brief 获取集合
+     * @param name 集合名称
+     * @return 获取的集合指针，如果不存在则返回 nullptr
+     */
+    Collection * get_collection(const std::string & name);
 
 private:
     std::string name_;              // 数据库名称

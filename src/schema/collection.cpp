@@ -43,6 +43,7 @@ Entity Collection::create_entity()
 
 MutationResult Collection::insert(const Entity & entity)
 {
+    // TODO: 检查是否需要 Seal 段
     return active_segment_->insert(entity);
 }
 
