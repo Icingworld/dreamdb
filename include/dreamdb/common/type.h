@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 namespace dreamdb
 {
@@ -88,11 +87,11 @@ enum class ConditionType : std::uint8_t
  */
 enum class ConditionKind : std::uint8_t
 {
-    SINGLE,         // 单个值条件（EQ, NE, GT, GE, LT, LE）
-    BETWEEN,        // BETWEEN 条件
-    IN,             // IN 条件
-    LIKE,           // LIKE 条件
-    COMPOSITE       // 组合条件（AND, OR）
+    SINGLE,             // 单个值条件（EQ, NE, GT, GE, LT, LE）
+    BETWEEN,            // BETWEEN 条件
+    IN,                 // IN 条件
+    LIKE,               // LIKE 条件
+    COMPOSITE,          // 组合条件（AND, OR）
 };
 
 /**
@@ -105,19 +104,14 @@ enum class LogicOperator : std::uint8_t
 };
 
 /**
- * @brief 操作结果类
+ * @brief 段状态
  */
-class MutationResult
+enum class SegmentStatus : std::uint8_t
 {
-public:
-    MutationResult() = default;
-
-    ~MutationResult() = default;
-
-public:
-    bool success = false;                   // 操作是否成功
-    std::string error_message;              // 错误信息
-    std::size_t affected_count = 0;         // 受影响的记录数
+    GROWING,            // 正在增长，可以继续写入
+    SEALED,             // 已密封，不再接受新的写入
+    FLUSHED,            // 已刷新，数据已写入磁盘
+    DROPPED             // 已删除
 };
 
 } // namespace dreamdb

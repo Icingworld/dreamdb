@@ -5,23 +5,15 @@
 #include <chrono>
 #include <optional>
 
-#include "dreamdb/storage/storage_base.h"
+#include "dreamdb/common/type.h"
+#include "dreamdb/common/mutation_result.h"
+#include "dreamdb/schema/entity.h"
+#include "dreamdb/query/query.h"
 
 namespace dreamdb
 {
 
-using SegmentId = std::int64_t;
-
-/**
- * @brief 段状态
- */
-enum class SegmentStatus : std::uint8_t
-{
-    GROWING = 0,  // 正在增长，可以继续写入
-    SEALED = 1,   // 已密封，不再接受新的写入
-    FLUSHED = 2,  // 已刷新，数据已写入磁盘
-    DROPPED = 3   // 已删除
-};
+class StorageBase;
 
 /**
  * @brief 段
@@ -29,7 +21,7 @@ enum class SegmentStatus : std::uint8_t
 class Segment
 {
 public:
-    explicit Segment(SegmentId id, std::unique_ptr<StorageBase> storage);
+    explicit Segment(std::int64_t id);
 
     Segment(const Segment & other) = delete;
 
@@ -45,10 +37,16 @@ public:
     /** Segment 属性访问接口 */
 
     /**
+     * @brief 设置段状态
+     * @param status 段状态
+     */
+    void set_status(SegmentStatus status) noexcept;
+
+    /**
      * @brief 获取段 ID
      * @return 段 ID
      */
-    SegmentId get_id() const noexcept;
+    std::int64_t get_id() const noexcept;
 
     /**
      * @brief 获取段状态
@@ -69,32 +67,52 @@ public:
     std::optional<std::chrono::system_clock::time_point> get_sealed_at() const noexcept;
 
     /**
-     * @brief 检查段是否可以继续写入
-     * @return true 表示可以写入
-     */
-    bool can_accept_writes() const noexcept;
-
-    /**
-     * @brief 设置段状态
-     * @param status 段状态
-     */
-    void set_status(SegmentStatus status) noexcept;
-
-    /**
      * @brief 封存段
      * @throw std::runtime_error 如果段已经封存或状态非法
      */
     void seal();
 
-    /**
-     * @brief 标记段已刷新
-     */
-    void mark_flushed();
+public:
+    /** 实体操作接口 */
 
     /**
-     * @brief 标记段已删除
+     * @brief 插入实体
+     * @param entity 要插入的实体
+     * @return 操作结果
+     * @note 如果实体 ID 已存在，操作失败
      */
-    void mark_dropped();
+    MutationResult insert(const Entity & entity);
+
+    /**
+     * @brief 按内部 ID 删除实体
+     * @param id 内部 ID
+     * @return 操作结果
+     * @note 如果 ID 不存在，操作失败
+     */
+    MutationResult remove_by_id(std::int64_t id);
+
+    /**
+     * @brief 按内部 ID 更新实体
+     * @param id 内部 ID
+     * @param fields 要更新的字段
+     * @return 操作结果
+     * @note 如果 ID 不存在，操作失败
+     */
+    MutationResult update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields);
+ 
+    /**
+     * @brief 按内部 ID 获取实体
+     * @param id 内部 ID
+     * @return 实体指针，如果不存在返回 nullptr
+     */
+    std::unique_ptr<Entity> get_by_id(std::int64_t id) const;
+ 
+    /**
+     * @brief 执行查询
+     * @param query 查询对象，包含条件、排序和限制
+     * @return 匹配的实体列表
+     */
+    std::vector<std::unique_ptr<Entity>> query(const Query & query) const;
 
 public:
     /** 统计信息访问接口 */
@@ -103,32 +121,20 @@ public:
      * @brief 获取实体数量
      * @return 实体数量
      */
-    std::size_t get_entity_count() const noexcept;
+    std::size_t size() const noexcept;
 
     /**
      * @brief 判断段是否为空
      * @return 是否为空
      */
-    bool is_empty() const noexcept;
-
-    /**
-     * @brief 获取底层存储
-     * @return 存储指针
-     */
-    StorageBase * get_storage() noexcept;
-
-    /**
-     * @brief 获取底层存储
-     * @return 存储指针
-     */
-    const StorageBase * get_storage() const noexcept;
+    bool empty() const noexcept;
 
 private:
-    SegmentId id;                           // 段 ID
-    std::unique_ptr<StorageBase> storage;   // 存储实现
-    SegmentStatus status;                   // 段状态
-    std::chrono::system_clock::time_point created_at;  // 创建时间
-    std::optional<std::chrono::system_clock::time_point> sealed_at;  // 封存时间
+    std::int64_t id_;                                                   // 段 ID
+    SegmentStatus status_;                                              // 段状态
+    std::unique_ptr<StorageBase> storage_;                              // 存储实现
+    std::chrono::system_clock::time_point created_at_;                  // 创建时间
+    std::optional<std::chrono::system_clock::time_point> sealed_at_;    // 封存时间
 };
 
 } // namespace dreamdb

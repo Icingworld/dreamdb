@@ -3,9 +3,9 @@
 namespace dreamdb
 {
 
-Database::Database(const std::string & name, CollectionManager::StorageFactory storage_factory)
+Database::Database(const std::string & name)
     : name_(name)
-    , collection_manager_(std::make_unique<CollectionManager>(storage_factory))
+    , collection_manager_(std::make_unique<CollectionManager>())
 {
 }
 
@@ -14,14 +14,19 @@ const std::string & Database::get_name() const
     return name_;
 }
 
-CollectionManager & Database::get_collection_manager()
+Collection * Database::create_collection(const std::string & name, const std::vector<Field> & schema)
 {
-    return *collection_manager_;
+    return collection_manager_->create_collection(name, schema);
 }
 
-const CollectionManager & Database::get_collection_manager() const
+bool Database::drop_collection(const std::string & name)
 {
-    return *collection_manager_;
+    return collection_manager_->drop_collection(name);
+}
+
+Collection * Database::get_collection(const std::string & name)
+{
+    return collection_manager_->get_collection(name);
 }
 
 } // namespace dreamdb

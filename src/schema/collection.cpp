@@ -14,6 +14,7 @@ Collection::Collection(
     , schema_(schema)
     , next_id_(1)
     , segment_manager_(std::move(segment_manager))
+    , active_segment_(segment_manager_->create_segment())
 {
 }
 
@@ -35,9 +36,30 @@ const std::vector<Field> & Collection::get_schema() const
 Entity Collection::create_entity()
 {
     // 预分配字段数量
-    Entity entity(next_id_, schema_.size());
+    Entity entity(next_id_++, schema_.size());
 
     return entity;
+}
+
+MutationResult Collection::insert(const Entity & entity)
+{
+    // TODO: 检查是否需要 Seal 段
+    return active_segment_->insert(entity);
+}
+
+MutationResult Collection::remove(std::int64_t id)
+{
+    return active_segment_->remove_by_id(id);
+}
+
+MutationResult Collection::update(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
+{
+    return active_segment_->update_by_id(id, fields);
+}
+
+std::vector<std::unique_ptr<Entity>> Collection::query(const Query & query) const
+{
+    return active_segment_->query(query);
 }
 
 } // namespace dreamdb

@@ -7,12 +7,14 @@
 
 #include "dreamdb/schema/field.h"
 #include "dreamdb/schema/entity.h"
-#include "dreamdb/common/type.h"
+#include "dreamdb/common/mutation_result.h"
+#include "dreamdb/query/query.h"
 
 namespace dreamdb
 {
 
 class SegmentManager;
+class Segment;
 
 /**
  * @brief 集合类
@@ -27,7 +29,7 @@ public:
      * @param segment_manager 段管理器
      */
     Collection(
-        const std::string & name, 
+        const std::string & name,
         const std::vector<Field> & schema,
         std::unique_ptr<SegmentManager> segment_manager
     );
@@ -72,11 +74,44 @@ public:
      */
     Entity create_entity();
 
+public:
+    /** CRUD 操作接口 */
+
+    /**
+     * @brief 插入实体
+     * @param entity 要插入的实体
+     * @return 插入结果
+     */
+    MutationResult insert(const Entity & entity);
+
+    /**
+     * @brief 删除实体
+     * @param id 要删除的实体的 ID
+     * @return 删除结果
+     */
+    MutationResult remove(std::int64_t id);
+
+    /**
+     * @brief 更新实体
+     * @param id 要更新的实体的 ID
+     * @param fields 要更新的字段列表
+     * @return 更新结果
+     */
+    MutationResult update(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields);
+
+    /**
+     * @brief 查询实体
+     * @param query 查询条件
+     * @return 查询结果
+     */
+    std::vector<std::unique_ptr<Entity>> query(const Query & query) const;
+
 private:
     std::string name_;                                  // 集合名称
     std::vector<Field> schema_;                         // 字段定义列表
     std::int64_t next_id_;                              // 自增 ID 生成器
     std::unique_ptr<SegmentManager> segment_manager_;   // 段管理器
+    std::shared_ptr<Segment> active_segment_;           // 当前活动段
 };
 
 } // namespace dreamdb
