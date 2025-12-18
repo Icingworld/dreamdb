@@ -9,6 +9,12 @@
 #include <string>
 
 #include "dreamdb/server/server.h"
+#include "dreamdb/executor/executor.h"
+#include "dreamdb/parser/parser.h"
+#include "dreamdb/schema/database_manager.h"
+
+dreamdb::DatabaseManager db_manager;
+dreamdb::Executor executor(db_manager);
 
 int main()
 {
@@ -20,21 +26,17 @@ int main()
         server.set_request_handler([](const std::string & sql) -> std::pair<bool, std::string> {
             std::cout << "[Handler] Processing SQL: " << sql << std::endl;
 
-            // 这里是简单的 echo 逻辑，实际应该调用 parser -> planner -> executor
-            // 例如：
-            //   auto ast = parser.parse(sql);
-            //   auto plan = planner.plan(ast);
-            //   auto result = executor.execute(plan);
-            //   return {true, result.to_json()};
+            try {                
+                // 1. 语法分析
+                dreamdb::Parser parser(sql);
+                auto ast = parser.parse();
 
-            // 简单演示：返回收到的 SQL
-            if (sql.empty()) {
-                return {false, "Empty SQL statement"};
+                // 2. 执行
+                auto result = executor.execute(*ast);
+                return {result.is_success(), result.get_message()};
+            } catch (const std::exception & e) {
+                return {false, e.what()};
             }
-
-            // 模拟处理结果
-            std::string result = "Executed: " + sql;
-            return {true, result};
         });
 
         std::cout << "Server is running on port 9527..." << std::endl;

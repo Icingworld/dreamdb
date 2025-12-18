@@ -4,10 +4,10 @@
 #include <string>
 #include <unordered_map>
 
+#include "dreamdb/schema/database.h"
+
 namespace dreamdb
 {
-
-class Database;
 
 class DatabaseManager
 {

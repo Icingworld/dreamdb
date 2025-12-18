@@ -18,7 +18,7 @@ enum class TokenType : std::uint8_t
     // 关键字
     SELECT,
     INSERT,
-    DELETE,
+    DELETE_,  // 避免与 Windows 宏 DELETE 冲突
     UPDATE,
     CREATE,
     DROP,
@@ -139,4 +139,3 @@ private:
 };
 
 } // namespace dreamdb
-

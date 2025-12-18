@@ -76,6 +76,13 @@ void ExecutorResult::clear() noexcept
     rows.clear();
 }
 
+Executor::Executor(DatabaseManager & database_manager)
+    : database_manager_(database_manager)
+{
+}
+
+Executor::~Executor() = default;
+
 ExecutorResult Executor::execute(const AstNode & ast)
 {
     switch (ast.get_type()) {

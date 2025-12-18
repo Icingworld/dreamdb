@@ -14,7 +14,7 @@ Condition::Condition(std::uint8_t field_index, ConditionType condition_type, con
 {
     // 验证条件类型
     if (condition_type == ConditionType::BETWEEN || 
-        condition_type == ConditionType::IN || 
+        condition_type == ConditionType::IN_ || 
         condition_type == ConditionType::LIKE) {
         throw std::invalid_argument("Use specialized constructor for BETWEEN, IN, or LIKE conditions");
     }
@@ -31,9 +31,9 @@ Condition::Condition(std::uint8_t field_index, const FieldValue & min_value, con
 }
 
 Condition::Condition(std::uint8_t field_index, const std::vector<FieldValue> & values)
-    : kind_(ConditionKind::IN)
+    : kind_(ConditionKind::IN_)
     , field_index_(field_index)
-    , condition_type_(ConditionType::IN)
+    , condition_type_(ConditionType::IN_)
     , values_(values)
     , logic_op_(LogicOperator::AND)
 {
@@ -191,7 +191,7 @@ std::optional<FieldValue> Condition::get_max_value() const
 
 std::vector<FieldValue> Condition::get_values() const
 {
-    if (kind_ == ConditionKind::IN) {
+    if (kind_ == ConditionKind::IN_) {
         return values_;
     }
     return {};
@@ -225,7 +225,7 @@ bool Condition::is_between() const noexcept
 
 bool Condition::is_in() const noexcept
 {
-    return kind_ == ConditionKind::IN;
+    return kind_ == ConditionKind::IN_;
 }
 
 bool Condition::is_like() const noexcept

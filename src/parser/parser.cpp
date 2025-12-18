@@ -94,7 +94,7 @@ std::unique_ptr<AstNode> Parser::parse_statement()
             return parse_insert_stmt();
         case TokenType::UPDATE:
             return parse_update_stmt();
-        case TokenType::DELETE:
+        case TokenType::DELETE_:
             return parse_delete_stmt();
         case TokenType::CREATE:
             return parse_create_stmt();

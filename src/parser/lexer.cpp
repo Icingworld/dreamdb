@@ -337,7 +337,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
 
     if (upper_keyword == "SELECT") return TokenType::SELECT;
     if (upper_keyword == "INSERT") return TokenType::INSERT;
-    if (upper_keyword == "DELETE") return TokenType::DELETE;
+    if (upper_keyword == "DELETE") return TokenType::DELETE_;
     if (upper_keyword == "UPDATE") return TokenType::UPDATE;
     if (upper_keyword == "CREATE") return TokenType::CREATE;
     if (upper_keyword == "DROP") return TokenType::DROP;
