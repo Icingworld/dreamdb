@@ -42,7 +42,7 @@ public:
 
     Collection & operator=(Collection && other) noexcept = default;
 
-    ~Collection() = default;
+    ~Collection();
 
 public:
     /** 属性值访问接口 */

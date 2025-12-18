@@ -7,6 +7,8 @@
 namespace dreamdb
 {
 
+Segment::~Segment() = default;
+
 Segment::Segment(std::int64_t id)
     : id_(id)
     , status_(SegmentStatus::GROWING)

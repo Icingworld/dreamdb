@@ -5,6 +5,8 @@
 namespace dreamdb
 {
 
+DatabaseManager::~DatabaseManager() = default;
+
 Database * DatabaseManager::create_database(const std::string & name)
 {
     if (databases_.find(name) != databases_.end()) {
@@ -59,6 +61,11 @@ Database * DatabaseManager::get_current_database()
     }
 
     return it->second.get();
+}
+
+bool DatabaseManager::has_database(const std::string & name) const
+{
+    return databases_.find(name) != databases_.end();
 }
 
 } // namespace dreamdb

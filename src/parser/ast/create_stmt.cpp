@@ -7,7 +7,7 @@ namespace dreamdb
 
 ColumnDefinition::ColumnDefinition()
     : name("")
-    , type(FieldType::INT64)
+    , type(FieldType::BIGINT)
     , length(0)
     , precision(0)
     , nullable(true)
@@ -180,18 +180,19 @@ std::string CreateStmt::debug_string() const
 
             // 类型
             switch (col.get_type()) {
-                case FieldType::INT8: oss << "INT8"; break;
-                case FieldType::INT16: oss << "INT16"; break;
-                case FieldType::INT32: oss << "INT32"; break;
-                case FieldType::INT64: oss << "INT64"; break;
+                case FieldType::TINYINT: oss << "TINYINT"; break;
+                case FieldType::SMALLINT: oss << "SMALLINT"; break;
+                case FieldType::INTEGER: oss << "INT"; break;
+                case FieldType::BIGINT: oss << "BIGINT"; break;
                 case FieldType::FLOAT: oss << "FLOAT"; break;
                 case FieldType::DOUBLE: oss << "DOUBLE"; break;
+                case FieldType::DECIMAL: oss << "DECIMAL"; break;
                 case FieldType::CHAR: oss << "CHAR"; break;
                 case FieldType::VARCHAR: oss << "VARCHAR"; break;
                 case FieldType::BOOLEAN: oss << "BOOLEAN"; break;
                 case FieldType::TIMESTAMP: oss << "TIMESTAMP"; break;
                 case FieldType::ENUM: oss << "ENUM"; break;
-                case FieldType::FLOAT_VECTOR: oss << "FLOAT_VECTOR"; break;
+                case FieldType::VECTOR: oss << "VECTOR"; break;
             }
 
             // 长度

@@ -278,7 +278,7 @@ MutationResult MemoryStorage::insert(const Entity & entity)
     }
 
     // 插入实体
-    entity_map_[entity.get_id()] = entity;
+    entity_map_.emplace(entity.get_id(), entity);
     return MutationResult::make_success(1);
 }
 

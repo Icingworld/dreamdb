@@ -3,12 +3,12 @@
 namespace dreamdb
 {
 
-bool Null::operator==(const Null & other) const noexcept
+bool Null::operator==(const Null &) const noexcept
 {
     return true;
 }
 
-bool Null::operator!=(const Null & other) const noexcept
+bool Null::operator!=(const Null &) const noexcept
 {
     return false;
 }

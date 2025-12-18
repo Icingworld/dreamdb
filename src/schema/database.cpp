@@ -1,7 +1,11 @@
 #include "dreamdb/schema/database.h"
 
+#include "dreamdb/schema/collection_manager.h"
+
 namespace dreamdb
 {
+
+Database::~Database() = default;
 
 Database::Database(const std::string & name)
     : name_(name)
@@ -27,6 +31,11 @@ bool Database::drop_collection(const std::string & name)
 Collection * Database::get_collection(const std::string & name)
 {
     return collection_manager_->get_collection(name);
+}
+
+bool Database::has_collection(const std::string & name) const
+{
+    return collection_manager_->has_collection(name);
 }
 
 } // namespace dreamdb

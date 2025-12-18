@@ -7,57 +7,57 @@ namespace dreamdb
 
 LiteralExpr::LiteralExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::LITERAL_EXPR, line, column)
-    , type(LiteralType::NULL_VALUE)
-    , value(nullptr)
+    , type_(LiteralType::NULL_VALUE)
+    , value_(nullptr)
 {
 }
 
 void LiteralExpr::set_literal_type(LiteralType type) noexcept
 {
-    this->type = type;
+    type_ = type;
 }
 
 LiteralType LiteralExpr::get_literal_type() const noexcept
 {
-    return type;
+    return type_;
 }
 
 void LiteralExpr::set_value(const LiteralValue & value) noexcept
 {
-    this->value = value;
+    value_ = value;
 }
 
 const LiteralValue & LiteralExpr::get_value() const noexcept
 {
-    return value;
+    return value_;
 }
 
 void LiteralExpr::set_null(bool is_null) noexcept
 {
-    value = NullType();
+    is_null_ = is_null;
 }
 
 bool LiteralExpr::is_null() const noexcept
 {
-    return value.index() == 4; // 该实现有待考量
+    return is_null_;
 }
 
 std::string LiteralExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "LiteralExpr(";
-    switch (type) {
+    switch (type_) {
         case LiteralType::INTERGER:
-            oss << "INTERGER, value=" << std::get<int64_t>(value);
+            oss << "INTERGER, value=" << std::get<int64_t>(value_);
             break;
         case LiteralType::FLOAT:
-            oss << "FLOAT, value=" << std::get<double>(value);
+            oss << "FLOAT, value=" << std::get<double>(value_);
             break;
         case LiteralType::STRING:
-            oss << "STRING, value=" << std::get<std::string>(value);
+            oss << "STRING, value=" << std::get<std::string>(value_);
             break;
         case LiteralType::BOOLEAN:
-            oss << "BOOLEAN, value=" << std::get<bool>(value);
+            oss << "BOOLEAN, value=" << std::get<bool>(value_);
             break;
         case LiteralType::NULL_VALUE:
             oss << "NULL_VALUE";

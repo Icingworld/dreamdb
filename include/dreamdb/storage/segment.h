@@ -31,7 +31,7 @@ public:
 
     Segment & operator=(Segment && other) noexcept = default;
 
-    ~Segment() = default;
+    ~Segment();
 
 public:
     /** Segment 属性访问接口 */
