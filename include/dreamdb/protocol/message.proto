@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package dreamdb;
+
+// 请求消息
+message Request {
+    fixed64 request_id = 1;         // 请求 ID
+    string sql = 2;                 // SQL 语句
+    uint32 version = 3;             // 协议版本
+}
+
+// 响应消息
+message Response {
+    fixed64 request_id = 1;         // 对应请求的 ID
+    bool success = 2;               // 是否成功
+    string result = 3;              // 结果
+    string error_message = 4;       // 错误信息
+    uint32 version = 5;             // 协议版本
+}

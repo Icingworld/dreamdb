@@ -78,7 +78,7 @@ enum class ConditionType : std::uint8_t
     LT,                 // 小于
     LE,                 // 小于等于
     BETWEEN,            // 在范围内
-    IN,                 // 在列表中
+    IN_,                // 在列表中（避免与 Windows 宏 IN 冲突）
     LIKE                // 模糊匹配
 };
 
@@ -89,7 +89,7 @@ enum class ConditionKind : std::uint8_t
 {
     SINGLE,             // 单个值条件（EQ, NE, GT, GE, LT, LE）
     BETWEEN,            // BETWEEN 条件
-    IN,                 // IN 条件
+    IN_,                // IN 条件（避免与 Windows 宏 IN 冲突）
     LIKE,               // LIKE 条件
     COMPOSITE,          // 组合条件（AND, OR）
 };

@@ -94,7 +94,7 @@ std::unique_ptr<AstNode> Parser::parse_statement()
             return parse_insert_stmt();
         case TokenType::UPDATE:
             return parse_update_stmt();
-        case TokenType::DELETE:
+        case TokenType::DELETE_:
             return parse_delete_stmt();
         case TokenType::CREATE:
             return parse_create_stmt();
@@ -603,18 +603,20 @@ FieldType Parser::parse_field_type()
     advance(); // 消耗类型关键字
     
     // 映射类型名称到 FieldType
-    if (type_name == "INT8") {
-        return FieldType::INT8;
-    } else if (type_name == "INT16") {
-        return FieldType::INT16;
-    } else if (type_name == "INT32" || type_name == "INT") {
-        return FieldType::INT32;
-    } else if (type_name == "INT64" || type_name == "BIGINT") {
-        return FieldType::INT64;
+    if (type_name == "TINYINT") {
+        return FieldType::TINYINT;
+    } else if (type_name == "SMALLINT") {
+        return FieldType::SMALLINT;
+    } else if (type_name == "INT" || type_name == "INTEGER") {
+        return FieldType::INTEGER;
+    } else if (type_name == "BIGINT") {
+        return FieldType::BIGINT;
     } else if (type_name == "FLOAT") {
         return FieldType::FLOAT;
     } else if (type_name == "DOUBLE") {
         return FieldType::DOUBLE;
+    } else if (type_name == "DECIMAL") {
+        return FieldType::DECIMAL;
     } else if (type_name == "CHAR") {
         return FieldType::CHAR;
     } else if (type_name == "VARCHAR") {
@@ -625,11 +627,11 @@ FieldType Parser::parse_field_type()
         return FieldType::TIMESTAMP;
     } else if (type_name == "ENUM") {
         return FieldType::ENUM;
-    } else if (type_name == "FLOAT_VECTOR" || type_name == "VECTOR") {
-        return FieldType::FLOAT_VECTOR;
+    } else if (type_name == "VECTOR") {
+        return FieldType::VECTOR;
     } else {
         error("Unknown field type: " + type_name);
-        return FieldType::INT32; // 不会执行到这里
+        return FieldType::INTEGER; // 不会执行到这里
     }
 }
 
@@ -1264,7 +1266,7 @@ std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 
     auto literal = std::make_unique<LiteralExpr>(line, column);
     literal->set_literal_type(LiteralType::NULL_VALUE);
-    literal->set_value(LiteralValue{NullType()});
+    literal->set_null(true);
 
     advance(); // 消耗 NULL token
     return literal;

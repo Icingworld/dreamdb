@@ -29,7 +29,7 @@ public:
 
     CollectionManager & operator=(CollectionManager &&) noexcept = default;
 
-    ~CollectionManager() = default;
+    ~CollectionManager();
 
 public:
     /** 集合管理接口 */
@@ -55,6 +55,13 @@ public:
      * @return 集合指针，如果不存在返回 nullptr
      */
     Collection * get_collection(const std::string & name);
+
+    /**
+     * @brief 检查集合是否存在
+     * @param name 集合名称
+     * @return 是否存在
+     */
+    bool has_collection(const std::string & name) const;
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Collection>> collections_;          // 集合映射表

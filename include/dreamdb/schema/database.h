@@ -3,10 +3,12 @@
 #include <string>
 #include <memory>
 
-#include "dreamdb/schema/collection_manager.h"
+#include "dreamdb/schema/collection.h"
 
 namespace dreamdb
 {
+
+class CollectionManager;
 
 /**
  * @brief 数据库类
@@ -14,7 +16,7 @@ namespace dreamdb
 class Database
 {
 public:
-    Database(const std::string & name);
+    explicit Database(const std::string & name);
 
     Database(const Database &) = delete;
 
@@ -24,7 +26,7 @@ public:
 
     Database & operator=(Database &&) noexcept = default;
 
-    ~Database() = default;
+    ~Database();
 
 public:
     /**
@@ -54,6 +56,13 @@ public:
      * @return 获取的集合指针，如果不存在则返回 nullptr
      */
     Collection * get_collection(const std::string & name);
+
+    /**
+     * @brief 检查集合是否存在
+     * @param name 集合名称
+     * @return 是否存在
+     */
+    bool has_collection(const std::string & name) const;
 
 private:
     std::string name_;              // 数据库名称

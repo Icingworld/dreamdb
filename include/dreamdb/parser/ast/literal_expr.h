@@ -6,6 +6,7 @@
 
 #include "dreamdb/parser/ast/ast_node.h"
 #include "dreamdb/common/type.h"
+#include "dreamdb/common/null.h"
 
 namespace dreamdb
 {
@@ -31,7 +32,7 @@ using LiteralValue = std::variant<
     double,             // FLOAT
     std::string,        // STRING
     bool,               // BOOLEAN
-    NullType            // NULL_VALUE
+    Null                // NULL_VALUE
 >;
 
 /**
@@ -97,8 +98,9 @@ public:
     std::string debug_string() const override;
 
 private:
-    LiteralType type;       // 字面量类型
-    LiteralValue value;     // 字面量值
+    LiteralType type_;      // 字面量类型
+    LiteralValue value_;    // 字面量值
+    bool is_null_;          // 是否为空值
 };
 
 } // namespace dreamdb

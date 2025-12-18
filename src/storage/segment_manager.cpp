@@ -3,8 +3,12 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "dreamdb/storage/segment.h"
+
 namespace dreamdb
 {
+
+SegmentManager::~SegmentManager() = default;
 
 SegmentManager::SegmentManager() noexcept
     : next_id_(1)

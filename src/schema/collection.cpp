@@ -1,6 +1,7 @@
 #include "dreamdb/schema/collection.h"
 
 #include "dreamdb/storage/segment_manager.h"
+#include "dreamdb/storage/segment.h"
 
 namespace dreamdb
 {
@@ -17,6 +18,8 @@ Collection::Collection(
     , active_segment_(segment_manager_->create_segment())
 {
 }
+
+Collection::~Collection() = default;
 
 void Collection::set_name(const std::string & name)
 {

@@ -9,6 +9,8 @@
 #include "dreamdb/parser/ast/use_stmt.h"
 #include "dreamdb/parser/ast/literal_expr.h"
 #include "dreamdb/common/type.h"
+#include "dreamdb/schema/database.h"
+#include "dreamdb/schema/collection.h"
 
 namespace dreamdb
 {
@@ -74,6 +76,13 @@ void ExecutorResult::clear() noexcept
     rows.clear();
 }
 
+Executor::Executor(DatabaseManager & database_manager)
+    : database_manager_(database_manager)
+{
+}
+
+Executor::~Executor() = default;
+
 ExecutorResult Executor::execute(const AstNode & ast)
 {
     switch (ast.get_type()) {
@@ -100,7 +109,7 @@ ExecutorResult Executor::execute(const AstNode & ast)
     }
 }
 
-ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
+ExecutorResult Executor::execute_select(const SelectStmt &)
 {
     ExecutorResult result;
     result.set_success(false);
@@ -108,7 +117,7 @@ ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
     return result;
 }
 
-ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
+ExecutorResult Executor::execute_delete(const DeleteStmt &)
 {
     ExecutorResult result;
     result.set_success(false);
@@ -124,7 +133,7 @@ ExecutorResult Executor::execute_insert(const InsertStmt &)
     return result;
 }
 
-ExecutorResult Executor::execute_update(const UpdateStmt & update_stmt)
+ExecutorResult Executor::execute_update(const UpdateStmt &)
 {
     ExecutorResult result;
     result.set_success(false);
@@ -224,10 +233,8 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
         return result;
     }
 
-    // 获取集合管理器
-    CollectionManager & collection_manager = database->get_collection_manager();
     // 检查集合是否存在
-    if (collection_manager.has_collection(collection_name)) {
+    if (database->has_collection(collection_name)) {
         result.set_success(false);
         result.set_message("Collection: " + collection_name + " already exists");
         return result;
@@ -247,7 +254,7 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
     // 转换为字段列表
     for (const ColumnDefinition & column_definition : column_definitions) {
         // 处理默认值
-        FieldValue default_value = NullType{};
+        FieldValue default_value = Null{};
         
         if (column_definition.has_default_value()) {
             const AstNode * default_expr = column_definition.get_default_value();
@@ -259,7 +266,7 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
                 
                 // 将 LiteralValue 转换为 FieldValue
                 if (literal->is_null()) {
-                    default_value = NullType{};
+                    default_value = Null{};
                 } else {
                     std::visit([&default_value](const auto & val) {
                         using T = std::decay_t<decltype(val)>;
@@ -271,8 +278,8 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
                             default_value = val;
                         } else if constexpr (std::is_same_v<T, bool>) {
                             default_value = val;
-                        } else if constexpr (std::is_same_v<T, NullType>) {
-                            default_value = NullType{};
+                        } else if constexpr (std::is_same_v<T, Null>) {
+                            default_value = Null{};
                         }
                     }, literal_value);
                 }
@@ -289,6 +296,7 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
             column_definition.get_type(),
             column_definition.get_length(),
             column_definition.get_precision(),
+            std::vector<std::string>{},  // options
             column_definition.is_nullable(),
             column_definition.is_primary_key(),
             "",  // comment
@@ -298,7 +306,7 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
     }
 
     // 创建集合
-    Collection * collection = collection_manager.create_collection(collection_name, fields);
+    Collection * collection = database->create_collection(collection_name, fields);
 
     if (collection == nullptr) {
         result.set_success(false);
@@ -311,7 +319,7 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
     return result;
 }
 
-ExecutorResult Executor::execute_create_index(const CreateStmt & create_stmt)
+ExecutorResult Executor::execute_create_index(const CreateStmt &)
 {
     ExecutorResult result;
     result.set_success(false);
@@ -352,11 +360,8 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
         return result;
     }
 
-    // 获取集合管理器
-    CollectionManager & collection_manager = database->get_collection_manager();
-
     // 删除集合
-    if (collection_manager.drop_collection(collection_name)) {
+    if (database->drop_collection(collection_name)) {
         result.set_success(true);
         result.set_message("Collection: " + collection_name + " dropped successfully");
     } else {
@@ -368,7 +373,7 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
     return result;
 }
 
-ExecutorResult Executor::execute_drop_index(const DropStmt & drop_stmt)
+ExecutorResult Executor::execute_drop_index(const DropStmt &)
 {
     ExecutorResult result;
     result.set_success(false);

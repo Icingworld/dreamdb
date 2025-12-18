@@ -220,7 +220,7 @@ private:
     ExecutorResult execute_drop_index(const DropStmt & drop_stmt);
 
 private:
-    DatabaseManager database_manager_;      // 数据库管理器
+    DatabaseManager & database_manager_;    // 数据库管理器引用
 };
 
 } // namespace dreamdb

@@ -6,6 +6,8 @@
 namespace dreamdb
 {
 
+CollectionManager::~CollectionManager() = default;
+
 Collection * CollectionManager::create_collection(const std::string & name, const std::vector<Field> & schema)
 {
     // 已存在则返回 nullptr
@@ -41,6 +43,11 @@ Collection * CollectionManager::get_collection(const std::string & name)
         return nullptr;
     }
     return it->second.get();
+}
+
+bool CollectionManager::has_collection(const std::string & name) const
+{
+    return collections_.find(name) != collections_.end();
 }
 
 } // namespace dreamdb

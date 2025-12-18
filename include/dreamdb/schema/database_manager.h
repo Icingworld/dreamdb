@@ -4,10 +4,10 @@
 #include <string>
 #include <unordered_map>
 
+#include "dreamdb/schema/database.h"
+
 namespace dreamdb
 {
-
-class Database;
 
 class DatabaseManager
 {
@@ -25,7 +25,7 @@ public:
 
     DatabaseManager & operator=(DatabaseManager &&) noexcept = default;
 
-    ~DatabaseManager() = default;
+    ~DatabaseManager();
 
 public:
     /**
@@ -56,6 +56,13 @@ public:
      * @details 不检查当前数据库是否存在，需确保当前数据库存在后再获取
      */
     Database * get_current_database();
+
+    /**
+     * @brief 检查数据库是否存在
+     * @param name 数据库名称
+     * @return 是否存在
+     */
+    bool has_database(const std::string & name) const;
 
 private:
     std::string current_database_;                                          // 当前数据库名称

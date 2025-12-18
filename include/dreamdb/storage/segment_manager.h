@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <memory>
 
-#include "dreamdb/storage/segment.h"
-
 namespace dreamdb
 {
+
+class Segment;
 
 /**
  * @brief 段管理器
@@ -26,7 +26,7 @@ public:
 
     SegmentManager & operator=(SegmentManager && other) noexcept = default;
 
-    ~SegmentManager() = default;
+    ~SegmentManager();
 
 public:
     /** 段创建接口 */

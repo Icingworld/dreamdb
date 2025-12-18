@@ -59,7 +59,7 @@ std::string Token::to_string() const
         case TokenType::INSERT:
             result += "INSERT";
             break;
-        case TokenType::DELETE:
+        case TokenType::DELETE_:
             result += "DELETE";
             break;
         case TokenType::UPDATE:
