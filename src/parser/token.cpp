@@ -182,6 +182,9 @@ std::string Token::to_string() const
         case TokenType::DB_WITH:
             result += "WITH";
             break;
+        case TokenType::DB_NULL:
+            result += "NULL";
+            break;
 
         // 标识符和字面量
         case TokenType::DB_IDENTIFIER:
@@ -259,11 +262,6 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_RIGHT_BRACE:
             result += "}";
-            break;
-
-        // 特殊值
-        case TokenType::DB_NULL_LITERAL:
-            result += "NULL";
             break;
 
         default:

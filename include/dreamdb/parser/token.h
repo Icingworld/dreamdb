@@ -59,12 +59,14 @@ enum class TokenType : std::uint8_t
     DB_SEARCH,             // SEARCH
     DB_USING,              // USING
     DB_WITH,               // WITH
+    DB_NULL,               // NULL
+    DB_TRUE,               // TRUE
+    DB_FALSE,              // FALSE
 
     // 标识符
     DB_IDENTIFIER,         // 表名、字段名、数据类型等（如 users, id, tinyint(1), varchar(255)）
     DB_STRING_LITERAL,     // 字符串字面量（如 'hello'）
     DB_NUMBER_LITERAL,     // 数字字面量（如 123, 45.6）
-    DB_BOOLEAN_LITERAL,    // 布尔值（true, false）
 
     // 运算符
     DB_EQUAL,              // =
@@ -89,9 +91,6 @@ enum class TokenType : std::uint8_t
     DB_RIGHT_BRACKET,      // ]
     DB_LEFT_BRACE,         // {
     DB_RIGHT_BRACE,        // }
-
-    // 特殊值
-    DB_NULL_LITERAL,       // NULL
 };
 
 /**

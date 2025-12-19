@@ -14,11 +14,21 @@ namespace dreamdb
 class Lexer
 {
 public:
+    Lexer() = delete;
+
     /**
      * @brief 构造函数
      * @param input SQL 字符串
      */
     explicit Lexer(const std::string & input);
+
+    Lexer(const Lexer &) = default;
+
+    Lexer(Lexer &&) = default;
+
+    Lexer & operator=(const Lexer &) = default;
+
+    Lexer & operator=(Lexer &&) = default;
 
     ~Lexer() = default;
 
@@ -30,7 +40,7 @@ public:
     Token next_token();
 
     /**
-     * @brief 查看下一个 Token（不移动位置）
+     * @brief 不移动位置，查看下一个 Token
      * @return 下一个 Token
      */
     Token peek_token();
@@ -43,7 +53,7 @@ public:
 
     /**
      * @brief 获取当前位置
-     * @return 当前位置（字符索引）
+     * @return 当前位置
      */
     std::size_t get_position() const noexcept;
 
@@ -61,7 +71,7 @@ public:
 
 private:
     /**
-     * @brief 跳过空白字符（空格、制表符、换行等）
+     * @brief 跳过空白字符，如空格、制表符、换行等
      */
     void skip_whitespace();
 
@@ -119,13 +129,12 @@ private:
     TokenType keyword_to_token_type(const std::string & keyword) const;
 
 private:
-    std::string input;          // 输入字符串
-    std::size_t position;       // 当前位置
-    std::size_t line;           // 当前行号
-    std::size_t column;         // 当前列号
-    Token peeked_token;         // 预读的 Token
-    bool has_peeked;            // 是否已经预读
+    std::string input_;          // 输入字符串
+    std::size_t position_;       // 当前位置
+    std::size_t line_;           // 当前行号
+    std::size_t column_;         // 当前列号
+    Token peeked_token_;         // 预读的 Token
+    bool has_peeked_;            // 是否已经预读
 };
 
 } // namespace dreamdb
-
