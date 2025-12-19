@@ -11,7 +11,7 @@ namespace dreamdb
 
 /**
  * @brief SHOW 语句节点
- * @details 表示 SHOW DATABASES/COLLECTIONS/INDEXES 语句
+ * @details 表示 SHOW [DATABASES | COLLECTIONS | INDEXES] 语句
  */
 class ShowStmt : public AstNode
 {

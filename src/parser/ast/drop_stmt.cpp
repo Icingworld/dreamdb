@@ -7,28 +7,29 @@ namespace dreamdb
 
 DropStmt::DropStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::DROP_STMT, line, column)
-    , object_type(ObjectType::DATABASE)
+    , drop_type_(DropType::DATABASE)
+    , object_name_("")
 {
 }
 
-void DropStmt::set_object_type(ObjectType type)
+void DropStmt::set_drop_type(DropType drop_type)
 {
-    object_type = type;
+    drop_type_ = drop_type;
 }
 
-DropStmt::ObjectType DropStmt::get_object_type() const noexcept
+DropStmt::DropType DropStmt::get_drop_type() const noexcept
 {
-    return object_type;
+    return drop_type_;
 }
 
-void DropStmt::set_object_name(const std::string & name)
+void DropStmt::set_object_name(const std::string & object_name)
 {
-    object_name = name;
+    object_name_ = object_name;
 }
 
 const std::string & DropStmt::get_object_name() const noexcept
 {
-    return object_name;
+    return object_name_;
 }
 
 std::string DropStmt::debug_string() const
@@ -36,15 +37,15 @@ std::string DropStmt::debug_string() const
     std::ostringstream oss;
     oss << "DropStmt(";
 
-    // 对象类型
-    switch (object_type) {
-        case ObjectType::DATABASE:
+    // 删除类型
+    switch (drop_type_) {
+        case DropType::DATABASE:
             oss << "DATABASE";
             break;
-        case ObjectType::COLLECTION:
+        case DropType::COLLECTION:
             oss << "COLLECTION";
             break;
-        case ObjectType::INDEX:
+        case DropType::INDEX:
             oss << "INDEX";
             break;
         default:
@@ -52,8 +53,9 @@ std::string DropStmt::debug_string() const
             break;
     }
 
-    oss << ", name=" << (object_name.empty() ? "<none>" : object_name);
+    oss << ", object_name=" << (object_name_.empty() ? "<none>" : object_name_);
     oss << ")";
+
     return oss.str();
 }
 

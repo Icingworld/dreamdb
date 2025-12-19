@@ -11,9 +11,9 @@ UseStmt::UseStmt(std::size_t line, std::size_t column)
 {
 }
 
-void UseStmt::set_database_name(const std::string & name)
+void UseStmt::set_database_name(const std::string & database_name)
 {
-    database_name_ = name;
+    database_name_ = database_name;
 }
 
 const std::string & UseStmt::get_database_name() const noexcept
