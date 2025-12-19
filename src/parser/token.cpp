@@ -185,6 +185,12 @@ std::string Token::to_string() const
         case TokenType::DB_NULL:
             result += "NULL";
             break;
+        case TokenType::DB_TRUE:
+            result += "TRUE";
+            break;
+        case TokenType::DB_FALSE:
+            result += "FALSE";
+            break;
 
         // 标识符和字面量
         case TokenType::DB_IDENTIFIER:
@@ -195,9 +201,6 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_NUMBER_LITERAL:
             result += "NUMBER_LITERAL";
-            break;
-        case TokenType::DB_BOOLEAN_LITERAL:
-            result += "BOOLEAN_LITERAL";
             break;
 
         // 运算符
