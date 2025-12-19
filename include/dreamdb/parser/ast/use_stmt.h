@@ -14,13 +14,13 @@ namespace dreamdb
 class UseStmt : public AstNode
 {
 public:
-    UseStmt(std::size_t line = 0, std::size_t column = 0);
+    explicit UseStmt(const std::string & database_name, std::size_t line = 0, std::size_t column = 0);
 
     UseStmt(const UseStmt &) = delete;
 
-    UseStmt & operator=(const UseStmt &) = delete;
-
     UseStmt(UseStmt &&) noexcept = default;
+
+    UseStmt & operator=(const UseStmt &) = delete;
 
     UseStmt & operator=(UseStmt &&) noexcept = default;
 
@@ -47,8 +47,7 @@ public:
     std::string debug_string() const override;
 
 private:
-    std::string database_name;  // 数据库名称
+    std::string database_name_;  // 数据库名称
 };
 
 } // namespace dreamdb
-
