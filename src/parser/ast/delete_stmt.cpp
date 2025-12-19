@@ -7,45 +7,45 @@ namespace dreamdb
 
 DeleteStmt::DeleteStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::DELETE_STMT, line, column)
-    , collection_name("")
-    , where_clause(nullptr)
+    , collection_name_("")
+    , where_clause_(nullptr)
 {
 }
 
-void DeleteStmt::set_collection_name(const std::string & name)
+void DeleteStmt::set_collection_name(const std::string & collection_name)
 {
-    collection_name = name;
+    collection_name_ = collection_name;
 }
 
-const std::string & DeleteStmt::get_collection_name() const
+const std::string & DeleteStmt::get_collection_name() const noexcept
 {
-    return collection_name;
+    return collection_name_;
 }
 
-void DeleteStmt::set_where_clause(std::unique_ptr<AstNode> where)
+void DeleteStmt::set_where_clause(std::unique_ptr<AstNode> where_clause) noexcept
 {
-    where_clause = std::move(where);
+    where_clause_ = std::move(where_clause);
 }
 
-const AstNode * DeleteStmt::get_where_clause() const
+const AstNode * DeleteStmt::get_where_clause() const noexcept
 {
-    return where_clause.get();
+    return where_clause_.get();
 }
 
-bool DeleteStmt::has_where_clause() const
+bool DeleteStmt::has_where_clause() const noexcept
 {
-    return where_clause != nullptr;
+    return where_clause_ != nullptr;
 }
 
 std::string DeleteStmt::debug_string() const
 {
     std::ostringstream oss;
-    oss << "DeleteStmt(collection=" << (collection_name.empty() ? "<none>" : collection_name);
+    oss << "DeleteStmt(collection_name=" << (collection_name_.empty() ? "<none>" : collection_name_);
 
     if (has_where_clause()) {
-        oss << ", where=" << where_clause->debug_string();
+        oss << ", where_clause=" << where_clause_->debug_string();
     } else {
-        oss << ", where=<none>";
+        oss << ", where_clause=<none>";
     }
 
     oss << ")";
