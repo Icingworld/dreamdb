@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 #include "dreamdb/parser/ast/ast_node.h"
@@ -14,7 +15,7 @@ namespace dreamdb
 class UseStmt : public AstNode
 {
 public:
-    explicit UseStmt(const std::string & database_name, std::size_t line = 0, std::size_t column = 0);
+    UseStmt(std::size_t line = 0, std::size_t column = 0);
 
     UseStmt(const UseStmt &) = delete;
 

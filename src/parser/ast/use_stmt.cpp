@@ -5,9 +5,9 @@
 namespace dreamdb
 {
 
-UseStmt::UseStmt(const std::string & database_name, std::size_t line, std::size_t column)
+UseStmt::UseStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::USE_STMT, line, column)
-    , database_name_(database_name)
+    , database_name_("")
 {
 }
 
