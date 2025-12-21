@@ -6,90 +6,90 @@ namespace dreamdb
 {
 
 SelectItem::SelectItem()
-    : type(Type::STAR)
+    : type(SelectItemType::STAR)
     , expression(nullptr)
     , alias("")
 {
 }
 
-SelectItem SelectItem::create_star()
+SelectItem SelectItem::create_star_item()
 {
     SelectItem item;
-    item.type = Type::STAR;
+    item.type = SelectItemType::STAR;
     return item;
 }
 
-SelectItem SelectItem::create_expression(std::unique_ptr<AstNode> expr, const std::string & alias)
+SelectItem SelectItem::create_expression_item(std::unique_ptr<AstNode> expression, const std::string & alias)
 {
     SelectItem item;
-    item.type = Type::EXPRESSION;
-    item.expression = std::move(expr);
+    item.type = SelectItemType::EXPRESSION;
+    item.expression = std::move(expression);
     item.alias = alias;
     return item;
 }
 
 SelectStmt::SelectStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::SELECT_STMT, line, column)
-    , table_name("")
-    , select_items()
-    , where_clause(nullptr)
-    , limit(std::nullopt)
+    , collection_name_("")
+    , select_items_()
+    , where_clause_(nullptr)
+    , limit_(std::nullopt)
 {
 }
 
-void SelectStmt::set_table_name(const std::string & table)
+void SelectStmt::set_collection_name(const std::string & collection_name)
 {
-    table_name = table;
+    collection_name_ = collection_name;
 }
 
-const std::string & SelectStmt::get_table_name() const noexcept
+void SelectStmt::add_select_item(SelectItem && item)
 {
-    return table_name;
-}
-
-void SelectStmt::add_select_item(SelectItem item)
-{
-    select_items.push_back(std::move(item));
-}
-
-const std::vector<SelectItem> & SelectStmt::get_select_items() const noexcept
-{
-    return select_items;
+    select_items_.push_back(std::move(item));
 }
 
 void SelectStmt::set_where_clause(std::unique_ptr<AstNode> expr)
 {
-    where_clause = std::move(expr);
-}
-
-const AstNode * SelectStmt::get_where_clause() const noexcept
-{
-    return where_clause.get();
+    where_clause_ = std::move(expr);
 }
 
 void SelectStmt::set_limit(std::size_t limit)
 {
-    limit = limit;
+    limit_ = limit;
+}
+
+const std::string & SelectStmt::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
+const std::vector<SelectItem> & SelectStmt::get_select_items() const noexcept
+{
+    return select_items_;
+}
+
+const AstNode * SelectStmt::get_where_clause() const noexcept
+{
+    return where_clause_.get();
 }
 
 std::optional<std::size_t> SelectStmt::get_limit() const noexcept
 {
-    return limit;
+    return limit_;
 }
 
 std::string SelectStmt::debug_string() const
 {
     std::ostringstream oss;
-    oss << "SelectStmt(table=" << (table_name.empty() ? "<none>" : table_name)
+    oss << "SelectStmt(collection_name=" << (collection_name_.empty() ? "<none>" : collection_name_)
         << ", columns=[";
 
-    for (std::size_t i = 0; i < select_items.size(); ++i) {
-        const auto & item = select_items[i];
+    for (std::size_t i = 0; i < select_items_.size(); ++i) {
+        const auto & item = select_items_[i];
         if (i > 0) {
             oss << ", ";
         }
 
-        if (item.type == SelectItem::Type::STAR) {
+        if (item.type == SelectItem::SelectItemType::STAR) {
             oss << "*";
         }
         else if (item.expression) {
@@ -104,17 +104,17 @@ std::string SelectStmt::debug_string() const
     }
     oss << "]";
 
-    if (where_clause) {
-        oss << ", where=" << where_clause->debug_string();
+    if (where_clause_) {
+        oss << ", where=" << where_clause_->debug_string();
     }
 
-    if (limit.has_value()) {
-        oss << ", limit=" << *limit;
+    if (limit_.has_value()) {
+        oss << ", limit=" << *limit_;
     }
 
     oss << ")";
+
     return oss.str();
 }
 
 } // namespace dreamdb
-
