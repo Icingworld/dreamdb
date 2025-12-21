@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <memory>
@@ -12,7 +13,7 @@ namespace dreamdb
 
 /**
  * @brief UPDATE 语句节点
- * @details 表示 UPDATE ... SET ... WHERE ... 语句
+ * @details 表示 UPDATE <collection_name> SET <column_name1> = <value1>, ... WHERE <where_clause> 语句
  */
 class UpdateStmt : public AstNode
 {
@@ -21,9 +22,9 @@ public:
 
     UpdateStmt(const UpdateStmt &) = delete;
 
-    UpdateStmt & operator=(const UpdateStmt &) = delete;
-
     UpdateStmt(UpdateStmt &&) noexcept = default;
+
+    UpdateStmt & operator=(const UpdateStmt &) = delete;
 
     UpdateStmt & operator=(UpdateStmt &&) noexcept = default;
 
@@ -31,23 +32,29 @@ public:
 
 public:
     /**
-     * @brief 设置表名
-     * @param table 表名
+     * @brief 设置集合名
+     * @param collection_name 集合名
      */
-    void set_table_name(const std::string & table);
+    void set_collection_name(const std::string & collection_name);
 
     /**
-     * @brief 获取表名
-     * @return 表名
-     */
-    const std::string & get_table_name() const noexcept;
-
-    /**
-     * @brief 添加一个赋值
-     * @param column 列名
+     * @brief 添加一个赋值项
+     * @param column_name 列名
      * @param value 值表达式
      */
-    void add_assignment(const std::string & column, std::unique_ptr<AstNode> value);
+    void add_assignment(const std::string & column_name, std::unique_ptr<AstNode> value);
+
+    /**
+     * @brief 设置 WHERE 子句
+     * @param where_clause WHERE 条件
+     */
+    void set_where_clause(std::unique_ptr<AstNode> where_clause);
+
+    /**
+     * @brief 获取集合名
+     * @return 集合名
+     */
+    const std::string & get_collection_name() const noexcept;
 
     /**
      * @brief 获取所有赋值
@@ -56,28 +63,10 @@ public:
     const std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> & get_assignments() const noexcept;
 
     /**
-     * @brief 获取赋值数量
-     * @return 赋值数量
-     */
-    std::size_t get_assignment_count() const noexcept;
-
-    /**
-     * @brief 设置 WHERE 子句
-     * @param expr WHERE 条件表达式
-     */
-    void set_where_clause(std::unique_ptr<AstNode> expr);
-
-    /**
      * @brief 获取 WHERE 子句
      * @return WHERE 条件表达式，如果没有返回 nullptr
      */
     const AstNode * get_where_clause() const noexcept;
-
-    /**
-     * @brief 检查是否有 WHERE 条件
-     * @return 如果有 WHERE 条件返回 true
-     */
-    bool has_where_clause() const noexcept;
 
 public:
     /**
@@ -87,9 +76,9 @@ public:
     std::string debug_string() const override;
 
 private:
-    std::string table_name;                                                     // 表名
-    std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> assignments;  // SET 子句：列名 -> 值表达式
-    std::unique_ptr<AstNode> where_clause;                                      // WHERE 条件
+    std::string collection_name_;                                                // 集合名
+    std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> assignments_;  // SET 子句：列名 -> 值表达式
+    std::unique_ptr<AstNode> where_clause_;                                      // WHERE 条件
 };
 
 } // namespace dreamdb
