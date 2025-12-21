@@ -18,24 +18,24 @@ void InsertStmt::set_collection_name(const std::string & collection_name)
     collection_name_ = collection_name;
 }
 
-const std::string & InsertStmt::get_collection_name() const noexcept
-{
-    return collection_name_;
-}
-
 void InsertStmt::add_column_name(const std::string & column)
 {
     column_names_.push_back(column);
 }
 
-const std::vector<std::string> & InsertStmt::get_column_names() const noexcept
-{
-    return column_names_;
-}
-
 void InsertStmt::add_value(std::unique_ptr<AstNode> value)
 {
     values_.push_back(std::move(value));
+}
+
+const std::string & InsertStmt::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
+const std::vector<std::string> & InsertStmt::get_column_names() const noexcept
+{
+    return column_names_;
 }
 
 const std::vector<std::unique_ptr<AstNode>> & InsertStmt::get_values() const noexcept
