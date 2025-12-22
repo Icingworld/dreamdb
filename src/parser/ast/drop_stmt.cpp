@@ -5,6 +5,22 @@
 namespace dreamdb
 {
 
+std::string DropStmt::drop_type_to_string(DropType drop_type)
+{
+    switch (drop_type) {
+        case DropType::DATABASE:
+            return "DATABASE";
+        case DropType::COLLECTION:
+            return "COLLECTION";
+        case DropType::INDEX:
+            return "INDEX";
+        case DropType::VINDEX:
+            return "VINDEX";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 DropStmt::DropStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::DROP_STMT, line, column)
     , drop_type_(DropType::DATABASE)

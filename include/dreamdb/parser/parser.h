@@ -287,7 +287,7 @@ private:
     Token advance();
 
     /**
-     * @brief 检查当前 Token 类型并消耗
+     * @brief 检查当前 Token 类型，匹配成功则消耗
      */
     bool match(TokenType type);
 

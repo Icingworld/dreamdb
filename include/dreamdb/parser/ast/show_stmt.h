@@ -11,19 +11,20 @@ namespace dreamdb
 
 /**
  * @brief SHOW 语句节点
- * @details 表示 SHOW [DATABASES | COLLECTIONS | INDEXES] 语句
+ * @details 表示 SHOW [DATABASES | COLLECTIONS | INDEXES | VINDEXES] [FROM collection_name] 语句
  */
 class ShowStmt : public AstNode
 {
 public:
     /**
-     * @brief 对象类型枚举
+     * @brief 显示类型枚举
      */
     enum class ShowType : std::uint8_t
     {
         DATABASES,    // 数据库
         COLLECTIONS,  // 集合
-        INDEXES       // 索引
+        INDEXES,      // 标量索引
+        VINDEXES      // 向量索引
     };
 
 public:
@@ -47,10 +48,10 @@ public:
     void set_show_type(ShowType show_type) noexcept;
 
     /**
-     * @brief 设置对象名称
-     * @param object_name 对象名称
+     * @brief 设置集合名称
+     * @param collection_name 集合名称
      */
-    void set_object_name(const std::string & object_name);
+    void set_collection_name(const std::string & collection_name);
 
     /**
      * @brief 获取显示类型
@@ -59,10 +60,10 @@ public:
     ShowType get_show_type() const noexcept;
 
     /**
-     * @brief 获取对象名称
-     * @return 对象名称
+     * @brief 获取集合名称
+     * @return 集合名称
      */
-    const std::string & get_object_name() const noexcept;
+    const std::string & get_collection_name() const noexcept;
 
 public:
     /**
@@ -72,8 +73,8 @@ public:
     std::string debug_string() const override;
 
 private:
-    ShowType show_type_;        // 显示类型
-    std::string object_name_;   // 对象名称
+    ShowType show_type_;            // 显示类型
+    std::string collection_name_;   // 集合名称
 };
 
 } // namespace dreamdb

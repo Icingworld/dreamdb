@@ -110,6 +110,7 @@ std::unique_ptr<AstNode> Parser::parse_statement()
         case TokenType::DB_SHOW:
             return parse_show_stmt();
         case TokenType::DB_DESCRIBE:
+        case TokenType::DB_DESC:
             return parse_describe_stmt();
         default:
             error("Expected SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, USE, ALTER, SHOW, or DESCRIBE, but got: " + current_token_.to_string());
@@ -646,10 +647,6 @@ FieldType Parser::parse_field_type()
 
 std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 {
-    // DROP 语句示例
-    // DROP DATABASE my_database;
-    // DROP COLLECTION my_collection;
-
     // 获取 DROP 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
@@ -660,7 +657,7 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
     // 消耗 DROP 关键字
     advance();
 
-    // 解析对象类型：COLLECTION 或 INDEX
+    // 解析对象类型
     DropStmt::DropType drop_type;
     if (match(TokenType::DB_DATABASE)) {
         drop_type = DropStmt::DropType::DATABASE;
@@ -668,24 +665,23 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
         drop_type = DropStmt::DropType::COLLECTION;
     } else if (match(TokenType::DB_INDEX)) {
         drop_type = DropStmt::DropType::INDEX;
-        // TODO: 实现 INDEX 解析
-        error("parse_drop_stmt(index) not yet implemented");
+    } else if (match(TokenType::DB_VINDEX)) {
+        drop_type = DropStmt::DropType::VINDEX;
     } else {
-        error("Expected DATABASE, COLLECTION or INDEX after DROP, but got: " + current_token_.to_string());
+        error("Expected DATABASE, COLLECTION, INDEX or VINDEX after DROP");
     }
 
     stmt->set_drop_type(drop_type);
 
-    // 解析对象名称（标识符）
-    if (current_token_.get_type() != TokenType::DB_IDENTIFIER) {
-        error("Expected identifier (object name) after DROP COLLECTION, but got: " + current_token_.to_string());
+    // 解析对象名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected object_name after DROP" + DropStmt::drop_type_to_string(drop_type));
     }
-
     std::string object_name = current_token_.get_value();
-    // 消耗标识符 token
+    // 消耗 object_name
     advance();
 
-    stmt->set_object_name(object_name);
+    stmt->set_object_name(object_name);    
 
     // DROP 语句解析完成
     return stmt;
@@ -704,10 +700,11 @@ std::unique_ptr<UseStmt> Parser::parse_use_stmt()
     advance();
 
     // 解析数据库名称
-    if (current_token_.get_type() != TokenType::DB_IDENTIFIER) {
-        error("Expected identifier (database name) after USE, but got: " + current_token_.to_string());
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected database_name after USE");
     }
     std::string database_name = current_token_.get_value();
+    // 消耗 database_name
     advance();
 
     stmt->set_database_name(database_name);
@@ -724,14 +721,76 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
 
 std::unique_ptr<ShowStmt> Parser::parse_show_stmt()
 {
-    error("parse_show_stmt not yet implemented");
-    return nullptr;
+    // 获取 SHOW 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 ShowStmt 节点
+    auto stmt = std::make_unique<ShowStmt>(line, column);
+
+    // 消耗 SHOW 关键字
+    advance();
+
+    // 解析对象类型
+    ShowStmt::ShowType show_type;
+    if (match(TokenType::DB_DATABASES)) {
+        show_type = ShowStmt::ShowType::DATABASES;
+    } else if (match(TokenType::DB_COLLECTIONS)) {
+        show_type = ShowStmt::ShowType::COLLECTIONS;
+    } else if (match(TokenType::DB_INDEXES)) {
+        show_type = ShowStmt::ShowType::INDEXES;
+    } else if (match(TokenType::DB_VINDEXES)) {
+        show_type = ShowStmt::ShowType::VINDEXES;
+    } else {
+        error("Expected DATABASES, COLLECTIONS or INDEXES after SHOW");
+    }
+
+    stmt->set_show_type(show_type);
+
+    if (show_type == ShowStmt::ShowType::INDEXES || show_type == ShowStmt::ShowType::VINDEXES) {
+        // 索引类型需要继续识别对象
+        consume(TokenType::DB_FROM, "Expected FROM after INDEXES or VINDEXES");
+
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected collection_name after FROM");
+        }
+        std::string collection_name = current_token_.get_value();
+        stmt->set_collection_name(collection_name);
+        // 消耗 collection_name
+        advance();
+    }
+
+    // SHOW 语句解析完成
+    return stmt;
 }
 
 std::unique_ptr<DescribeStmt> Parser::parse_describe_stmt()
 {
-    error("parse_describe_stmt not yet implemented");
-    return nullptr;
+    // 获取 DESCRIBE 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 DescribeStmt 节点
+    auto stmt = std::make_unique<DescribeStmt>(line, column);
+
+    // 消耗 DESCRIBE 关键字
+    advance();
+
+    // 消耗 COLLECTION 关键字
+    consume(TokenType::DB_COLLECTION, "Expected COLLECTION after DESCRIBE or DESC");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after DESCRIBE");
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗 collection_name
+    advance();
+
+    stmt->set_collection_name(collection_name);
+
+    // DESCRIBE 语句解析完成
+    return stmt;
 }
 
 std::unique_ptr<AstNode> Parser::parse_expression()

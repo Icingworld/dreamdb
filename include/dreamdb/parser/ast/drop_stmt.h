@@ -11,7 +11,7 @@ namespace dreamdb
 
 /**
  * @brief DROP 语句节点
- * @details 表示 DROP [DATABASE | COLLECTION | INDEX] <object_name> 语句
+ * @details 表示 DROP [DATABASE | COLLECTION | INDEX | VINDEX] <object_name> 语句
  */
 class DropStmt : public AstNode
 {
@@ -23,8 +23,16 @@ public:
     {
         DATABASE,    // 数据库
         COLLECTION,  // 集合
-        INDEX        // 索引
+        INDEX,       // 索引
+        VINDEX,      // 向量索引
     };
+
+    /**
+     * @brief 将对象类型转换为字符串
+     * @param drop_type 对象类型
+     * @return 字符串
+     */
+    static std::string drop_type_to_string(DropType drop_type);
 
 public:
     DropStmt(std::size_t line = 0, std::size_t column = 0);

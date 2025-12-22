@@ -83,6 +83,9 @@ std::string Token::to_string() const
         case TokenType::DB_DESCRIBE:
             result += "DESCRIBE";
             break;
+        case TokenType::DB_DESC:
+            result += "DESC";
+            break;
         case TokenType::DB_FROM:
             result += "FROM";
             break;
@@ -125,6 +128,21 @@ std::string Token::to_string() const
         case TokenType::DB_INDEX:
             result += "INDEX";
             break;
+        case TokenType::DB_VINDEX:
+            result += "VINDEX";
+            break;
+        case TokenType::DB_DATABASES:
+            result += "DATABASES";
+            break;
+        case TokenType::DB_COLLECTIONS:
+            result += "COLLECTIONS";
+            break;
+        case TokenType::DB_INDEXES:
+            result += "INDEXES";
+            break;
+        case TokenType::DB_VINDEXES:
+            result += "VINDEXES";
+            break;
         case TokenType::DB_LIMIT:
             result += "LIMIT";
             break;
@@ -157,9 +175,6 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_ASC:
             result += "ASC";
-            break;
-        case TokenType::DB_DESC:
-            result += "DESC";
             break;
         case TokenType::DB_BETWEEN:
             result += "BETWEEN";

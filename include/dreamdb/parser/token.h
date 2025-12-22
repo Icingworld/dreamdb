@@ -26,6 +26,7 @@ enum class TokenType : std::uint8_t
     DB_ALTER,              // ALTER
     DB_SHOW,               // SHOW
     DB_DESCRIBE,           // DESCRIBE
+    DB_DESC,               // DESC
     DB_FROM,               // FROM
     DB_WHERE,              // WHERE
     DB_INTO,               // INTO
@@ -40,6 +41,11 @@ enum class TokenType : std::uint8_t
     DB_DATABASE,           // DATABASE
     DB_COLLECTION,         // COLLECTION
     DB_INDEX,              // INDEX
+    DB_VINDEX,             // VINDEX
+    DB_DATABASES,          // DATABASES
+    DB_COLLECTIONS,        // COLLECTIONS
+    DB_INDEXES,            // INDEXES
+    DB_VINDEXES,           // VINDEXES
     DB_LIMIT,              // LIMIT
     DB_PRIMARY,            // PRIMARY
     DB_KEY,                // KEY
@@ -51,7 +57,6 @@ enum class TokenType : std::uint8_t
     DB_ORDER,              // ORDER
     DB_BY,                 // BY
     DB_ASC,                // ASC
-    DB_DESC,               // DESC
     DB_BETWEEN,            // BETWEEN
     DB_IN,                 // IN
     DB_LIKE,               // LIKE
