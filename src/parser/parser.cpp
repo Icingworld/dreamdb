@@ -453,16 +453,7 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 }
 
 std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
-{
-    // CREATE 语句示例
-    // CREATE DATABASE my_database;
-    // CREATE COLLECTION users (
-    //     id INT64 PRIMARY KEY AUTO_INCREMENT,
-    //     name VARCHAR(255) DB_NOT NULL,
-    //     age INT32,
-    //     vector FLOAT_VECTOR(128)
-    // );
-    
+{    
     // 获取 CREATE 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
@@ -473,7 +464,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
     // 消耗 CREATE 关键字
     advance();
     
-    // 解析对象类型：COLLECTION 或 INDEX
+    // 解析对象类型
     CreateStmt::CreateType create_type;
     if (match(TokenType::DB_DATABASE)) {
         create_type = CreateStmt::CreateType::DATABASE;
@@ -481,38 +472,39 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
         create_type = CreateStmt::CreateType::COLLECTION;
     } else if (match(TokenType::DB_INDEX)) {
         create_type = CreateStmt::CreateType::INDEX;
-        // TODO: 实现 INDEX 解析
-        error("CREATE INDEX is not yet implemented");
+    } else if (match(TokenType::DB_VINDEX)) {
+        create_type = CreateStmt::CreateType::VINDEX;
     } else {
-        error("Expected DATABASE, COLLECTION or INDEX after CREATE, but got: " + current_token_.to_string());
+        error("Expected DATABASE, COLLECTION, INDEX or VINDEX after CREATE");
     }
     stmt->set_create_type(create_type);
-    
+
     // 解析对象名称
     if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected object name after COLLECTION, but got: " + current_token_.to_string());
+        error("Expected object name after " + CreateStmt::create_type_to_string(create_type));
     }
     std::string object_name = current_token_.get_value();
     stmt->set_object_name(object_name);
-    advance(); // 消耗对象名
-    
+    // 消耗 object_name
+    advance();
+
     // 如果是 COLLECTION，解析列定义列表
     if (create_type == CreateStmt::CreateType::COLLECTION) {
         // 期望 '('
         consume(TokenType::DB_LEFT_PAREN, "Expected '(' after collection name");
-        
+
         // 解析列定义列表（至少需要一个列定义）
         do {
             ColumnDefinition col_def = parse_column_definition();
             stmt->add_column_definition(std::move(col_def));
-            
+
             // 如果遇到逗号，继续解析下一个列定义
         } while (match(TokenType::DB_COMMA));
-        
+
         // 期望 ')'
         consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after column definitions");
     }
-    
+
     return stmt;
 }
 

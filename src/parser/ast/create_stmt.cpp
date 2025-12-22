@@ -5,6 +5,22 @@
 namespace dreamdb
 {
 
+std::string CreateStmt::create_type_to_string(CreateType create_type)
+{
+    switch (create_type) {
+        case CreateType::DATABASE:
+            return "DATABASE";
+        case CreateType::COLLECTION:
+            return "COLLECTION";
+        case CreateType::INDEX:
+            return "INDEX";
+        case CreateType::VINDEX:
+            return "VINDEX";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 CreateStmt::CreateStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::CREATE_STMT, line, column)
     , create_type_(CreateType::DATABASE)   // 默认 DATABASE 不需要用到列定义和集合名称

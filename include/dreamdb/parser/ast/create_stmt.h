@@ -27,8 +27,16 @@ public:
     {
         DATABASE,    // 数据库
         COLLECTION,  // 集合
-        INDEX        // 索引
+        INDEX,       // 索引
+        VINDEX       // 向量索引
     };
+
+    /**
+     * @brief 将对象类型转换为字符串
+     * @param create_type 对象类型
+     * @return 字符串
+     */
+    static std::string create_type_to_string(CreateType create_type);
 
 public:
     CreateStmt(std::size_t line = 0, std::size_t column = 0);
