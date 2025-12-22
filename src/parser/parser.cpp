@@ -693,9 +693,6 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 
 std::unique_ptr<UseStmt> Parser::parse_use_stmt()
 {
-    // USE 语句示例
-    // USE database_name;
-
     // 获取 USE 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
