@@ -351,57 +351,102 @@ std::unique_ptr<InsertStmt> Parser::parse_insert_stmt()
 
 std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
 {
-    // UPDATE 语句示例
-    // UPDATE my_collection SET col1 = 'value1', col2 = 123;
-    // UPDATE my_collection SET col1 = 'value1' WHERE col2 = 10;
-    
     // 获取 UPDATE 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
-    
+
     // 创建 UpdateStmt 节点
     auto stmt = std::make_unique<UpdateStmt>(line, column);
-    
+
     // 消耗 UPDATE 关键字
     advance();
-    
-    // 解析表名
+
+    // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected table name after UPDATE, but got: " + current_token_.to_string());
+        error("Expected collection_name after UPDATE");
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
-    advance(); // 消耗表名
-    
+    // 消耗集合名
+    advance();
+
     // 解析 SET 关键字
-    consume(TokenType::DB_SET, "Expected SET after table name");
-    
-    // 解析 SET 子句：col1 = val1, col2 = val2, ...
-    // 至少需要一个赋值
+    consume(TokenType::DB_SET, "Expected SET after collection_name");
+
+    // 解析 SET 子句
     do {
         // 解析列名
         if (!check(TokenType::DB_IDENTIFIER)) {
-            error("Expected column name in SET clause, but got: " + current_token_.to_string());
+            error("Expected column_name in SET clause, but got: " + current_token_.to_string());
         }
         std::string column_name = current_token_.get_value();
-        advance(); // 消耗列名
-        
+        // 消耗列名
+        advance();
+
         // 解析 '='
-        consume(TokenType::DB_EQUAL, "Expected '=' after column name in SET clause");
-        
+        consume(TokenType::DB_EQUAL, "Expected '=' after column_name in SET clause");
+
         // 解析值表达式
         auto value_expr = parse_expression();
         stmt->add_assignment(column_name, std::move(value_expr));
-        
-        // 如果遇到逗号，继续解析下一个赋值
     } while (match(TokenType::DB_COMMA));
-    
+
     // 解析可选的 WHERE 子句
     if (match(TokenType::DB_WHERE)) {
         auto where_expr = parse_expression();
         stmt->set_where_clause(std::move(where_expr));
     }
-    
+
+    // 解析可选的 ORDER BY 子句
+    if (match(TokenType::DB_ORDER)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after ORDER");
+
+        // 解析列名
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column name after ORDER BY");
+        }
+        std::string column_name = current_token_.get_value();
+        stmt->set_order_column(column_name);
+        // 消耗列名
+        advance();
+
+        // 期望 ASC 或 DESC 关键字
+        if (match(TokenType::DB_ASC)) {
+            stmt->set_order_type(UpdateStmt::OrderType::ASC);
+        } else if (match(TokenType::DB_DESC)) {
+            stmt->set_order_type(UpdateStmt::OrderType::DESC);
+        } else {
+            // 如果不指定排序类型，默认使用 ASC
+            stmt->set_order_type(UpdateStmt::OrderType::ASC);
+        }
+    }
+
+    // 解析可选的 LIMIT 子句
+    if (match(TokenType::DB_LIMIT)) {
+        // 期望一个数字字面量
+        if (!check(TokenType::DB_NUMBER_LITERAL)) {
+            error("Expected number after LIMIT, but got: " + current_token_.to_string());
+        }
+        std::string limit_text = current_token_.get_value();
+        try {
+            long long limit_value = std::stoll(limit_text);
+            if (limit_value < 0) {
+                error("LIMIT value must be non-negative, but got: " + limit_text);
+            }
+            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
+            if (limit_value > static_cast<long long>(max_limit)) {
+                error("LIMIT value too large: " + limit_text);
+            }
+            stmt->set_limit(static_cast<std::size_t>(limit_value));
+        } catch (const std::exception & e) {
+            error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+        }
+        // 消耗数字字面量
+        advance();
+    }
+
+    // UPDATE 语句解析完成
     return stmt;
 }
 

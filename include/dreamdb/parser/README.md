@@ -271,7 +271,123 @@ Error: Unknown collection 'collection_name'
 
 ### 5. ALTER COLLECTION
 
-> 暂不支持修改集合
+**说明**
+
+修改集合的字段结构。支持添加字段、删除字段、修改字段类型和重命名字段。
+
+**语法**
+
+```sql
+-- 添加字段
+ALTER COLLECTION <collection_name>
+ADD COLUMN <column_name> <column_type> [constraints];
+
+-- 删除字段
+ALTER COLLECTION <collection_name>
+DROP COLUMN <column_name>;
+
+-- 修改字段类型
+ALTER COLLECTION <collection_name>
+MODIFY COLUMN <column_name> <new_column_type> [constraints];
+
+-- 重命名字段
+ALTER COLLECTION <collection_name>
+RENAME COLUMN <old_column_name> TO <new_column_name>;
+```
+
+**参数说明**
+
+- `collection_name`：要修改的集合名称
+- `column_name`：字段名称
+- `column_type`：字段类型，支持的数据类型见"数据类型"章节
+- `new_column_type`：新的字段类型
+- `old_column_name`：原字段名称
+- `new_column_name`：新字段名称
+- `constraints`：字段约束，可选值为`UNIQUE`、`NOT NULL`、`PRIMARY KEY`等
+
+**示例**
+
+- 添加新字段
+```sql
+ALTER COLLECTION products
+ADD COLUMN description VARCHAR(500);
+```
+
+- 添加带约束的字段
+```sql
+ALTER COLLECTION products
+ADD COLUMN status VARCHAR(20) NOT NULL;
+```
+
+- 删除字段
+```sql
+ALTER COLLECTION products
+DROP COLUMN description;
+```
+
+- 修改字段类型
+```sql
+ALTER COLLECTION products
+MODIFY COLUMN price DOUBLE;
+```
+
+- 修改字段类型和约束
+```sql
+ALTER COLLECTION products
+MODIFY COLUMN price DOUBLE NOT NULL;
+```
+
+- 重命名字段
+```sql
+ALTER COLLECTION products
+RENAME COLUMN old_name TO new_name;
+```
+
+**注意事项**
+
+- 添加字段时，新字段对于已存在的记录将使用默认值（如果字段允许为 NULL 则为 NULL，否则需要提供默认值）
+- 删除字段时，该字段的所有数据将被永久删除
+- 修改字段类型时，新类型必须与现有数据兼容，否则可能导致数据转换失败
+- 重命名字段不会影响字段中的数据，只是改变字段名称
+- 不能删除主键字段
+- 不能重命名主键字段（如需重命名，应先删除主键约束，重命名后再添加主键约束）
+
+**可能的响应**
+
+- 成功
+```txt
+Collection altered
+```
+
+- 失败 - 集合不存在
+```txt
+Error: Unknown collection 'collection_name'
+```
+
+- 失败 - 字段不存在
+```txt
+Error: Unknown column 'column_name' in collection 'collection_name'
+```
+
+- 失败 - 字段已存在（添加字段时）
+```txt
+Error: Column 'column_name' already exists in collection 'collection_name'
+```
+
+- 失败 - 新字段名已存在（重命名字段时）
+```txt
+Error: Column 'new_column_name' already exists in collection 'collection_name'
+```
+
+- 失败 - 类型转换失败（修改字段类型时）
+```txt
+Error: Cannot convert data from old_type to new_type
+```
+
+- 失败 - 不能删除主键字段
+```txt
+Error: Cannot drop primary key column 'column_name'
+```
 
 
 ## 四、标量索引管理
