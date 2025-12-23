@@ -285,74 +285,67 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
 }
 
 std::unique_ptr<InsertStmt> Parser::parse_insert_stmt()
-{
-    // INSERT 语句示例
-    // INSERT INTO my_collection VALUES ('value1', 'value2', 123);
-    // INSERT INTO my_collection (col1, col2, col3) VALUES ('value1', 'value2', 123);
-    
+{    
     // 获取 INSERT 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     
     // 创建 InsertStmt 节点
     auto stmt = std::make_unique<InsertStmt>(line, column);
-    
+
     // 消耗 INSERT 关键字
     advance();
     
     // 解析 INTO 关键字
     consume(TokenType::DB_INTO, "Expected INTO after INSERT");
-    
-    // 解析表名
+
+    // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected table name after INTO, but got: " + current_token_.to_string());
+        error("Expected collection_name after INTO");
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
-    advance(); // 消耗表名
-    
+    // 消耗集合名
+    advance();
+
     // 解析可选的列名列表
     if (check(TokenType::DB_LEFT_PAREN)) {
-        // 有列名列表：INSERT INTO table (col1, col2, ...)
-        advance(); // 消耗 '('
-        
+        // 存在列名列表
+        // 消耗 '('
+        advance();
+
         // 解析列名列表
         do {
             if (!check(TokenType::DB_IDENTIFIER)) {
-                error("Expected column name, but got: " + current_token_.to_string());
+                error("Expected column_name, but got: " + current_token_.to_string());
             }
             std::string column_name = current_token_.get_value();
             stmt->add_column_name(column_name);
-            advance(); // 消耗列名
-            
-            // 如果遇到逗号，继续解析下一个列名
+            // 消耗列名
+            advance();
         } while (match(TokenType::DB_COMMA));
-        
+
         // 期望 ')'
         consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after column list");
     }
-    // 如果没有列名列表，则按照表结构顺序插入
-    
+
     // 解析 VALUES 关键字
-    consume(TokenType::DB_VALUES, "Expected VALUES after table name or column list");
-    
+    consume(TokenType::DB_VALUES, "Expected VALUES after collection_name or column list");
+
     // 解析值列表
     // 期望 '('
     consume(TokenType::DB_LEFT_PAREN, "Expected '(' after VALUES");
-    
-    // 解析第一个值（至少需要一个值）
-    auto first_value = parse_expression();
-    stmt->add_value(std::move(first_value));
-    
-    // 解析后续值
-    while (match(TokenType::DB_COMMA)) {
-        auto value = parse_expression();
-        stmt->add_value(std::move(value));
-    }
-    
+
+    // 解析值列表
+    do {
+        auto value_expr = parse_expression();
+        stmt->add_value(std::move(value_expr));
+    } while (match(TokenType::DB_COMMA));
+
     // 期望 ')'
     consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after value list");
-    
+
+    // INSERT 语句解析完成
     return stmt;
 }
 
