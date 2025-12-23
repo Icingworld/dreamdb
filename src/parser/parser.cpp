@@ -407,10 +407,6 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
 
 std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 {
-    // DELETE 语句示例
-    // DELETE FROM my_collection;
-    // DELETE FROM my_collection WHERE my_column = 'value';
-
     // 获取 DELETE 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
@@ -422,23 +418,70 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
     advance();
 
     // 解析 FROM 关键字
-    if (match(TokenType::DB_FROM)) {
-        // 解析集合名称
-        if (current_token_.get_type() != TokenType::DB_IDENTIFIER) {
-            error("Expected identifier (collection name) after FROM, but got: " + current_token_.to_string());
-        }
-        std::string collection_name = current_token_.get_value();
-        advance();
-        stmt->set_collection_name(collection_name);
-    } else {
-        error("Expected FROM after DELETE, but got: " + current_token_.to_string());
+    consume(TokenType::DB_FROM, "Expected FROM after DELETE");
+
+    // 解析集合名
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after FROM");
+    }
+    std::string collection_name = current_token_.get_value();
+    stmt->set_collection_name(collection_name);
+    // 消耗集合名
+    advance();
+
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::DB_WHERE)) {
+        auto where_expr = parse_expression();
+        stmt->set_where_clause(std::move(where_expr));
     }
 
-    // 如果有 WHERE 关键字，则解析 WHERE 条件
-    if (match(TokenType::DB_WHERE)) {
-        // 解析 WHERE 条件
-        auto where_clause = parse_expression();
-        stmt->set_where_clause(std::move(where_clause));
+    // 解析可选的 ORDER BY 子句
+    if (match(TokenType::DB_ORDER)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after ORDER");
+
+        // 解析列名
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column name after ORDER BY");
+        }
+        std::string column_name = current_token_.get_value();
+        stmt->set_order_column(column_name);
+        // 消耗列名
+        advance();
+
+        // 期望 ASC 或 DESC 关键字
+        if (match(TokenType::DB_ASC)) {
+            stmt->set_order_type(DeleteStmt::OrderType::ASC);
+        } else if (match(TokenType::DB_DESC)) {
+            stmt->set_order_type(DeleteStmt::OrderType::DESC);
+        } else {
+            // 如果不指定排序类型，默认使用 ASC
+            stmt->set_order_type(DeleteStmt::OrderType::ASC);
+        }
+    }
+
+    // 解析可选的 LIMIT 子句
+    if (match(TokenType::DB_LIMIT)) {
+        // 期望一个数字字面量
+        if (!check(TokenType::DB_NUMBER_LITERAL)) {
+            error("Expected number after LIMIT, but got: " + current_token_.to_string());
+        }
+        std::string limit_text = current_token_.get_value();
+        try {
+            long long limit_value = std::stoll(limit_text);
+            if (limit_value < 0) {
+                error("LIMIT value must be non-negative, but got: " + limit_text);
+            }
+            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
+            if (limit_value > static_cast<long long>(max_limit)) {
+                error("LIMIT value too large: " + limit_text);
+            }
+            stmt->set_limit(static_cast<std::size_t>(limit_value));
+        } catch (const std::exception & e) {
+            error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+        }
+        // 消耗数字字面量
+        advance();
     }
 
     // DELETE 语句解析完成
