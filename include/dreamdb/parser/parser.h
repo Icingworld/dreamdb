@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -7,6 +9,7 @@
 #include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
 #include "dreamdb/parser/ast/ast_node.h"
+#include "dreamdb/parser/ast/create_stmt.h"
 
 namespace dreamdb
 {
@@ -19,6 +22,9 @@ class DeleteStmt;
 class CreateStmt;
 class DropStmt;
 class UseStmt;
+class AlterStmt;
+class ShowStmt;
+class DescribeStmt;
 class UnaryExpr;
 class BinaryExpr;
 class FunctionCallExpr;
@@ -67,8 +73,8 @@ public:
     std::string get_message() const noexcept;
 
 private:
-    std::size_t line;
-    std::size_t column;
+    std::size_t line_;
+    std::size_t column_;
 };
 
 /**
@@ -90,6 +96,14 @@ public:
      */
     explicit Parser(std::unique_ptr<Lexer> lexer);
 
+    Parser(const Parser &) = delete;
+
+    Parser(Parser &&) noexcept = default;
+
+    Parser & operator=(const Parser &) = delete;
+
+    Parser & operator=(Parser &&) noexcept = default;
+
     ~Parser() = default;
 
 public:
@@ -100,56 +114,65 @@ public:
      */
     std::unique_ptr<AstNode> parse();
 
+private:
+    // ========== 语句解析 ==========
+
     /**
-     * @brief 解析单个语句（SELECT、INSERT、UPDATE 等）
+     * @brief 解析单个语句
      * @return 语句节点
      */
     std::unique_ptr<AstNode> parse_statement();
 
-private:
-    // ========== 语句解析 ==========
-    
     /**
      * @brief 解析 SELECT 语句
-     * SELECT select_list FROM table_name [WHERE condition]
      */
     std::unique_ptr<SelectStmt> parse_select_stmt();
 
     /**
      * @brief 解析 INSERT 语句
-     * INSERT INTO table_name [(columns)] VALUES (values)
      */
     std::unique_ptr<InsertStmt> parse_insert_stmt();
 
     /**
      * @brief 解析 UPDATE 语句
-     * UPDATE table_name SET column = value [, ...] [WHERE condition]
      */
     std::unique_ptr<UpdateStmt> parse_update_stmt();
 
     /**
      * @brief 解析 DELETE 语句
-     * DELETE FROM table_name [WHERE condition]
      */
     std::unique_ptr<DeleteStmt> parse_delete_stmt();
 
     /**
      * @brief 解析 CREATE 语句
-     * CREATE TABLE/COLLECTION table_name (column_definitions)
      */
     std::unique_ptr<CreateStmt> parse_create_stmt();
 
     /**
      * @brief 解析 DROP 语句
-     * DROP TABLE/COLLECTION table_name
      */
     std::unique_ptr<DropStmt> parse_drop_stmt();
 
     /**
      * @brief 解析 USE 语句
-     * USE database_name
      */
     std::unique_ptr<UseStmt> parse_use_stmt();
+
+    /**
+     * @brief 解析 ALTER 语句
+     */
+    std::unique_ptr<AlterStmt> parse_alter_stmt();
+
+    /**
+     * @brief 解析 SHOW 语句
+     * SHOW TABLES/COLLECTIONS
+     */
+    std::unique_ptr<ShowStmt> parse_show_stmt();
+
+    /**
+     * @brief 解析 DESCRIBE 语句
+     */
+    std::unique_ptr<DescribeStmt> parse_describe_stmt();
 
     // ========== 表达式解析 ==========
 
@@ -247,6 +270,11 @@ private:
     ColumnDefinition parse_column_definition();
 
     /**
+     * @brief 解析向量索引 WITH 子句
+     */
+    void parse_vindex_with_clause(VIndexWithClause & with_clause);
+
+    /**
      * @brief 解析字段类型
      * INT8 | INT16 | INT32 | INT64 | FLOAT | DOUBLE | CHAR | VARCHAR | BOOLEAN | TIMESTAMP | ENUM | FLOAT_VECTOR
      */
@@ -265,7 +293,7 @@ private:
     Token advance();
 
     /**
-     * @brief 检查当前 Token 类型并消耗
+     * @brief 检查当前 Token 类型，匹配成功则消耗
      */
     bool match(TokenType type);
 
@@ -297,9 +325,9 @@ private:
     [[noreturn]] void error(const std::string & message);
 
 private:
-    std::unique_ptr<Lexer> lexer; // 词法分析器
-    Token current_token;          // 当前 Token
-    bool has_error;               // 是否有错误
+    std::unique_ptr<Lexer> lexer_;      // 词法分析器
+    Token current_token_;               // 当前 Token
+    bool has_error_;                    // 是否有错误
 };
 
 } // namespace dreamdb

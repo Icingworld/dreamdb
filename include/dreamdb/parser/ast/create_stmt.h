@@ -1,133 +1,48 @@
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
-#include <memory>
+#include <map>
+#include <optional>
 
 #include "dreamdb/parser/ast/ast_node.h"
-#include "dreamdb/common/type.h"
+#include "dreamdb/parser/ast/column_definition.h"
+
 
 namespace dreamdb
 {
 
 /**
- * @brief 列定义
+ * @brief 向量索引 WITH 子句
+ * @details 表示向量索引 WITH 子句，用于指定向量索引的参数
  */
-class ColumnDefinition
+class VIndexWithClause
 {
 public:
-    ColumnDefinition();
+    VIndexWithClause();
 
-    ColumnDefinition(const ColumnDefinition &) = delete;
+    VIndexWithClause(const VIndexWithClause &) = delete;
 
-    ColumnDefinition & operator=(const ColumnDefinition &) = delete;
+    VIndexWithClause(VIndexWithClause &&) noexcept = default;
 
-    ColumnDefinition(ColumnDefinition &&) noexcept = default;
+    VIndexWithClause & operator=(const VIndexWithClause &) = delete;
 
-    ColumnDefinition & operator=(ColumnDefinition &&) noexcept = default;
+    VIndexWithClause & operator=(VIndexWithClause &&) noexcept = default;
 
-    ~ColumnDefinition() = default;
+    ~VIndexWithClause() = default;
 
 public:
-    /**
-     * @brief 设置列名
-     */
-    void set_name(const std::string & name);
-
-    /**
-     * @brief 获取列名
-     */
-    const std::string & get_name() const noexcept;
-
-    /**
-     * @brief 设置字段类型
-     */
-    void set_type(FieldType type);
-
-    /**
-     * @brief 获取字段类型
-     */
-    FieldType get_type() const noexcept;
-
-    /**
-     * @brief 设置长度（用于 VARCHAR、CHAR 等）
-     */
-    void set_length(int length);
-
-    /**
-     * @brief 获取长度
-     */
-    int get_length() const noexcept;
-
-    /**
-     * @brief 设置精度（用于 FLOAT、DOUBLE 等）
-     */
-    void set_precision(int precision);
-
-    /**
-     * @brief 获取精度
-     */
-    int get_precision() const noexcept;
-
-    /**
-     * @brief 设置是否允许 NULL
-     */
-    void set_nullable(bool nullable);
-
-    /**
-     * @brief 是否允许 NULL
-     */
-    bool is_nullable() const noexcept;
-
-    /**
-     * @brief 设置是否为主键
-     */
-    void set_primary_key(bool primary);
-
-    /**
-     * @brief 是否为主键
-     */
-    bool is_primary_key() const noexcept;
-
-    /**
-     * @brief 设置是否自动递增
-     */
-    void set_auto_increment(bool auto_increment);
-
-    /**
-     * @brief 是否自动递增
-     */
-    bool is_auto_increment() const noexcept;
-
-    /**
-     * @brief 设置默认值表达式（AST 节点）
-     */
-    void set_default_value(std::unique_ptr<AstNode> expr);
-
-    /**
-     * @brief 获取默认值表达式
-     */
-    const AstNode * get_default_value() const noexcept;
-
-    /**
-     * @brief 是否有默认值
-     */
-    bool has_default_value() const noexcept;
-
-private:
-    std::string name;                               // 列名
-    FieldType type;                                 // 字段类型
-    int length;                                     // 长度
-    int precision;                                  // 精度
-    bool nullable;                                  // 是否允许 NULL
-    bool primary_key;                               // 是否为主键
-    bool auto_increment;                            // 是否自动递增
-    std::unique_ptr<AstNode> default_value;         // 默认值表达式
+    std::optional<std::int32_t> nlist;              // IVF_FLAT 参数
+    std::optional<std::int32_t> M;                  // HNSW 参数
+    std::optional<std::int32_t> ef_construction;    // HNSW 参数
+    std::optional<MetricType> metric;               // 距离度量方式
 };
 
 /**
  * @brief CREATE 语句节点
- * @details 表示 CREATE COLLECTION/INDEX ... 语句
+ * @details 表示 CREATE {DATABASE | COLLECTION | INDEX} [IF NOT EXISTS] <object_name> [ON COLLECTION(<collection_name>) | (...)] 语句
  */
 class CreateStmt : public AstNode
 {
@@ -135,21 +50,29 @@ public:
     /**
      * @brief 对象类型枚举
      */
-    enum class ObjectType : std::uint8_t
+    enum class CreateType : std::uint8_t
     {
         DATABASE,    // 数据库
         COLLECTION,  // 集合
-        INDEX        // TODO: 索引
+        INDEX,       // 索引
+        VINDEX       // 向量索引
     };
+
+    /**
+     * @brief 将对象类型转换为字符串
+     * @param create_type 对象类型
+     * @return 字符串
+     */
+    static std::string create_type_to_string(CreateType create_type);
 
 public:
     CreateStmt(std::size_t line = 0, std::size_t column = 0);
 
     CreateStmt(const CreateStmt &) = delete;
 
-    CreateStmt & operator=(const CreateStmt &) = delete;
-
     CreateStmt(CreateStmt &&) noexcept = default;
+
+    CreateStmt & operator=(const CreateStmt &) = delete;
 
     CreateStmt & operator=(CreateStmt &&) noexcept = default;
 
@@ -160,13 +83,7 @@ public:
      * @brief 设置对象类型
      * @param type 对象类型
      */
-    void set_object_type(ObjectType type);
-
-    /**
-     * @brief 获取对象类型
-     * @return 对象类型
-     */
-    ObjectType get_object_type() const noexcept;
+    void set_create_type(CreateType type);
 
     /**
      * @brief 设置对象名称
@@ -175,28 +92,100 @@ public:
     void set_object_name(const std::string & name);
 
     /**
+     * @brief 设置是否跳过存在性检查
+     * @param is_if_not_exists 是否跳过存在性检查
+     */
+    void set_is_if_not_exists(bool is_if_not_exists);
+
+    /**
+     * @brief 添加列定义
+     * @param column 列定义
+     */
+    void add_column_definition(ColumnDefinition && column);
+
+    /**
+     * @brief 设置集合名称
+     * @param collection_name 集合名称
+     */
+    void set_collection_name(const std::string & collection_name);
+
+    /**
+     * @brief 设置列名
+     * @param column_name 列名
+     */
+    void add_column_name(const std::string & column_name);
+
+    /**
+     * @brief 设置标量索引类型
+     * @param index_type 标量索引类型
+     */
+    void set_index_type(IndexType index_type);
+
+    /**
+     * @brief 设置向量索引类型
+     * @param vindex_type 向量索引类型
+     */
+    void set_vindex_type(VIndexType vindex_type);
+
+    /**
+     * @brief 设置向量索引 WITH 子句
+     * @param with_clause 向量索引 WITH 子句
+     */
+    void set_vindex_with_clause(VIndexWithClause && with_clause);
+
+    /**
+     * @brief 获取对象类型
+     * @return 对象类型
+     */
+    CreateType get_create_type() const noexcept;
+
+    /**
      * @brief 获取对象名称
      * @return 对象名称
      */
     const std::string & get_object_name() const noexcept;
 
     /**
-     * @brief 添加列定义
-     * @param column 列定义
+     * @brief 获取是否跳过存在性检查
+     * @return 是否跳过存在性检查
      */
-    void add_column_definition(ColumnDefinition column);
+    bool get_is_if_not_exists() const noexcept;
 
     /**
      * @brief 获取所有列定义
      * @return 列定义列表
      */
-    const std::vector<ColumnDefinition> & get_column_definitions() const noexcept;
+    const std::optional<std::vector<ColumnDefinition>> & get_column_definitions() const noexcept;
 
     /**
-     * @brief 获取列定义数量
-     * @return 列定义数量
+     * @brief 获取集合名称
+     * @return 集合名称
      */
-    std::size_t get_column_count() const noexcept;
+    const std::optional<std::string> & get_collection_name() const noexcept;
+
+    /**
+     * @brief 获取列名列表
+     * @return 列名列表
+     */
+    const std::optional<std::vector<std::string>> & get_column_names() const noexcept;
+
+    /**
+     * @brief 获取标量索引类型
+     * @return 标量索引类型
+     */
+    const std::optional<IndexType> & get_index_type() const noexcept;
+
+    /**
+     * @brief 获取向量索引类型
+     * @return 向量索引类型
+     */
+    const std::optional<VIndexType> & get_vindex_type() const noexcept;
+
+    /**
+     * @brief 获取向量索引 WITH 子句
+     * @return 向量索引 WITH 子句
+     */
+    const std::optional<VIndexWithClause> & get_vindex_with_clause() const noexcept;
 
 public:
     /**
@@ -206,9 +195,15 @@ public:
     std::string debug_string() const override;
 
 private:
-    ObjectType object_type;                             // 对象类型
-    std::string object_name;                            // 对象名称
-    std::vector<ColumnDefinition> column_definitions;   // 列定义列表（仅用于 COLLECTION）
+    CreateType create_type_;                               // 创建类型
+    std::string object_name_;                              // 对象名称
+    bool is_if_not_exists_;                                // 是否跳过存在性检查
+    std::optional<std::vector<ColumnDefinition>> column_definitions_;   // 列定义列表，用于 COLLECTION
+    std::optional<std::string> collection_name_;           // 集合名称，用于索引
+    std::optional<std::vector<std::string>> column_names_; // 列名列表，用于索引
+    std::optional<IndexType> index_type_;                  // 标量索引类型，用于索引
+    std::optional<VIndexType> vindex_type_;                // 向量索引类型，用于向量索引
+    std::optional<VIndexWithClause> with_clause_;          // WITH 子句，用于向量索引
 };
 
 } // namespace dreamdb

@@ -4,31 +4,31 @@ namespace dreamdb
 {
 
 AstNode::AstNode(AstNodeType type, std::size_t line, std::size_t column)
-    : type(type)
-    , line(line)
-    , column(column)
+    : type_(type)
+    , line_(line)
+    , column_(column)
 {
 }
 
 AstNodeType AstNode::get_type() const noexcept
 {
-    return type;
+    return type_;
 }
 
 std::size_t AstNode::get_line() const noexcept
 {
-    return line;
+    return line_;
 }
 
 std::size_t AstNode::get_column() const noexcept
 {
-    return column;
+    return column_;
 }
 
 void AstNode::set_source_location(std::size_t line, std::size_t column) noexcept
 {
-    this->line = line;
-    this->column = column;
+    line_ = line;
+    column_ = column;
 }
 
 } // namespace dreamdb

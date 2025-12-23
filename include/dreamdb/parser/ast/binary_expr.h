@@ -15,23 +15,23 @@ namespace dreamdb
 enum class BinaryOperatorType : std::uint8_t
 {
     // 算术运算符
-    PLUS,           // +
-    MINUS,          // -
-    MULTIPLY,       // *
-    DIVIDE,         // /
-    MODULO,         // %
+    DB_PLUS,           // +
+    DB_MINUS,          // -
+    DB_MULTIPLY,       // *
+    DB_DIVIDE,         // /
+    DB_MODULO,         // %
     
     // 比较运算符
-    EQUAL,          // =
-    NOT_EQUAL,      // != 或 <>
-    LESS_THAN,      // <
-    GREATER_THAN,   // >
-    LESS_EQUAL,     // <=
-    GREATER_EQUAL,  // >=
+    DB_EQUAL,          // =
+    DB_NOT_EQUAL,      // != 或 <>
+    DB_LESS_THAN,      // <
+    DB_GREATER_THAN,   // >
+    DB_LESS_EQUAL,     // <=
+    DB_GREATER_EQUAL,  // >=
     
     // 逻辑运算符
-    AND,            // AND
-    OR              // OR
+    DB_AND,            // AND
+    DB_OR,             // OR
 };
 
 /**

@@ -14,9 +14,9 @@ namespace dreamdb
  */
 enum class UnaryOperatorType : std::uint8_t
 {
-    NOT,        // 逻辑非
-    MINUS,      // 负号
-    PLUS        // 正号
+    DB_NOT,        // 逻辑非
+    DB_MINUS,      // 负号
+    DB_PLUS        // 正号
 };
 
 class UnaryExpr : public AstNode

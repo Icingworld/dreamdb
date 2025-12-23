@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 #include "dreamdb/parser/ast/ast_node.h"
@@ -9,7 +10,7 @@ namespace dreamdb
 
 /**
  * @brief USE 语句节点
- * @details 表示 USE database_name 语句，用于切换当前数据库
+ * @details 表示 USE <database_name> 语句，用于切换当前数据库
  */
 class UseStmt : public AstNode
 {
@@ -18,9 +19,9 @@ public:
 
     UseStmt(const UseStmt &) = delete;
 
-    UseStmt & operator=(const UseStmt &) = delete;
-
     UseStmt(UseStmt &&) noexcept = default;
+
+    UseStmt & operator=(const UseStmt &) = delete;
 
     UseStmt & operator=(UseStmt &&) noexcept = default;
 
@@ -31,7 +32,7 @@ public:
      * @brief 设置数据库名称
      * @param name 数据库名称
      */
-    void set_database_name(const std::string & name);
+    void set_database_name(const std::string & database_name);
 
     /**
      * @brief 获取数据库名称
@@ -47,8 +48,7 @@ public:
     std::string debug_string() const override;
 
 private:
-    std::string database_name;  // 数据库名称
+    std::string database_name_;  // 数据库名称
 };
 
 } // namespace dreamdb
-

@@ -7,59 +7,54 @@ namespace dreamdb
 
 InsertStmt::InsertStmt(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::INSERT_STMT, line, column)
-    , table_name("")
-    , column_names()
-    , values()
+    , collection_name_("")
+    , column_names_()
+    , values_()
 {
 }
 
-void InsertStmt::set_table_name(const std::string & table)
+void InsertStmt::set_collection_name(const std::string & collection_name)
 {
-    table_name = table;
-}
-
-const std::string & InsertStmt::get_table_name() const noexcept
-{
-    return table_name;
+    collection_name_ = collection_name;
 }
 
 void InsertStmt::add_column_name(const std::string & column)
 {
-    column_names.push_back(column);
-}
-
-const std::vector<std::string> & InsertStmt::get_column_names() const noexcept
-{
-    return column_names;
-}
-
-bool InsertStmt::has_column_names() const noexcept
-{
-    return !column_names.empty();
+    column_names_.push_back(column);
 }
 
 void InsertStmt::add_value(std::unique_ptr<AstNode> value)
 {
-    values.push_back(std::move(value));
+    values_.push_back(std::move(value));
+}
+
+const std::string & InsertStmt::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
+const std::vector<std::string> & InsertStmt::get_column_names() const noexcept
+{
+    return column_names_;
 }
 
 const std::vector<std::unique_ptr<AstNode>> & InsertStmt::get_values() const noexcept
 {
-    return values;
+    return values_;
 }
 
 std::string InsertStmt::debug_string() const
 {
     std::ostringstream oss;
-    oss << "InsertStmt(table=" << (table_name.empty() ? "<none>" : table_name);
+    oss << "InsertStmt(collection_name=" << (collection_name_.empty() ? "<none>" : collection_name_);
 
-    if (has_column_names()) {
+    if (!column_names_.empty()) {
         oss << ", columns=[";
-        for (std::size_t i = 0; i < column_names.size(); ++i) {
+        for (std::size_t i = 0; i < column_names_.size(); ++i) {
             if (i > 0) {
                 oss << ", ";
             }
-            oss << column_names[i];
+            oss << column_names_[i];
         }
         oss << "]";
     } else {
@@ -67,11 +62,11 @@ std::string InsertStmt::debug_string() const
     }
 
     oss << ", values=[";
-    for (std::size_t i = 0; i < values.size(); ++i) {
+    for (std::size_t i = 0; i < values_.size(); ++i) {
         if (i > 0) {
             oss << ", ";
         }
-        oss << values[i]->debug_string();
+        oss << values_[i]->debug_string();
     }
     oss << "]";
 

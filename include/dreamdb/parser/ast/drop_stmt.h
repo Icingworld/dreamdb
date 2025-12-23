@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "dreamdb/parser/ast/ast_node.h"
@@ -9,7 +11,7 @@ namespace dreamdb
 
 /**
  * @brief DROP 语句节点
- * @details 表示 DROP COLLECTION/INDEX ... 语句
+ * @details 表示 DROP [DATABASE | COLLECTION | INDEX | VINDEX] <object_name> 语句
  */
 class DropStmt : public AstNode
 {
@@ -17,21 +19,29 @@ public:
     /**
      * @brief 对象类型枚举
      */
-    enum class ObjectType : std::uint8_t
+    enum class DropType : std::uint8_t
     {
         DATABASE,    // 数据库
         COLLECTION,  // 集合
-        INDEX        // TODO: 索引
+        INDEX,       // 索引
+        VINDEX,      // 向量索引
     };
+
+    /**
+     * @brief 将对象类型转换为字符串
+     * @param drop_type 对象类型
+     * @return 字符串
+     */
+    static std::string drop_type_to_string(DropType drop_type);
 
 public:
     DropStmt(std::size_t line = 0, std::size_t column = 0);
 
     DropStmt(const DropStmt &) = delete;
 
-    DropStmt & operator=(const DropStmt &) = delete;
-
     DropStmt(DropStmt &&) noexcept = default;
+
+    DropStmt & operator=(const DropStmt &) = delete;
 
     DropStmt & operator=(DropStmt &&) noexcept = default;
 
@@ -42,19 +52,19 @@ public:
      * @brief 设置对象类型
      * @param type 对象类型
      */
-    void set_object_type(ObjectType type);
+    void set_drop_type(DropType drop_type);
 
     /**
      * @brief 获取对象类型
      * @return 对象类型
      */
-    ObjectType get_object_type() const noexcept;
+    DropType get_drop_type() const noexcept;
 
     /**
      * @brief 设置对象名称
      * @param name 对象名称
      */
-    void set_object_name(const std::string & name);
+    void set_object_name(const std::string & object_name);
 
     /**
      * @brief 获取对象名称
@@ -70,8 +80,8 @@ public:
     std::string debug_string() const override;
 
 private:
-    ObjectType object_type;         // 对象类型
-    std::string object_name;        // 对象名称
+    DropType drop_type_;            // 删除类型
+    std::string object_name_;       // 对象名称
 };
 
 } // namespace dreamdb

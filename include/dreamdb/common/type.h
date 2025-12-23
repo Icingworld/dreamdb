@@ -31,8 +31,7 @@ enum class FieldType : std::uint8_t
 enum class IndexType : std::uint8_t
 {
     BTREE,              // B-Tree 索引
-    HASH,               // Hash 索引
-    NONE                // 无索引
+    HASH                // Hash 索引
 };
 
 /**
@@ -42,8 +41,7 @@ enum class VIndexType : std::uint8_t
 {
     FLAT,               // 线性扫描索引
     IVF_FLAT,           // 倒排平铺索引
-    HNSW,               // 分层导航小世界图索引
-    NONE                // 无索引
+    HNSW                // 分层导航小世界图索引
 };
 
 /**
@@ -53,8 +51,7 @@ enum class MetricType : std::uint8_t
 {
     L2,                 // L2 距离
     IP,                 // 内积
-    COSINE,             // 余弦相似度
-    NONE                // 无距离度量
+    COSINE              // 余弦相似度
 };
 
 /**
