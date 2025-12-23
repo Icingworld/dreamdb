@@ -479,6 +479,14 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
     }
     stmt->set_create_type(create_type);
 
+    // 查看是否存在 'IF NOT EXISTS' 关键字
+    if (match(TokenType::DB_IF)) {
+        // 存在 'IF NOT EXISTS' 关键字，解析对象名称
+        consume(TokenType::DB_NOT, "Expected NOT after IF");
+        consume(TokenType::DB_EXISTS, "Expected EXISTS after NOT");
+        stmt->set_is_if_not_exists(true);
+    }
+
     // 解析对象名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected object name after " + CreateStmt::create_type_to_string(create_type));
@@ -488,8 +496,9 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
     // 消耗 object_name
     advance();
 
-    // 如果是 COLLECTION，解析列定义列表
+    // 根据类型解析不同内容
     if (create_type == CreateStmt::CreateType::COLLECTION) {
+        // 如果是 COLLECTION，解析列定义列表
         // 期望 '('
         consume(TokenType::DB_LEFT_PAREN, "Expected '(' after collection name");
 
@@ -503,138 +512,121 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
 
         // 期望 ')'
         consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after column definitions");
-    }
+    } else if (create_type == CreateStmt::CreateType::INDEX || create_type == CreateStmt::CreateType::VINDEX) {
+        // 如果是 INDEX 或 VINDEX，解析集合名
+        // 期望 'ON'
+        consume(TokenType::DB_ON, "Expected ON after INDEX or VINDEX");
 
-    return stmt;
-}
-
-ColumnDefinition Parser::parse_column_definition()
-{
-    // 列定义示例：
-    // id INT64 PRIMARY KEY AUTO_INCREMENT
-    // name VARCHAR(255) DB_NOT NULL
-    // age INT32 DEFAULT 0
-    // vector FLOAT_VECTOR(128)
-    
-    ColumnDefinition col_def;
-    
-    // 1. 解析列名
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected column name, but got: " + current_token_.to_string());
-    }
-    std::string column_name = current_token_.get_value();
-    col_def.set_name(column_name);
-    advance(); // 消耗列名
-    
-    // 2. 解析字段类型
-    FieldType field_type = parse_field_type();
-    col_def.set_type(field_type);
-    
-    // 3. 解析类型参数（长度、精度等）
-    // 例如：VARCHAR(255), FLOAT_VECTOR(128), FLOAT(10,2)
-    if (check(TokenType::DB_LEFT_PAREN)) {
-        advance(); // 消耗 '('
-        
-        // 解析第一个数字（长度或精度）
-        if (!check(TokenType::DB_NUMBER_LITERAL)) {
-            error("Expected number in type parameter, but got: " + current_token_.to_string());
+        // 解析集合名
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected collection name after ON");
         }
-        int first_param = std::stoi(current_token_.get_value());
-        advance(); // 消耗数字
-        
-        // 检查是否有第二个参数（精度）
-        if (match(TokenType::DB_COMMA)) {
-            // 有精度参数，如 FLOAT(10,2)
-            if (!check(TokenType::DB_NUMBER_LITERAL)) {
-                error("Expected precision number, but got: " + current_token_.to_string());
+        std::string collection_name = current_token_.get_value();
+        stmt->set_collection_name(collection_name);
+        // 消耗 collection_name
+        advance();
+
+        // 期望 '('
+        consume(TokenType::DB_LEFT_PAREN, "Expected '(' after ON");
+
+        // 解析列名，至少需要一个列名
+        do {
+            if (!check(TokenType::DB_IDENTIFIER)) {
+                error("Expected column name after '('");
             }
-            int precision = std::stoi(current_token_.get_value());
-            col_def.set_precision(precision);
-            advance(); // 消耗精度数字
-            col_def.set_length(first_param); // 第一个参数是长度
-        } else {
-            // 只有长度参数，如 VARCHAR(255), FLOAT_VECTOR(128)
-            col_def.set_length(first_param);
-        }
-        
-        // 期望 ')'
-        consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after type parameters");
-    }
-    
-    // 4. 解析列属性（可以以任意顺序出现）
-    // 属性包括：NOT NULL, PRIMARY KEY, AUTO_INCREMENT, DEFAULT value
-    while (true) {
-        if (match(TokenType::DB_NOT)) {
-            // DB_NOT NULL
-            consume(TokenType::DB_NULL, "Expected NULL after DB_NOT");
-            col_def.set_is_nullable(false);
-        } else if (match(TokenType::DB_PRIMARY)) {
-            // PRIMARY KEY
-            consume(TokenType::DB_KEY, "Expected KEY after PRIMARY");
-            col_def.set_is_primary(true);
-        } else if (match(TokenType::DB_AUTO_INCREMENT)) {
-            // AUTO_INCREMENT（需要添加这个关键字）
-            col_def.set_is_auto_increment(true);
-        } else if (match(TokenType::DB_DEFAULT)) {
-            // DEFAULT value
-            auto default_expr = parse_expression();
-            col_def.set_default_value(std::move(default_expr));
-        } else {
-            // 没有更多属性，退出循环
-            break;
-        }
-    }
-    
-    return col_def;
-}
+            std::string column_name = current_token_.get_value();
+            stmt->add_column_name(column_name);
+            // 消耗 column_name
+            advance();
+        } while (match(TokenType::DB_COMMA));
 
-FieldType Parser::parse_field_type()
-{
-    // 解析字段类型关键字
-    // 支持的类型：INT8, INT16, INT32, INT64, FLOAT, DOUBLE, CHAR, VARCHAR, BOOLEAN, TIMESTAMP, ENUM, FLOAT_VECTOR
-    
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected field type, but got: " + current_token_.to_string());
+        // 期望 ')'
+        consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after column names");
+
+        // 查看是否存在 'USING' 关键字
+        if (match(TokenType::DB_USING)) {
+            // 存在 'USING' 关键字，根据不同索引类型做解析
+            if (create_type == CreateStmt::CreateType::INDEX) {
+                // INDEX 索引类型
+                // 期望 'BTREE' 或 'HASH'
+                if (check(TokenType::DB_BTREE)) {
+                    stmt->set_index_type(IndexType::BTREE);
+                } else if (check(TokenType::DB_HASH)) {
+                    stmt->set_index_type(IndexType::HASH);
+                } else {
+                    error("Expected BTREE or HASH after USING");
+                }
+                // 消耗 index_type
+                advance();
+            } else {
+                // VINDEX 索引类型
+                // 期望 'FLAT' 或 'IVF_FLAT' 或 'HNSW'
+                if (check(TokenType::DB_FLAT)) {
+                    stmt->set_vindex_type(VIndexType::FLAT);
+                } else if (check(TokenType::DB_IVF_FLAT)) {
+                    stmt->set_vindex_type(VIndexType::IVF_FLAT);
+                } else if (check(TokenType::DB_HNSW)) {
+                    stmt->set_vindex_type(VIndexType::HNSW);
+                } else {
+                    error("Expected FLAT, IVF_FLAT or HNSW after USING");
+                }
+                // 消耗 vindex_type
+                advance();
+
+                // 查看是否存在 'WITH' 关键字
+                if (match(TokenType::DB_WITH)) {
+                    // 存在 'WITH' 关键字，解析 WITH 子句
+                    // 期望 '('
+                    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after WITH");
+
+                    // 解析 WITH 子句
+                    VIndexWithClause with_clause;
+                    parse_vindex_with_clause(with_clause);
+                    stmt->set_vindex_with_clause(std::move(with_clause));
+
+                    // 期望 ')'
+                    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after WITH");
+                } else {
+                    // 不存在 'WITH' 关键字，使用默认参数
+                    VIndexWithClause with_clause;
+                    stmt->set_vindex_with_clause(std::move(with_clause));
+                }
+            }
+        } else {
+            // 不存在 'USING' 关键字，使用默认索引类型
+            if (create_type == CreateStmt::CreateType::INDEX) {
+                // INDEX 索引类型，默认使用 B-Tree 索引
+                stmt->set_index_type(IndexType::BTREE);
+            } else {
+                // VINDEX 索引类型，默认使用 FLAT 索引
+                stmt->set_vindex_type(VIndexType::FLAT);
+
+                // 查看是否存在 'WITH' 关键字
+                if (match(TokenType::DB_WITH)) {
+                    // 存在 'WITH' 关键字，解析 WITH 子句
+                    // 期望 '('
+                    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after WITH");
+
+                    // 解析 WITH 子句
+                    VIndexWithClause with_clause;
+                    parse_vindex_with_clause(with_clause);
+                    stmt->set_vindex_with_clause(std::move(with_clause));
+
+                    // 期望 ')'
+                    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after WITH");
+                } else {
+                    // 不存在 'WITH' 关键字，使用默认参数
+                    VIndexWithClause with_clause;
+                    stmt->set_vindex_with_clause(std::move(with_clause));
+                }
+            }
+        }
     }
-    
-    std::string type_name = current_token_.get_value();
-    // 转为大写进行比较
-    std::transform(type_name.begin(), type_name.end(), type_name.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    
-    advance(); // 消耗类型关键字
-    
-    // 映射类型名称到 FieldType
-    if (type_name == "TINYINT") {
-        return FieldType::TINYINT;
-    } else if (type_name == "SMALLINT") {
-        return FieldType::SMALLINT;
-    } else if (type_name == "INT" || type_name == "INTEGER") {
-        return FieldType::INTEGER;
-    } else if (type_name == "BIGINT") {
-        return FieldType::BIGINT;
-    } else if (type_name == "FLOAT") {
-        return FieldType::FLOAT;
-    } else if (type_name == "DOUBLE") {
-        return FieldType::DOUBLE;
-    } else if (type_name == "DECIMAL") {
-        return FieldType::DECIMAL;
-    } else if (type_name == "CHAR") {
-        return FieldType::CHAR;
-    } else if (type_name == "VARCHAR") {
-        return FieldType::VARCHAR;
-    } else if (type_name == "BOOLEAN" || type_name == "BOOL") {
-        return FieldType::BOOLEAN;
-    } else if (type_name == "TIMESTAMP") {
-        return FieldType::TIMESTAMP;
-    } else if (type_name == "ENUM") {
-        return FieldType::ENUM;
-    } else if (type_name == "VECTOR") {
-        return FieldType::VECTOR;
-    } else {
-        error("Unknown field type: " + type_name);
-        return FieldType::INTEGER; // 不会执行到这里
-    }
+
+    // 如果是 DATABASE，不需要解析其他内容
+
+    // CREATE 语句解析完成
+    return stmt;
 }
 
 std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
@@ -1348,6 +1340,256 @@ std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 
     advance(); // 消耗 NULL token
     return literal;
+}
+
+ColumnDefinition Parser::parse_column_definition()
+{
+    ColumnDefinition col_def;
+
+    // 解析列名
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected column name, but got: " + current_token_.to_string());
+    }
+    std::string column_name = current_token_.get_value();
+    col_def.set_name(column_name);
+    // 消耗列名
+    advance();
+    
+    // 解析字段类型
+    FieldType field_type = parse_field_type();
+    col_def.set_type(field_type);
+
+    // 解析类型的长度、精度参数，详情见 SQL 功能参考手册
+    switch (field_type) {
+        case FieldType::CHAR:
+        case FieldType::VARCHAR:
+        case FieldType::VECTOR: {
+            // 只包含一个参数的类型
+            // 期望 '('
+            consume(TokenType::DB_LEFT_PAREN, "Expected '(' after type");
+
+            // 解析长度参数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number in type parameter, but got: " + current_token_.to_string());
+            }
+            int length = std::stoi(current_token_.get_value());
+            col_def.set_length(length);
+            // 消耗长度参数
+            advance();
+
+            // 期望 ')'
+            consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after type parameter");
+            break;
+        }
+        case FieldType::DECIMAL: {
+            // 包含两个参数的类型
+            // 期望 '('
+            consume(TokenType::DB_LEFT_PAREN, "Expected '(' after type");
+
+            // 解析长度参数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number in type parameter, but got: " + current_token_.to_string());
+            }
+            int length = std::stoi(current_token_.get_value());
+            col_def.set_length(length);
+            // 消耗长度参数
+            advance();
+
+            // 期望 ','
+            consume(TokenType::DB_COMMA, "Expected ',' after length parameter");
+
+            // 解析精度参数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number in type parameter, but got: " + current_token_.to_string());
+            }
+            int precision = std::stoi(current_token_.get_value());
+            col_def.set_precision(precision);
+            // 消耗精度参数
+            advance();
+
+            // 期望 ')'
+            consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after type parameter");
+            break;
+        }
+        case FieldType::ENUM: {
+            // 包含多个参数的类型
+            // 期望 '('
+            consume(TokenType::DB_LEFT_PAREN, "Expected '(' after type");
+
+            // 解析选项
+            std::vector<std::string> options;
+            do {
+                if (!check(TokenType::DB_IDENTIFIER)) {
+                    error("Expected identifier in options, but got: " + current_token_.to_string());
+                }
+                std::string option = current_token_.get_value();
+                options.push_back(option);
+                // 消耗选项
+                advance();
+            } while (match(TokenType::DB_COMMA));
+            col_def.set_options(std::move(options));
+
+            // 期望 ')'
+            consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after type parameter");
+            break;
+        }
+        default:
+            break;
+    }
+
+    // 解析列约束，列约束可以以任意顺序出现
+    while (true) {
+        if (match(TokenType::DB_NOT)) {
+            // NOT NULL
+            consume(TokenType::DB_NULL, "Expected NULL after NOT");
+            col_def.set_is_nullable(false);
+        } else if (match(TokenType::DB_PRIMARY)) {
+            // PRIMARY KEY
+            consume(TokenType::DB_KEY, "Expected KEY after PRIMARY");
+            col_def.set_is_primary(true);
+        } else if (match(TokenType::DB_AUTO_INCREMENT)) {
+            // AUTO_INCREMENT
+            col_def.set_is_auto_increment(true);
+        } else if (match(TokenType::DB_DEFAULT)) {
+            // DEFAULT value
+            auto default_expr = parse_expression();
+            col_def.set_default_value(std::move(default_expr));
+        } else {
+            // 没有更多属性，退出循环
+            break;
+        }
+    }
+    
+    return col_def;
+}
+
+FieldType Parser::parse_field_type()
+{
+    // 解析字段类型关键字
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected field type, but got: " + current_token_.to_string());
+    }
+
+    std::string type_name = current_token_.get_value();
+    // 转为大写进行比较
+    std::transform(type_name.begin(), type_name.end(), type_name.begin(),
+    [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    // 消耗类型关键字
+    advance();
+
+    // 映射类型名称到 FieldType
+    if (type_name == "TINYINT") {
+        return FieldType::TINYINT;
+    } else if (type_name == "SMALLINT") {
+        return FieldType::SMALLINT;
+    } else if (type_name == "INT" || type_name == "INTEGER") {
+        return FieldType::INTEGER;
+    } else if (type_name == "BIGINT") {
+        return FieldType::BIGINT;
+    } else if (type_name == "FLOAT") {
+        return FieldType::FLOAT;
+    } else if (type_name == "DOUBLE") {
+        return FieldType::DOUBLE;
+    } else if (type_name == "DECIMAL") {
+        return FieldType::DECIMAL;
+    } else if (type_name == "CHAR") {
+        return FieldType::CHAR;
+    } else if (type_name == "VARCHAR") {
+        return FieldType::VARCHAR;
+    } else if (type_name == "BOOLEAN" || type_name == "BOOL") {
+        return FieldType::BOOLEAN;
+    } else if (type_name == "TIMESTAMP") {
+        return FieldType::TIMESTAMP;
+    } else if (type_name == "ENUM") {
+        return FieldType::ENUM;
+    } else if (type_name == "VECTOR") {
+        return FieldType::VECTOR;
+    } else {
+        error("Unknown field type: " + type_name);
+    }
+}
+
+void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
+{
+    do {
+        // 解析参数名
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected parameter name in WITH clause, but got: " + current_token_.to_string());
+        }
+        std::string param_name = current_token_.get_value();
+        // 转为小写进行比较
+        std::transform(param_name.begin(), param_name.end(), param_name.begin(),
+            [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            }
+        );
+        // 消耗参数名
+        advance();
+        
+        // 解析 '='
+        consume(TokenType::DB_EQUAL, "Expected '=' after parameter name in WITH clause");
+        
+        // 根据参数名解析对应的值
+        if (param_name == "nlist") {
+            // nlist 必须是整数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number for nlist parameter, but got: " + current_token_.to_string());
+            }
+            int nlist_value = std::stoi(current_token_.get_value());
+            with_clause.nlist = static_cast<std::int32_t>(nlist_value);
+            // 消耗数字
+            advance();
+        } else if (param_name == "m") {
+            // M 必须是整数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number for M parameter, but got: " + current_token_.to_string());
+            }
+            int m_value = std::stoi(current_token_.get_value());
+            with_clause.M = static_cast<std::int32_t>(m_value);
+            // 消耗数字
+            advance();
+        } else if (param_name == "ef_construction") {
+            // ef_construction 必须是整数
+            if (!check(TokenType::DB_NUMBER_LITERAL)) {
+                error("Expected number for ef_construction parameter, but got: " + current_token_.to_string());
+            }
+            int ef_value = std::stoi(current_token_.get_value());
+            with_clause.ef_construction = static_cast<std::int32_t>(ef_value);
+            // 消耗数字
+            advance();
+        } else if (param_name == "metric") {
+            // metric 必须是字符串
+            if (!check(TokenType::DB_STRING_LITERAL)) {
+                error("Expected string for metric parameter, but got: " + current_token_.to_string());
+            }
+            std::string metric_str = current_token_.get_value();
+            // 转为大写进行比较
+            std::transform(metric_str.begin(), metric_str.end(), metric_str.begin(),
+                [](unsigned char c) {
+                    return static_cast<char>(std::toupper(c));
+                }
+            );
+
+            // 转换为 MetricType
+            if (metric_str == "L2") {
+                with_clause.metric = MetricType::L2;
+            } else if (metric_str == "IP") {
+                with_clause.metric = MetricType::IP;
+            } else if (metric_str == "COSINE") {
+                with_clause.metric = MetricType::COSINE;
+            } else {
+                error("Invalid metric value: " + metric_str + ". Expected L2, IP, or COSINE");
+            }
+            // 消耗字符串
+            advance();
+        } else {
+            error("Unknown parameter name in WITH clause: " + param_name + ". Expected nlist, M, ef_construction, or metric");
+        }
+
+        // 如果遇到 ','，继续解析下一个参数
+    } while (match(TokenType::DB_COMMA));
 }
 
 } // namespace dreamdb

@@ -5,6 +5,18 @@
 namespace dreamdb
 {
 
+VIndexWithClause::VIndexWithClause()
+    : nlist(1024)
+    , M(32)
+    , ef_construction(200)
+    , metric(MetricType::L2)
+{
+    // IVF_FLAT: nlist 建议为数据量的平方根，默认 1024 适合中规模数据量
+    // HNSW: M 参数，大多数场景下性能更好，常见范围 4 - 64
+    // HNSW: ef_construction 参数，有较好的召回率，常见范围 50 - 500
+    // 距离度量方式，L2 距离更常用
+}
+
 std::string CreateStmt::create_type_to_string(CreateType create_type)
 {
     switch (create_type) {
@@ -28,10 +40,13 @@ CreateStmt::CreateStmt(std::size_t line, std::size_t column)
     , is_if_not_exists_(false)
     , column_definitions_(std::nullopt)
     , collection_name_(std::nullopt)
+    , column_names_(std::nullopt)
+    , index_type_(std::nullopt)
+    , vindex_type_(std::nullopt)
 {
 }
 
-void CreateStmt::set_create_type(CreateType create_type) noexcept
+void CreateStmt::set_create_type(CreateType create_type)
 {
     create_type_ = create_type;
 
@@ -40,17 +55,32 @@ void CreateStmt::set_create_type(CreateType create_type) noexcept
         case CreateType::DATABASE:
             column_definitions_ = std::nullopt;
             collection_name_ = std::nullopt;
+            column_names_ = std::nullopt;
+            index_type_ = std::nullopt;
+            vindex_type_ = std::nullopt;
             break;
         case CreateType::COLLECTION:
             column_definitions_ = std::vector<ColumnDefinition>();
-            collection_name_ = std::nullopt;    // 该集合名仅在 INDEX 中使用，COLLECTION 使用的是 object_name_
+            collection_name_ = std::nullopt;   // 该集合名仅在 INDEX 中使用，COLLECTION 使用的是 object_name_
+            column_names_ = std::vector<std::string>();
+            index_type_ = IndexType::BTREE;    // 默认使用 B-Tree 索引
+            vindex_type_ = std::nullopt;
             break;
         case CreateType::INDEX:
             column_definitions_ = std::nullopt;
             collection_name_ = std::nullopt;   // 这里保持 nullopt，调用 setter 时设置
+            column_names_ = std::vector<std::string>();
+            index_type_ = IndexType::BTREE;    // 默认使用 B-Tree 索引
+            vindex_type_ = std::nullopt;
+            break;
+        case CreateType::VINDEX:
+            column_definitions_ = std::nullopt;
+            collection_name_ = std::nullopt;
+            column_names_ = std::vector<std::string>();
+            index_type_ = std::nullopt;
+            vindex_type_ = VIndexType::FLAT;   // 默认使用线性扫描索引
             break;
         default:
-            // 约定 noexcept，不抛出异常
             break;
     }
 }
@@ -73,6 +103,26 @@ void CreateStmt::add_column_definition(ColumnDefinition && column)
 void CreateStmt::set_collection_name(const std::string & collection_name)
 {
     collection_name_ = collection_name;
+}
+
+void CreateStmt::add_column_name(const std::string & column_name)
+{
+    column_names_->emplace_back(column_name);
+}
+
+void CreateStmt::set_index_type(IndexType index_type)
+{
+    index_type_ = index_type;
+}
+
+void CreateStmt::set_vindex_type(VIndexType vindex_type)
+{
+    vindex_type_ = vindex_type;
+}
+
+void CreateStmt::set_vindex_with_clause(VIndexWithClause && with_clause)
+{
+    with_clause_ = std::move(with_clause);
 }
 
 CreateStmt::CreateType CreateStmt::get_create_type() const noexcept
@@ -98,6 +148,26 @@ const std::optional<std::vector<ColumnDefinition>> & CreateStmt::get_column_defi
 const std::optional<std::string> & CreateStmt::get_collection_name() const noexcept
 {
     return collection_name_;
+}
+
+const std::optional<std::vector<std::string>> & CreateStmt::get_column_names() const noexcept
+{
+    return column_names_;
+}
+
+const std::optional<IndexType> & CreateStmt::get_index_type() const noexcept
+{
+    return index_type_;
+}
+
+const std::optional<VIndexType> & CreateStmt::get_vindex_type() const noexcept
+{
+    return vindex_type_;
+}
+
+const std::optional<VIndexWithClause> & CreateStmt::get_vindex_with_clause() const noexcept
+{
+    return with_clause_;
 }
 
 std::string CreateStmt::debug_string() const

@@ -58,7 +58,7 @@ public:
     * @brief 设置字段选项
     * @param options ENUM 字段选项
     */
-    void set_options(const std::vector<std::string> & options);
+    void set_options(std::vector<std::string> && options);
 
     /**
     * @brief 设置是否允许 NULL

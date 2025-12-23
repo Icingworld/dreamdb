@@ -285,14 +285,13 @@ Error: Unknown collection 'collection_name'
 **语法**
 
 ```sql
-CREATE [UNIQUE] INDEX <index_name>
+CREATE INDEX <index_name>
 ON <collection_name> (<field_name>)
 [USING BTREE | HASH];
 ```
 
 **参数说明**
 
-- `UNIQUE`：可选，创建唯一索引，确保索引字段的值唯一
 - `index_name`：索引名称，必须唯一
 - `collection_name`：集合名称
 - `field_name`：要建立索引的标量字段名（不能是`vector`类型的字段）

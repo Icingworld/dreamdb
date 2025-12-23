@@ -9,6 +9,7 @@
 #include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
 #include "dreamdb/parser/ast/ast_node.h"
+#include "dreamdb/parser/ast/create_stmt.h"
 
 namespace dreamdb
 {
@@ -267,6 +268,11 @@ private:
      * column_name type [parameters] [attributes]
      */
     ColumnDefinition parse_column_definition();
+
+    /**
+     * @brief 解析向量索引 WITH 子句
+     */
+    void parse_vindex_with_clause(VIndexWithClause & with_clause);
 
     /**
      * @brief 解析字段类型

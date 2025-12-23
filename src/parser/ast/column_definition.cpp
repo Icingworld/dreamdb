@@ -37,9 +37,9 @@ void ColumnDefinition::set_precision(int precision)
     precision_ = precision;
 }
 
-void ColumnDefinition::set_options(const std::vector<std::string> & options)
+void ColumnDefinition::set_options(std::vector<std::string> && options)
 {
-    options_ = options;
+    options_ = std::move(options);
 }
 
 void ColumnDefinition::set_is_nullable(bool is_nullable)

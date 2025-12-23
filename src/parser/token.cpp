@@ -206,6 +206,21 @@ std::string Token::to_string() const
         case TokenType::DB_FALSE:
             result += "FALSE";
             break;
+        case TokenType::DB_BTREE:
+            result += "BTREE";
+            break;
+        case TokenType::DB_HASH:
+            result += "HASH";
+            break;
+        case TokenType::DB_FLAT:
+            result += "FLAT";
+            break;
+        case TokenType::DB_IVF_FLAT:
+            result += "IVF_FLAT";
+            break;
+        case TokenType::DB_HNSW:
+            result += "HNSW";
+            break;
 
         // 标识符和字面量
         case TokenType::DB_IDENTIFIER:
