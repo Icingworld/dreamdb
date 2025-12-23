@@ -53,7 +53,7 @@ public:
      * @brief 设置 ALTER 类型
      * @param type ALTER 类型
      */
-    void set_alter_type(AlterType type);
+    void set_alter_type(AlterType type) noexcept;
 
     /**
      * @brief 设置字段名称
@@ -63,15 +63,15 @@ public:
 
     /**
      * @brief 设置新字段名称
-     * @param new_column_name 新字段名称
+     * @param old_column_name 旧字段名称
      */
-    void set_new_column_name(const std::string & new_column_name);
+    void set_old_column_name(const std::string & old_column_name);
 
     /**
-     * @brief 设置字段类型
-     * @param type 字段类型
+     * @brief 设置新字段定义
+     * @param column_definition 新字段定义
      */
-    void set_column_definition(ColumnDefinition && column_definition);
+    void set_new_column_definition(ColumnDefinition && column_definition) noexcept;
 
     /**
      * @brief 获取集合名称
@@ -92,16 +92,16 @@ public:
     const std::string & get_column_name() const noexcept;
 
     /**
-     * @brief 获取新字段名称
-     * @return 新字段名称
+     * @brief 获取旧字段名称
+     * @return 旧字段名称
      */
-    const std::optional<std::string> & get_new_column_name() const noexcept;
+    const std::optional<std::string> & get_old_column_name() const noexcept;
 
     /**
-     * @brief 获取字段定义
-     * @return 字段定义
+     * @brief 获取新字段定义
+     * @return 新字段定义
      */
-    const std::optional<ColumnDefinition> & get_column_definition() const noexcept;
+    const std::optional<ColumnDefinition> & get_new_column_definition() const noexcept;
 
 public:
     /**
@@ -111,11 +111,11 @@ public:
     std::string debug_string() const override;
 
 private:
-    std::string collection_name_;                         // 集合名称
-    AlterType type_;                                      // ALTER 类型
-    std::string column_name_;                             // 字段名称
-    std::optional<std::string> new_column_name_;          // 新字段名称
-    std::optional<ColumnDefinition> column_definition_;   // 字段定义
+    std::string collection_name_;                             // 集合名称
+    AlterType type_;                                          // ALTER 类型
+    std::string column_name_;                                 // 新字段名称
+    std::optional<std::string> old_column_name_;              // 旧字段名称，原集合有关联的字段都归为此类
+    std::optional<ColumnDefinition> new_column_definition_;   // 新字段定义
 };
 
 } // namespace dreamdb

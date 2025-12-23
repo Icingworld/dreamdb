@@ -86,6 +86,18 @@ std::string Token::to_string() const
         case TokenType::DB_DESC:
             result += "DESC";
             break;
+        case TokenType::DB_ADD:
+            result += "ADD";
+            break;
+        case TokenType::DB_MODIFY:
+            result += "MODIFY";
+            break;
+        case TokenType::DB_RENAME:
+            result += "RENAME";
+            break;
+        case TokenType::DB_COLUMN:
+            result += "COLUMN";
+            break;
         case TokenType::DB_FROM:
             result += "FROM";
             break;
@@ -115,6 +127,9 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_ON:
             result += "ON";
+            break;
+        case TokenType::DB_TO:
+            result += "TO";
             break;
         case TokenType::DB_OFFSET:
             result += "OFFSET";

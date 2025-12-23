@@ -27,6 +27,10 @@ enum class TokenType : std::uint8_t
     DB_SHOW,               // SHOW
     DB_DESCRIBE,           // DESCRIBE
     DB_DESC,               // DESC
+    DB_ADD,                // ADD
+    DB_MODIFY,             // MODIFY
+    DB_RENAME,             // RENAME
+    DB_COLUMN,             // COLUMN
     DB_FROM,               // FROM
     DB_WHERE,              // WHERE
     DB_INTO,               // INTO
@@ -37,6 +41,7 @@ enum class TokenType : std::uint8_t
     DB_NOT,                // NOT
     DB_AS,                 // AS
     DB_ON,                 // ON
+    DB_TO,                 // TO
     DB_OFFSET,             // OFFSET
     DB_DATABASE,           // DATABASE
     DB_COLLECTION,         // COLLECTION

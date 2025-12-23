@@ -780,8 +780,94 @@ std::unique_ptr<UseStmt> Parser::parse_use_stmt()
 
 std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
 {
-    error("parse_alter_stmt not yet implemented");
-    return nullptr;
+    // 获取 ALTER 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 AlterStmt 节点
+    auto stmt = std::make_unique<AlterStmt>(line, column);
+
+    // 消耗 ALTER 关键字
+    advance();
+
+    // 期望 'COLLECTION'
+    consume(TokenType::DB_COLLECTION, "Expected COLLECTION after ALTER");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after ALTER");
+    }
+    std::string collection_name = current_token_.get_value();
+    stmt->set_collection_name(collection_name);
+    // 消耗 collection_name
+    advance();
+
+    // 解析 ALTER 类型
+    AlterStmt::AlterType alter_type;
+    if (match(TokenType::DB_ADD)) {
+        alter_type = AlterStmt::AlterType::ADD_COLUMN;
+    } else if (match(TokenType::DB_DROP)) {
+        alter_type = AlterStmt::AlterType::DROP_COLUMN;
+    } else if (match(TokenType::DB_MODIFY)) {
+        alter_type = AlterStmt::AlterType::MODIFY_COLUMN;
+    } else if (match(TokenType::DB_RENAME)) {
+        alter_type = AlterStmt::AlterType::RENAME_COLUMN;
+    } else {
+        error("Expected ADD, DROP, MODIFY or RENAME after ALTER");
+    }
+
+    stmt->set_alter_type(alter_type);
+
+    // 期望 'COLUMN'
+    consume(TokenType::DB_COLUMN, "Expected COLUMN after ADD/MODIFY/RENAME/DROP");
+
+    // 根据 ALTER 类型解析不同内容
+    if (alter_type == AlterStmt::AlterType::DROP_COLUMN) {
+        // 解析字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after COLUMN");
+        }
+        std::string old_column_name = current_token_.get_value();
+        // 消耗 old_column_name
+        advance();
+        stmt->set_old_column_name(old_column_name);
+    } else if (alter_type == AlterStmt::AlterType::RENAME_COLUMN) {
+        // 解析旧字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after COLUMN");
+        }
+        std::string old_column_name = current_token_.get_value();
+        // 消耗 old_column_name
+        advance();
+        stmt->set_old_column_name(old_column_name);
+
+        // 期望 'TO'
+        consume(TokenType::DB_TO, "Expected TO after RENAME");
+
+        // 解析新字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after RENAME");
+        }
+        std::string new_column_name = current_token_.get_value();
+        // 消耗 new_column_name
+        advance();
+        stmt->set_column_name(new_column_name);
+    } else if (alter_type == AlterStmt::AlterType::ADD_COLUMN) {
+        // 解析字段定义
+        ColumnDefinition column_definition = parse_column_definition();
+        stmt->set_new_column_definition(std::move(column_definition));
+    } else if (alter_type == AlterStmt::AlterType::MODIFY_COLUMN) {
+        // 解析字段定义
+        // 旧的字段名直接解析到 column_definition 中
+        ColumnDefinition column_definition = parse_column_definition();
+        stmt->set_new_column_definition(std::move(column_definition));
+
+        // 保存旧的字段名
+        stmt->set_old_column_name(column_definition.get_name());
+    }
+
+    // ALTER 语句解析完成
+    return stmt;
 }
 
 std::unique_ptr<ShowStmt> Parser::parse_show_stmt()
