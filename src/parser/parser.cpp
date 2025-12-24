@@ -114,7 +114,6 @@ std::unique_ptr<AstNode> Parser::parse_statement()
             return parse_describe_stmt();
         default:
             error("Expected SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, USE, ALTER, SHOW, or DESCRIBE, but got: " + current_token_.to_string());
-            return nullptr;
     }
 }
 
@@ -1290,6 +1289,11 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
         return expr;
     }
 
+    // 向量字面量，格式为 [1, 2, 3]
+    if (check(TokenType::DB_LEFT_BRACKET)) {
+        return parse_vector_literal();
+    }
+
     // 标识符：可能是函数调用或普通标识符
     if (check(TokenType::DB_IDENTIFIER)) {
         // 通过 Lexer 的 peek_token 判断是否为函数调用
@@ -1312,7 +1316,6 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 
     // 其他情况都是错误
     error("Expected primary expression, but got: " + current_token_.to_string());
-    return nullptr;
 }
 
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
@@ -1391,6 +1394,7 @@ std::unique_ptr<IdentifierExpr> Parser::parse_identifier_expr()
 
 std::unique_ptr<LiteralExpr> Parser::parse_literal_expr()
 {
+    // 根据当前 token 类型解析字面量
     switch (current_token_.get_type()) {
         case TokenType::DB_STRING_LITERAL:
             return parse_string_literal();
@@ -1403,109 +1407,180 @@ std::unique_ptr<LiteralExpr> Parser::parse_literal_expr()
             return parse_null_literal();
         default:
             error("Expected literal expression, but got: " + current_token_.to_string());
-            return nullptr;
     }
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_string_literal()
 {
-    if (!check(TokenType::DB_STRING_LITERAL)) {
-        error("Expected string literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取字符串字面量位置信息和字符串值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     std::string value = current_token_.get_value();
 
+    // 创建字符串字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
     literal->set_literal_type(LiteralType::STRING);
-    literal->set_value(LiteralValue{value});
+    literal->set_literal_value(LiteralValue{value});
 
-    advance(); // 消耗字面量 token
+    // 消耗字符串字面量
+    advance();
+
+    // 字符串字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_number_literal()
 {
-    if (!check(TokenType::DB_NUMBER_LITERAL)) {
-        error("Expected number literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取数字字面量位置信息和数字值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     const std::string & text = current_token_.get_value();
 
+    // 创建数字字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
 
+    // 解析数字字面量
     try {
-        // 判断是否为浮点数：包含 '.' 或 'e'/'E'
-        bool is_float = (text.find('.') != std::string::npos) ||
-                        (text.find('e') != std::string::npos) ||
-                        (text.find('E') != std::string::npos);
+        // 判断是否为浮点数，暂不支持科学计数法解析，如需支持，需要修改 Lexer::read_number()
+        // Lexer 确保如果存在小数点，则必然存在小数部分
+        bool is_float = (text.find('.') != std::string::npos);
 
         if (is_float) {
             double v = std::stod(text);
             literal->set_literal_type(LiteralType::FLOAT);
-            literal->set_value(LiteralValue{v});
+            literal->set_literal_value(LiteralValue{v});
         } else {
             long long v = std::stoll(text);
-            literal->set_literal_type(LiteralType::INTERGER);
-            literal->set_value(LiteralValue{static_cast<std::int64_t>(v)});
+            literal->set_literal_type(LiteralType::INTEGER);
+            literal->set_literal_value(LiteralValue{static_cast<std::int64_t>(v)});
         }
     } catch (const std::exception & e) {
         error(std::string("Invalid number literal '") + text + "': " + e.what());
     }
 
-    advance(); // 消耗字面量 token
+    // 消耗数字字面量
+    advance();
+
+    // 数字字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_boolean_literal()
 {
-    if (!check(TokenType::DB_TRUE) && !check(TokenType::DB_FALSE)) {
-        error("Expected boolean literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取布尔字面量位置信息和布尔值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
-    std::string text = current_token_.get_value();
 
-    // 转为大写进行比较
-    std::transform(text.begin(), text.end(), text.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-
+    // 根据 token 类型确定布尔值
     bool value;
-    if (text == "TRUE") {
+    if (current_token_.get_type() == TokenType::DB_TRUE) {
         value = true;
-    } else if (text == "FALSE") {
+    } else if (current_token_.get_type() == TokenType::DB_FALSE) {
         value = false;
     } else {
-        error("Invalid boolean literal: " + current_token_.to_string());
-        return nullptr;
+        error("Expected TRUE or FALSE, but got: " + current_token_.to_string());
     }
 
+    // 创建布尔字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
     literal->set_literal_type(LiteralType::BOOLEAN);
-    literal->set_value(LiteralValue{value});
+    literal->set_literal_value(LiteralValue{value});
 
-    advance(); // 消耗字面量 token
+    // 消耗布尔字面量
+    advance();
+
+    // 布尔字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 {
-    if (!check(TokenType::DB_NULL)) {
-        error("Expected NULL literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取空值字面量位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
 
+    // 创建空值字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
     literal->set_literal_type(LiteralType::NULL_VALUE);
-    literal->set_null(true);
+    literal->set_literal_value(LiteralValue{Null{}});
 
-    advance(); // 消耗 NULL token
+    // 消耗空值字面量
+    advance();
+
+    // 空值字面量解析完毕
+    return literal;
+}
+
+std::unique_ptr<LiteralExpr> Parser::parse_vector_literal()
+{
+    // 获取向量字面量位置信息和向量值
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建向量字面量表达式节点
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+
+    // 开始解析向量字面量
+    // 期望 '['
+    consume(TokenType::DB_LEFT_BRACKET, "Expected '[' at start of vector literal");
+
+    // 解析向量元素列表
+    std::vector<float> values;
+
+    // 如果下一个字符是 ']'，则处理空向量的情况
+    if (check(TokenType::DB_RIGHT_BRACKET)) {
+        // 消耗 ']'
+        advance();
+
+        // 设置向量类型和值
+        literal->set_literal_type(LiteralType::VECTOR);
+        literal->set_literal_value(LiteralValue{values});
+        return literal;
+    }
+
+    // 解析向量元素，至少包含一个元素
+    do {
+        // 期望数字字面量
+        if (!check(TokenType::DB_NUMBER_LITERAL)) {
+            error("Expected number in vector literal, but got: " + current_token_.to_string());
+        }
+
+        // 解析数字
+        const std::string & number_text = current_token_.get_value();
+        try {
+            // 向量元素必须是浮点数（即使输入是整数，也转换为浮点数）
+            double v = std::stod(number_text);
+            values.push_back(static_cast<float>(v));
+        } catch (const std::exception & e) {
+            error(std::string("Invalid number in vector literal '") + number_text + "': " + e.what());
+        }
+
+        // 消耗数字字面量
+        advance();
+
+        // 如果遇到 ']'，结束解析
+        if (check(TokenType::DB_RIGHT_BRACKET)) {
+            break;
+        }
+
+        // 期望 ',' 分隔符
+        consume(TokenType::DB_COMMA, "Expected ',' or ']' after vector element");
+
+        // 如果遇到 ']'，结束解析（处理末尾逗号的情况）
+        if (check(TokenType::DB_RIGHT_BRACKET)) {
+            break;
+        }
+
+    } while (true);
+
+    // 期望 ']'
+    consume(TokenType::DB_RIGHT_BRACKET, "Expected ']' at end of vector literal");
+
+    // 设置向量类型和值
+    literal->set_literal_type(LiteralType::VECTOR);
+    literal->set_literal_value(LiteralValue{values});
+
+    // 向量字面量解析完毕
     return literal;
 }
 

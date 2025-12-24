@@ -261,6 +261,11 @@ private:
      */
     std::unique_ptr<LiteralExpr> parse_null_literal();
 
+    /**
+     * @brief 解析向量字面量
+     */
+    std::unique_ptr<LiteralExpr> parse_vector_literal();
+
     // ========== CREATE 语句辅助方法 ==========
 
     /**

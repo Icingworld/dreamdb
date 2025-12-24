@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <variant>
 #include <string>
+#include <vector>
 
 #include "dreamdb/parser/ast/ast_node.h"
 #include "dreamdb/common/type.h"
@@ -16,12 +17,12 @@ namespace dreamdb
  */
 enum class LiteralType : std::uint8_t
 {
-    INTERGER,             // 整数
+    INTEGER,              // 整数
     FLOAT,                // 浮点数
     STRING,               // 字符串
     BOOLEAN,              // 布尔值
-    NULL_VALUE            // 空值
-    // TODO: VECTOR, ENUM 等类型
+    NULL_VALUE,           // 空值
+    VECTOR,               // 向量
 };
 
 /**
@@ -32,7 +33,8 @@ using LiteralValue = std::variant<
     double,             // FLOAT
     std::string,        // STRING
     bool,               // BOOLEAN
-    Null                // NULL_VALUE
+    Null,               // NULL_VALUE
+    std::vector<float>  // VECTOR
 >;
 
 /**
@@ -45,9 +47,9 @@ public:
 
     LiteralExpr(const LiteralExpr &) = delete;
 
-    LiteralExpr & operator=(const LiteralExpr &) = delete;
-
     LiteralExpr(LiteralExpr &&) noexcept = default;
+
+    LiteralExpr & operator=(const LiteralExpr &) = delete;
 
     LiteralExpr & operator=(LiteralExpr &&) noexcept = default;
 
@@ -61,34 +63,22 @@ public:
     void set_literal_type(LiteralType type) noexcept;
 
     /**
+     * @brief 设置字面量值
+     * @param value 字面量值
+     */
+    void set_literal_value(const LiteralValue & value);
+
+    /**
      * @brief 获取字面量类型
      * @return 字面量类型
      */
     LiteralType get_literal_type() const noexcept;
 
     /**
-     * @brief 设置字面量值
-     * @param value 字面量值
-     */
-    void set_value(const LiteralValue & value) noexcept;
-
-    /**
      * @brief 获取字面量值
      * @return 字面量值
      */ 
-    const LiteralValue & get_value() const noexcept;
-    
-    /**
-     * @brief 设置是否为空值
-     * @param is_null 是否为空值
-     */
-    void set_null(bool is_null) noexcept;
-
-    /**
-     * @brief 获取是否为空值
-     * @return 是否为空值
-     */
-    bool is_null() const noexcept;
+    const LiteralValue & get_literal_value() const noexcept;
 
 public:
     /**
@@ -100,7 +90,6 @@ public:
 private:
     LiteralType type_;      // 字面量类型
     LiteralValue value_;    // 字面量值
-    bool is_null_;          // 是否为空值
 };
 
 } // namespace dreamdb
