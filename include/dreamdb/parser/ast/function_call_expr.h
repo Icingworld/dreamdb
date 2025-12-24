@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <vector>
 #include <string>
 #include <memory>
@@ -20,9 +21,9 @@ public:
 
     FunctionCallExpr(const FunctionCallExpr &) = delete;
 
-    FunctionCallExpr & operator=(const FunctionCallExpr &) = delete;
-
     FunctionCallExpr(FunctionCallExpr &&) noexcept = default;
+
+    FunctionCallExpr & operator=(const FunctionCallExpr &) = delete;
 
     FunctionCallExpr & operator=(FunctionCallExpr &&) noexcept = default;
 
@@ -33,13 +34,7 @@ public:
      * @brief 设置函数名
      * @param function_name 函数名
      */
-    void set_function_name(const std::string & function_name) noexcept;
-
-    /**
-     * @brief 获取函数名
-     * @return 函数名
-     */
-    const std::string & get_function_name() const noexcept;
+    void set_function_name(const std::string & function_name);
 
     /**
      * @brief 添加参数
@@ -48,27 +43,27 @@ public:
     void add_argument(std::unique_ptr<AstNode> arg);
 
     /**
+     * @brief 获取函数名
+     * @return 函数名
+     */
+    const std::string & get_function_name() const noexcept;
+
+    /**
      * @brief 获取参数列表
-     * @return 参数列表（只读）
+     * @return 参数列表
      */
     const std::vector<std::unique_ptr<AstNode>> & get_arguments() const noexcept;
 
-    /**
-     * @brief 获取参数数量
-     * @return 参数数量
-     */
-    std::size_t get_argument_count() const noexcept;
-
 public:
     /**
-     * @brief 调试输出
-     * @return 调试输出
+     * @brief 调试字符串
+     * @return 调试字符串
      */
     std::string debug_string() const override;
 
 private:
-    std::string function_name;                                  // 函数名
-    std::vector<std::unique_ptr<AstNode>> arguments;            // 参数列表
+    std::string function_name_;                                  // 函数名
+    std::vector<std::unique_ptr<AstNode>> arguments_;            // 参数列表
 };
 
 } // namespace dreamdb

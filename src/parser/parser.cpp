@@ -1323,9 +1323,9 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 {
     // 获取函数名、位置信息
-    std::string function_name = current_token_.get_value();
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
+    std::string function_name = current_token_.get_value();
 
     // 消耗函数名
     advance();
@@ -1333,6 +1333,7 @@ std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
     // 期望 '('
     consume(TokenType::DB_LEFT_PAREN, "Expected '(' after function name");
 
+    // 创建函数调用表达式节点
     auto func = std::make_unique<FunctionCallExpr>(line, column);
     func->set_function_name(function_name);
 
@@ -1344,13 +1345,10 @@ std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
         return func;
     }
 
-    // 解析第一个参数
-    func->add_argument(parse_expression());
-
-    // 解析后续参数
-    while (match(TokenType::DB_COMMA)) {
+    // 解析参数列表
+    do {
         func->add_argument(parse_expression());
-    }
+    } while (match(TokenType::DB_COMMA));
 
     // 期望 ')'
     consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after function arguments");
