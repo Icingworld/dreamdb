@@ -22,12 +22,12 @@ void LiteralExpr::set_literal_value(const LiteralValue & value)
     value_ = value;
 }
 
-LiteralType LiteralExpr::get_literal_type() const noexcept
+LiteralExpr::LiteralType LiteralExpr::get_literal_type() const noexcept
 {
     return type_;
 }
 
-const LiteralValue & LiteralExpr::get_literal_value() const noexcept
+const LiteralExpr::LiteralValue & LiteralExpr::get_literal_value() const noexcept
 {
     return value_;
 }

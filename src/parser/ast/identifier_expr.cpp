@@ -7,52 +7,52 @@ namespace dreamdb
 
 IdentifierExpr::IdentifierExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::IDENTIFIER_EXPR, line, column)
-    , type(IdentifierType::COLLECTION)
-    , parts()
-    , original_text()
+    , type_(IdentifierType::COLUMN)
+    , parts_()
+    , original_identifier_()
 {
 }
 
-void IdentifierExpr::set_type(IdentifierType type) noexcept
+void IdentifierExpr::set_identifier_type(IdentifierType type) noexcept
 {
-    this->type = type;
+    type_ = type;
 }
 
-IdentifierType IdentifierExpr::get_type() const noexcept
+IdentifierExpr::IdentifierType IdentifierExpr::get_identifier_type() const noexcept
 {
-    return this->type;
+    return type_;
 }
 
-void IdentifierExpr::set_parts(const std::vector<std::string> & parts) noexcept
+void IdentifierExpr::set_parts(const std::vector<std::string> & parts)
 {
-    this->parts = parts;
+    parts_ = parts;
 }
 
-void IdentifierExpr::add_part(const std::string & part) noexcept
+void IdentifierExpr::add_part(const std::string & part)
 {
-    this->parts.push_back(part);
+    parts_.push_back(part);
 }
 
 const std::vector<std::string> & IdentifierExpr::get_parts() const noexcept
 {
-    return this->parts;
+    return parts_;
 }
 
-void IdentifierExpr::set_original_text(const std::string & original_text) noexcept
+void IdentifierExpr::set_original_identifier(const std::string & original_identifier)
 {
-    this->original_text = original_text;
+    original_identifier_ = original_identifier;
 }
 
-const std::string & IdentifierExpr::get_original_text() const noexcept
+const std::string & IdentifierExpr::get_original_identifier() const
 {
-    return this->original_text;
+    return original_identifier_;
 }
 
 std::string IdentifierExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "IdentifierExpr(type=";
-    switch (type) {
+    switch (type_) {
         case IdentifierType::COLLECTION:
             oss << "COLLECTION";
             break;
@@ -71,19 +71,19 @@ std::string IdentifierExpr::debug_string() const
     }
 
     oss << ", parts=";
-    if (parts.empty()) {
+    if (parts_.empty()) {
         oss << "<none>";
     } else {
-        for (std::size_t i = 0; i < parts.size(); ++i) {
+        for (std::size_t i = 0; i < parts_.size(); ++i) {
             if (i > 0) {
                 oss << '.';
             }
-            oss << parts[i];
+            oss << parts_[i];
         }
     }
 
-    if (!original_text.empty()) {
-        oss << ", original='" << original_text << "'";
+    if (!original_identifier_.empty()) {
+        oss << ", original='" << original_identifier_ << "'";
     }
 
     oss << ")";

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <variant>
 #include <string>
 #include <vector>
@@ -13,35 +14,36 @@ namespace dreamdb
 {
 
 /**
- * @brief 字面量类型
- */
-enum class LiteralType : std::uint8_t
-{
-    INTEGER,              // 整数
-    FLOAT,                // 浮点数
-    STRING,               // 字符串
-    BOOLEAN,              // 布尔值
-    NULL_VALUE,           // 空值
-    VECTOR,               // 向量
-};
-
-/**
- * @brief 不同字面量类型对应的具体值类型
- */
-using LiteralValue = std::variant<
-    int64_t,            // INTERGER
-    double,             // FLOAT
-    std::string,        // STRING
-    bool,               // BOOLEAN
-    Null,               // NULL_VALUE
-    std::vector<float>  // VECTOR
->;
-
-/**
  * @brief 字面量表达式
  */
 class LiteralExpr : public AstNode
 {
+public:
+    /**
+     * @brief 字面量类型
+     */
+    enum class LiteralType : std::uint8_t
+    {
+        INTEGER,              // 整数
+        FLOAT,                // 浮点数
+        STRING,               // 字符串
+        BOOLEAN,              // 布尔值
+        NULL_VALUE,           // 空值
+        VECTOR,               // 向量
+    };
+
+    /**
+     * @brief 不同字面量类型对应的具体值类型
+     */
+    using LiteralValue = std::variant<
+        int64_t,            // INTERGER
+        double,             // FLOAT
+        std::string,        // STRING
+        bool,               // BOOLEAN
+        Null,               // NULL_VALUE
+        std::vector<float>  // VECTOR
+    >;
+
 public:
     LiteralExpr(std::size_t line = 0, std::size_t column = 0);
 
@@ -82,8 +84,8 @@ public:
 
 public:
     /**
-     * @brief 调试输出
-     * @return 调试输出
+     * @brief 调试字符串
+     * @return 调试字符串
      */
     std::string debug_string() const override;
 

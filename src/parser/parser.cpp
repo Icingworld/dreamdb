@@ -1296,11 +1296,13 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 
     // 标识符：可能是函数调用或普通标识符
     if (check(TokenType::DB_IDENTIFIER)) {
-        // 通过 Lexer 的 peek_token 判断是否为函数调用
+        // 通过 peek_token 判断是否为函数调用
         Token next = lexer_->peek_token();
         if (next.get_type() == TokenType::DB_LEFT_PAREN) {
+            // 发现 '('，尝试解析为函数调用
             return parse_function_call();
         } else {
+            // 否则解析为普通标识符
             return parse_identifier_expr();
         }
     }
@@ -1320,11 +1322,7 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 {
-    // 当前 token 应该是函数名（标识符）
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected function name before '(' in function call, but got: " + current_token_.to_string());
-    }
-
+    // 获取函数名、位置信息
     std::string function_name = current_token_.get_value();
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
@@ -1340,7 +1338,9 @@ std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 
     // 处理无参数情况：立即遇到 ')'
     if (check(TokenType::DB_RIGHT_PAREN)) {
-        advance(); // 消耗 ')'
+        // 消耗 ')'
+        advance();
+        // 函数调用表达式解析完毕
         return func;
     }
 
@@ -1355,40 +1355,42 @@ std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
     // 期望 ')'
     consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after function arguments");
 
+    // 函数调用表达式解析完毕
     return func;
 }
 
 std::unique_ptr<IdentifierExpr> Parser::parse_identifier_expr()
 {
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected identifier, but got: " + current_token_.to_string());
-    }
-
+    // 获取标识符位置信息和第一个标识符部分
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     std::string first_part = current_token_.get_value();
 
+    // 创建标识符表达式节点
     auto ident = std::make_unique<IdentifierExpr>(line, column);
-    ident->set_type(IdentifierType::COLUMN); // 默认视为列名，后续可根据上下文调整
+    // 标识符类型通过默认构造设置为 COLUMN
     ident->add_part(first_part);
-    ident->set_original_text(first_part);
+    ident->set_original_identifier(first_part);
 
     // 消耗第一个标识符
     advance();
 
-    // 处理限定名：schema.table.column
+    // 处理限定名：schema.collection.column
     while (match(TokenType::DB_DOT)) {
+        // 期望标识符
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected identifier after '.', but got: " + current_token_.to_string());
         }
-        std::string part = current_token_.get_value();
-        ident->add_part(part);
-        // 更新 original_text 表示完整限定名
-        ident->set_original_text(ident->get_original_text() + "." + part);
+        std::string next_part = current_token_.get_value();
+        ident->add_part(next_part);
+        // 更新 original_identifier 表示完整限定名
+        ident->set_original_identifier(ident->get_original_identifier() + "." + next_part);
 
+        // 消耗标识符
         advance();
     }
 
+    // 标识符表达式解析完毕
     return ident;
 }
 
@@ -1419,8 +1421,8 @@ std::unique_ptr<LiteralExpr> Parser::parse_string_literal()
 
     // 创建字符串字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::STRING);
-    literal->set_literal_value(LiteralValue{value});
+    literal->set_literal_type(LiteralExpr::LiteralType::STRING);
+    literal->set_literal_value(LiteralExpr::LiteralValue{value});
 
     // 消耗字符串字面量
     advance();
@@ -1447,12 +1449,12 @@ std::unique_ptr<LiteralExpr> Parser::parse_number_literal()
 
         if (is_float) {
             double v = std::stod(text);
-            literal->set_literal_type(LiteralType::FLOAT);
-            literal->set_literal_value(LiteralValue{v});
+            literal->set_literal_type(LiteralExpr::LiteralType::FLOAT);
+            literal->set_literal_value(LiteralExpr::LiteralValue{v});
         } else {
             long long v = std::stoll(text);
-            literal->set_literal_type(LiteralType::INTEGER);
-            literal->set_literal_value(LiteralValue{static_cast<std::int64_t>(v)});
+            literal->set_literal_type(LiteralExpr::LiteralType::INTEGER);
+            literal->set_literal_value(LiteralExpr::LiteralValue{static_cast<std::int64_t>(v)});
         }
     } catch (const std::exception & e) {
         error(std::string("Invalid number literal '") + text + "': " + e.what());
@@ -1483,8 +1485,8 @@ std::unique_ptr<LiteralExpr> Parser::parse_boolean_literal()
 
     // 创建布尔字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::BOOLEAN);
-    literal->set_literal_value(LiteralValue{value});
+    literal->set_literal_type(LiteralExpr::LiteralType::BOOLEAN);
+    literal->set_literal_value(LiteralExpr::LiteralValue{value});
 
     // 消耗布尔字面量
     advance();
@@ -1501,8 +1503,8 @@ std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 
     // 创建空值字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::NULL_VALUE);
-    literal->set_literal_value(LiteralValue{Null{}});
+    literal->set_literal_type(LiteralExpr::LiteralType::NULL_VALUE);
+    literal->set_literal_value(LiteralExpr::LiteralValue{Null{}});
 
     // 消耗空值字面量
     advance();
@@ -1533,8 +1535,8 @@ std::unique_ptr<LiteralExpr> Parser::parse_vector_literal()
         advance();
 
         // 设置向量类型和值
-        literal->set_literal_type(LiteralType::VECTOR);
-        literal->set_literal_value(LiteralValue{values});
+        literal->set_literal_type(LiteralExpr::LiteralType::VECTOR);
+        literal->set_literal_value(LiteralExpr::LiteralValue{values});
         return literal;
     }
 
@@ -1577,8 +1579,8 @@ std::unique_ptr<LiteralExpr> Parser::parse_vector_literal()
     consume(TokenType::DB_RIGHT_BRACKET, "Expected ']' at end of vector literal");
 
     // 设置向量类型和值
-    literal->set_literal_type(LiteralType::VECTOR);
-    literal->set_literal_value(LiteralValue{values});
+    literal->set_literal_type(LiteralExpr::LiteralType::VECTOR);
+    literal->set_literal_value(LiteralExpr::LiteralValue{values});
 
     // 向量字面量解析完毕
     return literal;
