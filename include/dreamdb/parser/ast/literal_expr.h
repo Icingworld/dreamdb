@@ -60,15 +60,15 @@ public:
 public:
     /**
      * @brief 设置字面量类型
-     * @param type 字面量类型
+     * @param literal_type 字面量类型
      */
-    void set_literal_type(LiteralType type) noexcept;
+    void set_literal_type(LiteralType literal_type) noexcept;
 
     /**
      * @brief 设置字面量值
-     * @param value 字面量值
+     * @param literal_value 字面量值
      */
-    void set_literal_value(const LiteralValue & value);
+    void set_literal_value(const LiteralValue & literal_value);
 
     /**
      * @brief 获取字面量类型
@@ -90,8 +90,8 @@ public:
     std::string debug_string() const override;
 
 private:
-    LiteralType type_;      // 字面量类型
-    LiteralValue value_;    // 字面量值
+    LiteralType literal_type_;      // 字面量类型
+    LiteralValue literal_value_;    // 字面量值
 };
 
 } // namespace dreamdb

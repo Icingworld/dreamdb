@@ -7,54 +7,54 @@ namespace dreamdb
 
 LiteralExpr::LiteralExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::LITERAL_EXPR, line, column)
-    , type_(LiteralType::NULL_VALUE)
-    , value_(Null{})
+    , literal_type_(LiteralType::NULL_VALUE)
+    , literal_value_(Null{})
 {
 }
 
-void LiteralExpr::set_literal_type(LiteralType type) noexcept
+void LiteralExpr::set_literal_type(LiteralType literal_type) noexcept
 {
-    type_ = type;
+    literal_type_ = literal_type;
 }
 
-void LiteralExpr::set_literal_value(const LiteralValue & value)
+void LiteralExpr::set_literal_value(const LiteralValue & literal_value)
 {
-    value_ = value;
+    literal_value_ = literal_value;
 }
 
 LiteralExpr::LiteralType LiteralExpr::get_literal_type() const noexcept
 {
-    return type_;
+    return literal_type_;
 }
 
 const LiteralExpr::LiteralValue & LiteralExpr::get_literal_value() const noexcept
 {
-    return value_;
+    return literal_value_;
 }
 
 std::string LiteralExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "LiteralExpr(";
-    switch (type_) {
+    switch (literal_type_) {
         case LiteralType::INTEGER:
-            oss << "INTEGER, value=" << std::get<int64_t>(value_);
+            oss << "INTEGER, value=" << std::get<int64_t>(literal_value_);
             break;
         case LiteralType::FLOAT:
-            oss << "FLOAT, value=" << std::get<double>(value_);
+            oss << "FLOAT, value=" << std::get<double>(literal_value_);
             break;
         case LiteralType::STRING:
-            oss << "STRING, value=\"" << std::get<std::string>(value_) << "\"";
+            oss << "STRING, value=\"" << std::get<std::string>(literal_value_) << "\"";
             break;
         case LiteralType::BOOLEAN:
-            oss << "BOOLEAN, value=" << (std::get<bool>(value_) ? "true" : "false");
+            oss << "BOOLEAN, value=" << (std::get<bool>(literal_value_) ? "true" : "false");
             break;
         case LiteralType::NULL_VALUE:
             oss << "NULL_VALUE";
             break;
         case LiteralType::VECTOR: {
             oss << "VECTOR, value=[";
-            const auto & vec = std::get<std::vector<float>>(value_);
+            const auto & vec = std::get<std::vector<float>>(literal_value_);
             for (std::size_t i = 0; i < vec.size(); ++i) {
                 if (i > 0) {
                     oss << ", ";

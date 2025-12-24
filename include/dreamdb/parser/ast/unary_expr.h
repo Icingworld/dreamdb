@@ -69,7 +69,7 @@ public:
     std::string debug_string() const override;
 
 private:
-    OperatorType type_;                     // 一元运算符类型
+    OperatorType operator_type_;            // 一元运算符类型
     std::unique_ptr<AstNode> operand_;      // 操作数表达式
 };
 

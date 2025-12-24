@@ -48,12 +48,6 @@ public:
     void set_identifier_type(IdentifierType type) noexcept;
 
     /**
-     * @brief 设置标识符部分
-     * @param parts 标识符部分
-     */
-    void set_parts(const std::vector<std::string> & parts);
-
-    /**
      * @brief 添加标识符部分
      * @param part 标识符部分
      */
@@ -91,7 +85,7 @@ public:
     std::string debug_string() const override;
 
 private:
-    IdentifierType type_;                    // 标识符类型
+    IdentifierType identifier_type_;         // 标识符类型
     std::vector<std::string> parts_;         // 标识符部分
     std::string original_identifier_;        // 原始标识符
 };

@@ -945,17 +945,17 @@ std::unique_ptr<DescribeStmt> Parser::parse_describe_stmt()
 
 std::unique_ptr<AstNode> Parser::parse_expression()
 {
-    // 该接口只是表达式解析入口，具体解析逻辑在各个解析函数中实现
+    // 该接口是表达式解析入口，具体解析逻辑在各个解析函数中实现
     // 递归下降解析器会自动处理所有优先级
 
     // 表达式优先级：
-    // 1. DB_OR          (最低优先级，如: a DB_OR b)
-    // 2. DB_AND         (如: a DB_AND b)
-    // 3. 比较运算符   (如: =, !=, <, >, <=, >=)
-    // 4. 加减        (如: +, -)
-    // 5. 乘除        (如: *, /, %)
-    // 6. 一元运算符   (如: +, -, DB_NOT)
-    // 7. 基础表达式   (最高优先级，如: 字面量、标识符、括号、函数调用)
+    // 1. OR             (最低优先级，如: a OR b)
+    // 2. AND            (如: a AND b)
+    // 3. 比较运算符      (如: =, !=, <, >, <=, >=)
+    // 4. 加减            (如: +, -)
+    // 5. 乘除            (如: *, /, %)
+    // 6. 一元运算符      (如: +, -, NOT)
+    // 7. 基础表达式      (最高优先级，如: 字面量、标识符、括号、函数调用)
 
     // 完整解析流程：
     // parse_expression()
@@ -974,106 +974,108 @@ std::unique_ptr<AstNode> Parser::parse_expression()
 
     // 根据当前 Token 的类型判断是哪种表达式
     switch (current_token_.get_type()) {
-        // 字面量：数字、字符串、布尔值
+        // 字面量：数字、字符串、布尔值、NULL
         case TokenType::DB_NUMBER_LITERAL:
         case TokenType::DB_STRING_LITERAL:
         case TokenType::DB_TRUE:
         case TokenType::DB_FALSE:
+        case TokenType::DB_NULL:
         // 标识符：字段名、变量等
         case TokenType::DB_IDENTIFIER:
         // 一元运算符：+、-、NOT
         case TokenType::DB_PLUS:
         case TokenType::DB_MINUS:
         case TokenType::DB_NOT:
-        // 括号表达式
+        // 括号表达式 '('
         case TokenType::DB_LEFT_PAREN:
+        // 向量字面量 '['
+        case TokenType::DB_LEFT_BRACKET:
             // 调用最低优先级解析函数
             return parse_or_expression();
         default:
-            // 非法的表达式开始 token
             error("Expected expression, but got: " + current_token_.to_string());
-            return nullptr;
     }
 }
 
 std::unique_ptr<AstNode> Parser::parse_or_expression()
 {
-    // 解析左侧的 DB_AND 表达式
+    // 递归下降解析左侧的 AND 表达式
     auto left = parse_and_expression();
-    
-    // 循环处理多个 DB_OR 运算符（左结合）
-    // 例如: a DB_OR b DB_OR c 解析为 ((a DB_OR b) DB_OR c)
+
+    // 左结合循环处理多个 OR 运算符
+    // 例如: a OR b OR c 解析为 ((a OR b) OR c)
     while (check(TokenType::DB_OR)) {
-        // 保存 DB_OR token 的位置信息
+        // 保存 OR token 的位置信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
-        
-        // 消耗 DB_OR token
+
+        // 消耗 OR token
         advance();
-        
+
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
-        
-        // 设置运算符类型为 DB_OR
-        expr->set_op_type(BinaryOperatorType::DB_OR);
-        
+
+        // 设置运算符类型为 OR
+        expr->set_operator_type(BinaryExpr::OperatorType::DB_OR);
+
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
-        
-        // 解析右侧的 DB_AND 表达式
+
+        // 递归下降解析右侧的 AND 表达式
         auto right = parse_and_expression();
         expr->set_right(std::move(right));
-        
+
         // 将当前表达式作为下一次的左操作数
         left = std::move(expr);
     }
-    
+
+    // or 表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_and_expression()
 {
-    // 解析左侧的比较表达式
+    // 递归下降解析左侧的比较表达式
     auto left = parse_comparison_expression();
-    
-    // 循环处理多个 DB_AND 运算符（左结合）
-    // 例如: a DB_AND b DB_AND c 解析为 ((a DB_AND b) DB_AND c)
+
+    // 左结合循环处理多个 AND 运算符
+    // 例如: a AND b AND c 解析为 ((a AND b) AND c)
     while (check(TokenType::DB_AND)) {
-        // 保存 DB_AND token 的位置信息
+        // 保存 AND token 的位置信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
-        
-        // 消耗 DB_AND token
+
+        // 消耗 AND token
         advance();
-        
+
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
-        
-        // 设置运算符类型为 DB_AND
-        expr->set_op_type(BinaryOperatorType::DB_AND);
-        
+
+        // 设置运算符类型为 AND
+        expr->set_operator_type(BinaryExpr::OperatorType::DB_AND);
+
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
-        
-        // 解析右侧的比较表达式
+
+        // 递归下降解析右侧的比较表达式
         auto right = parse_comparison_expression();
         expr->set_right(std::move(right));
-        
+
         // 将当前表达式作为下一次的左操作数
         left = std::move(expr);
     }
-    
+
+    // and 表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_comparison_expression()
 {
-    // 解析左侧的加减表达式
+    // 递归下降解析左侧的加减表达式
     auto left = parse_additive_expression();
-    
+
     // 检查是否有比较运算符
-    BinaryOperatorType op_type;
-    bool has_comparison = false;
+    BinaryExpr::OperatorType operator_type;
     std::size_t line = 0;
     std::size_t column = 0;
     
@@ -1082,96 +1084,92 @@ std::unique_ptr<AstNode> Parser::parse_comparison_expression()
         case TokenType::DB_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_EQUAL;
+            // 消耗等于运算符
             advance();
             break;
         case TokenType::DB_NOT_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_NOT_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_NOT_EQUAL;
+            // 消耗不等于运算符
             advance();
             break;
         case TokenType::DB_LESS_THAN:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_LESS_THAN;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_LESS_THAN;
+            // 消耗小于运算符
             advance();
             break;
         case TokenType::DB_GREATER_THAN:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_GREATER_THAN;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_GREATER_THAN;
+            // 消耗大于运算符
             advance();
             break;
         case TokenType::DB_LESS_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_LESS_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_LESS_EQUAL;
+            // 消耗小于等于运算符
             advance();
             break;
         case TokenType::DB_GREATER_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_GREATER_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_GREATER_EQUAL;
+            // 消耗大于等于运算符
             advance();
             break;
         default:
             // 没有比较运算符，直接返回左侧表达式
             return left;
     }
-    
-    // 如果有比较运算符，创建二元表达式节点
-    if (has_comparison) {
-        auto expr = std::make_unique<BinaryExpr>(line, column);
-        expr->set_op_type(op_type);
-        expr->set_left(std::move(left));
-        
-        // 解析右侧的加减表达式
-        auto right = parse_additive_expression();
-        expr->set_right(std::move(right));
-        
-        return expr;
-    }
-    
-    // 理论上不会执行到这里，但为了完整性保留
-    return left;
+
+    // 如果有比较运算符，则创建二元表达式节点
+    auto expr = std::make_unique<BinaryExpr>(line, column);
+    expr->set_operator_type(operator_type);
+    expr->set_left(std::move(left));
+
+    // 递归下降解析右侧的加减表达式
+    auto right = parse_additive_expression();
+    expr->set_right(std::move(right));
+
+    // 比较表达式解析完成
+    return expr;
 }
 
 std::unique_ptr<AstNode> Parser::parse_additive_expression()
 {
-    // 解析左侧的乘除表达式
+    // 递归下降解析左侧的乘除表达式
     auto left = parse_multiplicative_expression();
 
-    // 循环处理加减运算符（左结合）
+    // 左结合循环处理多个加减运算符
     while (check(TokenType::DB_PLUS) || check(TokenType::DB_MINUS)) {
-        // 保存运算符信息
-        TokenType op_token_type = current_token_.get_type();
+        // 保存加减运算符信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType token_type = current_token_.get_type();
 
-        // 消耗运算符
+        // 消耗加减运算符
         advance();
 
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
 
         // 设置运算符类型
-            if (op_token_type == TokenType::DB_PLUS) {
-                expr->set_op_type(BinaryOperatorType::DB_PLUS);
+        if (token_type == TokenType::DB_PLUS) {
+            expr->set_operator_type(BinaryExpr::OperatorType::DB_PLUS);
         } else {
-            expr->set_op_type(BinaryOperatorType::DB_MINUS);
+            expr->set_operator_type(BinaryExpr::OperatorType::DB_MINUS);
         }
 
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
 
-        // 解析右侧的乘除表达式
+        // 递归下降解析右侧的乘除表达式
         auto right = parse_multiplicative_expression();
         expr->set_right(std::move(right));
 
@@ -1179,49 +1177,49 @@ std::unique_ptr<AstNode> Parser::parse_additive_expression()
         left = std::move(expr);
     }
 
+    // 加减表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
 {
-    // 解析左侧的一元表达式
+    // 递归下降解析左侧的一元表达式
     auto left = parse_unary_expression();
 
-    // 循环处理乘除模运算符（左结合）
+    // 左结合循环处理多个乘除模运算符
     while (check(TokenType::DB_MULTIPLY) ||
            check(TokenType::DB_DIVIDE) ||
            check(TokenType::DB_MODULO)) {
-        // 保存运算符信息
-        TokenType op_token_type = current_token_.get_type();
+        // 保存乘除模运算符信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType token_type = current_token_.get_type();
 
-        // 消耗运算符
+        // 消耗乘除模运算符
         advance();
 
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
 
         // 设置运算符类型
-        switch (op_token_type) {
+        switch (token_type) {
             case TokenType::DB_MULTIPLY:
-                expr->set_op_type(BinaryOperatorType::DB_MULTIPLY);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_MULTIPLY);
                 break;
             case TokenType::DB_DIVIDE:
-                expr->set_op_type(BinaryOperatorType::DB_DIVIDE);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_DIVIDE);
                 break;
             case TokenType::DB_MODULO:
-                expr->set_op_type(BinaryOperatorType::DB_MODULO);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_MODULO);
                 break;
             default:
-                // 理论上不会到这里
                 error("Unexpected token in multiplicative expression: " + current_token_.to_string());
         }
 
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
 
-        // 解析右侧的一元表达式
+        // 递归下降解析右侧的一元表达式
         auto right = parse_unary_expression();
         expr->set_right(std::move(right));
 
@@ -1229,6 +1227,7 @@ std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
         left = std::move(expr);
     }
 
+    // 乘除模表达式解析完成
     return left;
 }
 

@@ -7,7 +7,7 @@ namespace dreamdb
 
 IdentifierExpr::IdentifierExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::IDENTIFIER_EXPR, line, column)
-    , type_(IdentifierType::COLUMN)
+    , identifier_type_(IdentifierType::COLUMN)
     , parts_()
     , original_identifier_()
 {
@@ -15,17 +15,7 @@ IdentifierExpr::IdentifierExpr(std::size_t line, std::size_t column)
 
 void IdentifierExpr::set_identifier_type(IdentifierType type) noexcept
 {
-    type_ = type;
-}
-
-IdentifierExpr::IdentifierType IdentifierExpr::get_identifier_type() const noexcept
-{
-    return type_;
-}
-
-void IdentifierExpr::set_parts(const std::vector<std::string> & parts)
-{
-    parts_ = parts;
+    identifier_type_ = type;
 }
 
 void IdentifierExpr::add_part(const std::string & part)
@@ -33,14 +23,19 @@ void IdentifierExpr::add_part(const std::string & part)
     parts_.push_back(part);
 }
 
-const std::vector<std::string> & IdentifierExpr::get_parts() const noexcept
-{
-    return parts_;
-}
-
 void IdentifierExpr::set_original_identifier(const std::string & original_identifier)
 {
     original_identifier_ = original_identifier;
+}
+
+IdentifierExpr::IdentifierType IdentifierExpr::get_identifier_type() const noexcept
+{
+    return identifier_type_;
+}
+
+const std::vector<std::string> & IdentifierExpr::get_parts() const noexcept
+{
+    return parts_;
 }
 
 const std::string & IdentifierExpr::get_original_identifier() const
@@ -52,7 +47,7 @@ std::string IdentifierExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "IdentifierExpr(type=";
-    switch (type_) {
+    switch (identifier_type_) {
         case IdentifierType::COLLECTION:
             oss << "COLLECTION";
             break;

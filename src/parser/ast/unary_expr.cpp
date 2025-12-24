@@ -7,24 +7,24 @@ namespace dreamdb
 
 UnaryExpr::UnaryExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::UNARY_EXPR, line, column)
-    , type_(OperatorType::DB_NOT)
+    , operator_type_(OperatorType::DB_NOT)
     , operand_(nullptr)
 {
 }
 
 void UnaryExpr::set_operator_type(OperatorType operator_type) noexcept
 {
-    type_ = operator_type;
-}
-
-UnaryExpr::OperatorType UnaryExpr::get_operator_type() const noexcept
-{
-    return type_;
+    operator_type_ = operator_type;
 }
 
 void UnaryExpr::set_operand(std::unique_ptr<AstNode> operand) noexcept
 {
     operand_ = std::move(operand);
+}
+
+UnaryExpr::OperatorType UnaryExpr::get_operator_type() const noexcept
+{
+    return operator_type_;
 }
 
 const AstNode * UnaryExpr::get_operand() const noexcept
@@ -37,7 +37,7 @@ std::string UnaryExpr::debug_string() const
     std::ostringstream oss;
     oss << "UnaryExpr(op=";
 
-    switch (type_) {
+    switch (operator_type_) {
         case OperatorType::DB_MINUS:
             oss << "MINUS";
             break;
