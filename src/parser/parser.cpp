@@ -19,6 +19,10 @@
 #include "dreamdb/parser/ast/function_call_expr.h"
 #include "dreamdb/parser/ast/identifier_expr.h"
 #include "dreamdb/parser/ast/literal_expr.h"
+#include "dreamdb/parser/ast/in_expr.h"
+#include "dreamdb/parser/ast/like_expr.h"
+#include "dreamdb/parser/ast/between_expr.h"
+#include "dreamdb/parser/ast/null_expr.h"
 
 namespace dreamdb
 {
@@ -1123,6 +1127,31 @@ std::unique_ptr<AstNode> Parser::parse_comparison_expression()
             // 消耗大于等于运算符
             advance();
             break;
+        case TokenType::DB_NOT: {
+            // peek 下一个 token 是否为 IN, LIKE, BETWEEN
+            Token next = lexer_->peek_token();
+            if (next.get_type() == TokenType::DB_IN) {
+                return parse_in_expression(std::move(left));
+            } else if (next.get_type() == TokenType::DB_LIKE) {
+                return parse_like_expression(std::move(left));
+            } else if (next.get_type() == TokenType::DB_BETWEEN) {
+                return parse_between_expression(std::move(left));
+            } else {
+                error("Expected IN, LIKE or BETWEEN after NOT");
+            }
+        }
+        case TokenType::DB_IN: {
+            return parse_in_expression(std::move(left));
+        }
+        case TokenType::DB_LIKE: {
+            return parse_like_expression(std::move(left));
+        }
+        case TokenType::DB_BETWEEN: {
+            return parse_between_expression(std::move(left));
+        }
+        case TokenType::DB_IS: {
+            return parse_null_expression(std::move(left));
+        }
         default:
             // 没有比较运算符，直接返回左侧表达式
             return left;
@@ -1138,6 +1167,135 @@ std::unique_ptr<AstNode> Parser::parse_comparison_expression()
     expr->set_right(std::move(right));
 
     // 比较表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<LikeExpr> Parser::parse_like_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 LIKE 表达式节点
+    auto expr = std::make_unique<LikeExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_like(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 消耗 LIKE 关键字
+    advance();
+
+    // 解析右侧模式字符串
+    auto right = parse_additive_expression();
+    expr->set_right(std::move(right));
+
+    // LIKE 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<InExpr> Parser::parse_in_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 IN 表达式节点
+    auto expr = std::make_unique<InExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_in(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 消耗 IN 关键字
+    advance();
+
+    // 期望 '('
+    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after IN");
+
+    // 解析 IN 表达式右侧的值列表
+    if (!check(TokenType::DB_RIGHT_PAREN)) {
+        // 如果右侧不为 ')'，则解析右侧值列表
+        do {
+            auto value = parse_expression();
+            expr->add_value(std::move(value));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 期望 ')'
+    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after IN values");
+
+    // IN 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<BetweenExpr> Parser::parse_between_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 BETWEEN 表达式节点
+    auto expr = std::make_unique<BetweenExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_between(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 消耗 BETWEEN 关键字
+    advance();
+
+    // 解析起始值
+    auto min_value = parse_additive_expression();
+    expr->set_min_value(std::move(min_value));
+
+    // 期望 'AND'
+    consume(TokenType::DB_AND, "Expected 'AND' after min value");
+
+    // 解析结束值
+    auto max_value = parse_additive_expression();
+    expr->set_max_value(std::move(max_value));
+
+    // BETWEEN 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<NullExpr> Parser::parse_null_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 消耗 IS 关键字
+    advance();
+
+    // 创建 NULL 表达式节点
+    auto expr = std::make_unique<NullExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT NULL
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_null(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 期望 'NULL'
+    consume(TokenType::DB_NULL, "Expected NULL after IS [NOT]");
+
+    // NULL 表达式解析完成
     return expr;
 }
 

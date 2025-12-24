@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <string>
 
 namespace dreamdb
@@ -32,7 +33,7 @@ enum class AstNodeType : std::uint8_t
     IN_EXPR,                    // IN 表达式，如 IN (1, 2, 3)
     LIKE_EXPR,                  // LIKE 表达式，如 LIKE 'hello%'
     BETWEEN_EXPR,               // BETWEEN 表达式，如 BETWEEN 1 AND 10
-    IS_NULL_EXPR                // IS NULL 表达式，如 IS NULL
+    NULL_EXPR                   // NULL 表达式，如 IS NULL 或
 };
 
 /**
