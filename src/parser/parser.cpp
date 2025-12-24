@@ -1235,38 +1235,42 @@ std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
 std::unique_ptr<AstNode> Parser::parse_unary_expression()
 {
     // 一元运算符：NOT, +, -
+    // 注意：+ 和 - 同时可以在一元和二元表达式中出现，在这里处理一元的情况
+    // 如：-5, +10, NOT condition, - -x
     if (check(TokenType::DB_NOT) ||
         check(TokenType::DB_PLUS) ||
         check(TokenType::DB_MINUS)) {
-        TokenType op_token_type = current_token_.get_type();
+        // 获取一元运算符位置和类型
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType op_token_type = current_token_.get_type();
 
         // 消耗一元运算符
         advance();
 
+        // 创建一元运算符表达式节点
         auto expr = std::make_unique<UnaryExpr>(line, column);
 
-        // 设置运算符类型
+        // 设置一元运算符类型
         switch (op_token_type) {
             case TokenType::DB_NOT:
-                expr->set_op_type(UnaryOperatorType::DB_NOT);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_NOT);
                 break;
             case TokenType::DB_PLUS:
-                expr->set_op_type(UnaryOperatorType::DB_PLUS);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_PLUS);
                 break;
             case TokenType::DB_MINUS:
-                expr->set_op_type(UnaryOperatorType::DB_MINUS);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_MINUS);
                 break;
             default:
-                // 理论上不会到这里
                 error("Unexpected token in unary expression: " + current_token_.to_string());
         }
 
-        // 递归解析操作数（仍然是 unary_expression，保证右结合）
+        // 递归解析操作数
         auto operand = parse_unary_expression();
         expr->set_operand(std::move(operand));
 
+        // 一元运算符表达式解析完毕
         return expr;
     }
 
@@ -1322,7 +1326,7 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 {
-    // 获取函数名、位置信息
+    // 获取函数表达式位置信息和函数名
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     std::string function_name = current_token_.get_value();
