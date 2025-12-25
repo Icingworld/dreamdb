@@ -373,6 +373,18 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "DESCRIBE") {
         return TokenType::DB_DESCRIBE;
     }
+    if (upper_keyword == "ADD") {
+        return TokenType::DB_ADD;
+    }
+    if (upper_keyword == "MODIFY") {
+        return TokenType::DB_MODIFY;
+    }
+    if (upper_keyword == "RENAME") {
+        return TokenType::DB_RENAME;
+    }
+    if (upper_keyword == "COLUMN") {
+        return TokenType::DB_COLUMN;
+    }
     if (upper_keyword == "FROM") {
         return TokenType::DB_FROM;
     }
@@ -403,6 +415,9 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "ON") {
         return TokenType::DB_ON;
     }
+    if (upper_keyword == "TO") {
+        return TokenType::DB_TO;
+    }
     if (upper_keyword == "OFFSET") {
         return TokenType::DB_OFFSET;
     }
@@ -414,6 +429,21 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     }
     if (upper_keyword == "INDEX") {
         return TokenType::DB_INDEX;
+    }
+    if (upper_keyword == "VINDEX") {
+        return TokenType::DB_VINDEX;
+    }
+    if (upper_keyword == "DATABASES") {
+        return TokenType::DB_DATABASES;
+    }
+    if (upper_keyword == "COLLECTIONS") {
+        return TokenType::DB_COLLECTIONS;
+    }
+    if (upper_keyword == "INDEXES") {
+        return TokenType::DB_INDEXES;
+    }
+    if (upper_keyword == "VINDEXES") {
+        return TokenType::DB_VINDEXES;
     }
     if (upper_keyword == "LIMIT") {
         return TokenType::DB_LIMIT;

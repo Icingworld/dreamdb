@@ -7,8 +7,9 @@
 #include "dreamdb/parser/ast/create_stmt.h"
 #include "dreamdb/parser/ast/drop_stmt.h"
 #include "dreamdb/parser/ast/use_stmt.h"
-#include "dreamdb/parser/ast/literal_expr.h"
-#include "dreamdb/common/type.h"
+#include "dreamdb/parser/ast/describe_stmt.h"
+#include "dreamdb/parser/ast/show_stmt.h"
+#include "dreamdb/parser/ast/alter_stmt.h"
 #include "dreamdb/schema/database.h"
 #include "dreamdb/schema/collection.h"
 
@@ -16,68 +17,60 @@ namespace dreamdb
 {
 
 ExecutorResult::ExecutorResult()
-    : success(false)
-    , message()
-    , affected_count(0)
-    , rows()
+    : is_success_(false)
+    , message_()
+    , affected_count_(0)
+    , rows_()
 {
 }
 
-void ExecutorResult::set_success(bool success) noexcept
+void ExecutorResult::set_is_success(bool is_success) noexcept
 {
-    this->success = success;
-}
-
-bool ExecutorResult::is_success() const noexcept
-{
-    return success;
+    is_success_ = is_success;
 }
 
 void ExecutorResult::set_message(const std::string & message)
 {
-    this->message = message;
+    message_ = message;
 }
 
-const std::string & ExecutorResult::get_message() const noexcept
+void ExecutorResult::set_affected_count(std::size_t affected_count) noexcept
 {
-    return message;
-}
-
-void ExecutorResult::set_affected_count(std::size_t count) noexcept
-{
-    affected_count = count;
-}
-
-std::size_t ExecutorResult::get_affected_count() const noexcept
-{
-    return affected_count;
+    affected_count_ = affected_count;
 }
 
 void ExecutorResult::add_row(Entity && entity)
 {
-    rows.emplace_back(std::move(entity));
+    rows_->emplace_back(std::move(entity));
+}
+
+bool ExecutorResult::get_is_success() const noexcept
+{
+    return is_success_;
+}
+
+const std::string & ExecutorResult::get_message() const noexcept
+{
+    return message_;
+}
+
+std::size_t ExecutorResult::get_affected_count() const noexcept
+{
+    return affected_count_.value();
 }
 
 std::size_t ExecutorResult::get_row_count() const noexcept
 {
-    return rows.size();
+    return rows_->size();
 }
 
 const std::vector<Entity> & ExecutorResult::get_rows() const noexcept
 {
-    return rows;
+    return rows_.value();
 }
 
-void ExecutorResult::clear() noexcept
-{
-    success = false;
-    message.clear();
-    affected_count = 0;
-    rows.clear();
-}
-
-Executor::Executor(DatabaseManager & database_manager)
-    : database_manager_(database_manager)
+Executor::Executor(std::unique_ptr<DatabaseManager> database_manager)
+    : database_manager_(std::move(database_manager))
 {
 }
 
@@ -85,6 +78,7 @@ Executor::~Executor() = default;
 
 ExecutorResult Executor::execute(const AstNode & ast)
 {
+    // 根据不同语句类型执行不同操作
     switch (ast.get_type()) {
         case AstNodeType::SELECT_STMT:
             return execute_select(static_cast<const SelectStmt &>(ast));
@@ -100,9 +94,15 @@ ExecutorResult Executor::execute(const AstNode & ast)
             return execute_drop(static_cast<const DropStmt &>(ast));
         case AstNodeType::USE_STMT:
             return execute_use(static_cast<const UseStmt &>(ast));
+        case AstNodeType::DESCRIBE_STMT:
+            return execute_describe(static_cast<const DescribeStmt &>(ast));
+        case AstNodeType::SHOW_STMT:
+            return execute_show(static_cast<const ShowStmt &>(ast));
+        case AstNodeType::ALTER_STMT:
+            return execute_alter(static_cast<const AlterStmt &>(ast));
         default: {
             ExecutorResult result;
-            result.set_success(false);
+            result.set_is_success(false);
             result.set_message("Unsupported AST node type: " + ast.debug_string());
             return result;
         }
@@ -112,7 +112,7 @@ ExecutorResult Executor::execute(const AstNode & ast)
 ExecutorResult Executor::execute_select(const SelectStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_select not implemented");
     return result;
 }
@@ -120,7 +120,7 @@ ExecutorResult Executor::execute_select(const SelectStmt &)
 ExecutorResult Executor::execute_delete(const DeleteStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_delete not implemented");
     return result;
 }
@@ -128,7 +128,7 @@ ExecutorResult Executor::execute_delete(const DeleteStmt &)
 ExecutorResult Executor::execute_insert(const InsertStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_insert not implemented");
     return result;
 }
@@ -136,7 +136,7 @@ ExecutorResult Executor::execute_insert(const InsertStmt &)
 ExecutorResult Executor::execute_update(const UpdateStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_update not implemented");
     return result;
 }
@@ -144,58 +144,215 @@ ExecutorResult Executor::execute_update(const UpdateStmt &)
 ExecutorResult Executor::execute_create(const CreateStmt & create_stmt)
 {
     // 获取创建类型
-    CreateStmt::ObjectType object_type = create_stmt.get_object_type();
-    switch (object_type) {
-        case CreateStmt::ObjectType::DATABASE:
+    CreateStmt::CreateType create_type = create_stmt.get_create_type();
+
+    // 根据不同创建类型执行不同创建操作
+    switch (create_type) {
+        case CreateStmt::CreateType::DATABASE:
             return execute_create_database(create_stmt);
-        case CreateStmt::ObjectType::COLLECTION:
+        case CreateStmt::CreateType::COLLECTION:
             return execute_create_collection(create_stmt);
-        case CreateStmt::ObjectType::INDEX:
+        case CreateStmt::CreateType::INDEX:
             return execute_create_index(create_stmt);
-        default:
+        default: {
             ExecutorResult result;
-            result.set_success(false);
-            result.set_message("Unsupported object type: " + std::to_string(static_cast<std::uint8_t>(object_type)));
+            result.set_is_success(false);
+            result.set_message("Unsupported create type: " + std::to_string(static_cast<std::uint8_t>(create_type)));
             return result;
+        }
     }
 }
 
 ExecutorResult Executor::execute_drop(const DropStmt & drop_stmt)
 {
     // 获取删除类型
-    DropStmt::ObjectType object_type = drop_stmt.get_object_type();
-    switch (object_type) {
-        case DropStmt::ObjectType::COLLECTION:
+    DropStmt::DropType drop_type = drop_stmt.get_drop_type();
+
+    // 根据不同删除类型执行不同删除操作
+    switch (drop_type) {
+        case DropStmt::DropType::COLLECTION:
             return execute_drop_collection(drop_stmt);
-        case DropStmt::ObjectType::INDEX:
+        case DropStmt::DropType::INDEX:
             return execute_drop_index(drop_stmt);
-        default:
+        default: {
             ExecutorResult result;
-            result.set_success(false);
-            result.set_message("Unsupported object type: " + std::to_string(static_cast<std::uint8_t>(object_type)));
+            result.set_is_success(false);
+            result.set_message("Unsupported drop type: " + std::to_string(static_cast<std::uint8_t>(drop_type)));
             return result;
+        }
     }
 }
 
 ExecutorResult Executor::execute_use(const UseStmt & use_stmt)
 {
     // 获取数据库名称
-    std::string database_name = use_stmt.get_database_name();
+    const std::string & database_name = use_stmt.get_database_name();
 
     ExecutorResult result;
 
     // 检查数据库是否存在
-    if (!database_manager_.has_database(database_name)) {
-        result.set_success(false);
+    if (!database_manager_->has_database(database_name)) {
+        result.set_is_success(false);
         result.set_message("Database: " + database_name + " does not exists");
         return result;
     }
 
     // 设置当前数据库
-    database_manager_.set_current_database(database_name);
-    result.set_success(true);
+    database_manager_->set_current_database(database_name);
+    result.set_is_success(true);
     result.set_message("Database switched to '" + database_name + "'");
 
+    return result;
+}
+
+ExecutorResult Executor::execute_describe(const DescribeStmt & describe_stmt)
+{
+    // 获取集合名
+    const std::string & collection_name = describe_stmt.get_collection_name();
+
+    ExecutorResult result;
+
+    // 获取集合
+    Collection * collection = get_collection(collection_name);
+
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Collection: " + collection_name + " does not exists");
+        return result;
+    }
+
+    // 获取 Schema
+    const std::vector<Field> & schema = collection->get_schema();
+
+    // 格式化输出 Schema 信息
+    std::string output = "Collection: " + collection_name + "\n";
+    output += "Fields (" + std::to_string(schema.size()) + "):\n";
+    output += "------------------------------------------------------------\n";
+
+    // 遍历每个字段，格式化输出
+    for (std::size_t i = 0; i < schema.size(); ++i) {
+        const Field & field = schema[i];
+
+        // 字段名和索引
+        output += "[" + std::to_string(i) + "] " + field.get_name() + " | ";
+
+        // 字段类型
+        FieldType type = field.get_type();
+        std::string type_str;
+        switch (type) {
+            case FieldType::TINYINT:
+                type_str = "TINYINT";
+                break;
+            case FieldType::SMALLINT:
+                type_str = "SMALLINT";
+                break;
+            case FieldType::INTEGER:
+                type_str = "INTEGER";
+                break;
+            case FieldType::BIGINT:
+                type_str = "BIGINT";
+                break;
+            case FieldType::FLOAT:
+                type_str = "FLOAT";
+                break;
+            case FieldType::DOUBLE:
+                type_str = "DOUBLE";
+                break;
+            case FieldType::DECIMAL:
+                type_str = "DECIMAL(" + std::to_string(field.get_length()) + "," + std::to_string(field.get_precision()) + ")";
+                break;
+            case FieldType::CHAR:
+                type_str = "CHAR(" + std::to_string(field.get_length()) + ")";
+                break;
+            case FieldType::VARCHAR:
+                type_str = "VARCHAR(" + std::to_string(field.get_length()) + ")";
+                break;
+            case FieldType::BOOLEAN:
+                type_str = "BOOLEAN";
+                break;
+            case FieldType::TIMESTAMP:
+                type_str = "TIMESTAMP";
+                break;
+            case FieldType::ENUM: {
+                type_str = "ENUM(";
+                const auto & options = field.get_options();
+                for (std::size_t j = 0; j < options.size(); ++j) {
+                    if (j > 0) type_str += ",";
+                    type_str += "'" + options[j] + "'";
+                }
+                type_str += ")";
+                break;
+            }
+            case FieldType::VECTOR:
+                type_str = "VECTOR(" + std::to_string(field.get_length()) + ")";
+                break;
+        }
+        output += type_str + " | ";
+
+        // 属性列表
+        std::vector<std::string> attributes;
+
+        // NULL 约束
+        if (!field.get_is_nullable()) {
+            attributes.push_back("NOT NULL");
+        }
+
+        // PRIMARY KEY
+        if (field.get_is_primary()) {
+            attributes.push_back("PRIMARY KEY");
+        }
+
+        // AUTO_INCREMENT
+        if (field.get_is_auto_increment()) {
+            attributes.push_back("AUTO_INCREMENT");
+        }
+        
+        // 输出属性
+        if (!attributes.empty()) {
+            for (std::size_t j = 0; j < attributes.size(); ++j) {
+                if (j > 0) output += " ";
+                output += attributes[j];
+            }
+        }
+        
+        output += "\n";
+    }
+
+    result.set_is_success(true);
+    result.set_message(output);
+
+    return result;
+}
+
+ExecutorResult Executor::execute_show(const ShowStmt & show_stmt)
+{
+    // 获取显示类型
+    ShowStmt::ShowType show_type = show_stmt.get_show_type();
+
+    // 根据不同显示类型执行不同显示操作
+    switch (show_type) {
+        case ShowStmt::ShowType::DATABASES:
+            return execute_show_databases(show_stmt);
+        case ShowStmt::ShowType::COLLECTIONS:
+            return execute_show_collections(show_stmt);
+        case ShowStmt::ShowType::INDEXES:
+            return execute_show_indexes(show_stmt);
+        case ShowStmt::ShowType::VINDEXES:
+            return execute_show_vindexes(show_stmt);
+        default: {
+            ExecutorResult result;
+            result.set_is_success(false);
+            result.set_message("Unsupported show type: " + std::to_string(static_cast<std::uint8_t>(show_type)));
+            return result;
+        }
+    }
+}
+
+ExecutorResult Executor::execute_alter(const AlterStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_alter not implemented");
     return result;
 }
 
@@ -207,122 +364,29 @@ ExecutorResult Executor::execute_create_database(const CreateStmt & create_stmt)
     ExecutorResult result;
 
     // 创建数据库
-    if (database_manager_.create_database(database_name)) {
-        result.set_success(true);
+    if (database_manager_->create_database(database_name)) {
+        result.set_is_success(true);
         result.set_message("Database: " + database_name + " created successfully");
     } else {
-        result.set_success(false);
+        result.set_is_success(false);
         result.set_message("Database: " + database_name + " already exists");
     }
 
     return result;
 }
 
-ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stmt)
+ExecutorResult Executor::execute_create_collection(const CreateStmt &)
 {
-    // 获取集合名称
-    std::string collection_name = create_stmt.get_object_name();
-
     ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = database_manager_.get_current_database();
-    if (database == nullptr) {
-        result.set_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 检查集合是否存在
-    if (database->has_collection(collection_name)) {
-        result.set_success(false);
-        result.set_message("Collection: " + collection_name + " already exists");
-        return result;
-    }
-
-    // 获取列定义列表
-    const std::vector<ColumnDefinition> & column_definitions = create_stmt.get_column_definitions();
-    if (column_definitions.empty()) {
-        result.set_success(false);
-        result.set_message("Collection must have at least one column");
-        return result;
-    }
-
-    std::vector<Field> fields;
-    fields.reserve(column_definitions.size());
-
-    // 转换为字段列表
-    for (const ColumnDefinition & column_definition : column_definitions) {
-        // 处理默认值
-        FieldValue default_value = Null{};
-        
-        if (column_definition.has_default_value()) {
-            const AstNode * default_expr = column_definition.get_default_value();
-            
-            // 只支持 LiteralExpr 作为默认值
-            if (default_expr->get_type() == AstNodeType::LITERAL_EXPR) {
-                const LiteralExpr * literal = static_cast<const LiteralExpr *>(default_expr);
-                const LiteralValue & literal_value = literal->get_value();
-                
-                // 将 LiteralValue 转换为 FieldValue
-                if (literal->is_null()) {
-                    default_value = Null{};
-                } else {
-                    std::visit([&default_value](const auto & val) {
-                        using T = std::decay_t<decltype(val)>;
-                        if constexpr (std::is_same_v<T, int64_t>) {
-                            default_value = val;
-                        } else if constexpr (std::is_same_v<T, double>) {
-                            default_value = val;
-                        } else if constexpr (std::is_same_v<T, std::string>) {
-                            default_value = val;
-                        } else if constexpr (std::is_same_v<T, bool>) {
-                            default_value = val;
-                        } else if constexpr (std::is_same_v<T, Null>) {
-                            default_value = Null{};
-                        }
-                    }, literal_value);
-                }
-            } else {
-                result.set_success(false);
-                result.set_message("Default value must be a literal expression");
-                return result;
-            }
-        }
-
-        // 创建 Field
-        fields.emplace_back(
-            column_definition.get_name(),
-            column_definition.get_type(),
-            column_definition.get_length(),
-            column_definition.get_precision(),
-            std::vector<std::string>{},  // options
-            column_definition.is_nullable(),
-            column_definition.is_primary_key(),
-            "",  // comment
-            default_value,
-            column_definition.is_auto_increment()
-        );
-    }
-
-    // 创建集合
-    Collection * collection = database->create_collection(collection_name, fields);
-
-    if (collection == nullptr) {
-        result.set_success(false);
-        result.set_message("Collection: " + collection_name + " already exists");
-        return result;
-    }
-
-    result.set_success(true);
-    result.set_message("Collection: " + collection_name + " created successfully");
+    result.set_is_success(false);
+    result.set_message("Executor::execute_create_collection not implemented");
     return result;
 }
 
 ExecutorResult Executor::execute_create_index(const CreateStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_create_index not implemented");
     return result;
 }
@@ -335,11 +399,11 @@ ExecutorResult Executor::execute_drop_database(const DropStmt & drop_stmt)
     ExecutorResult result;
 
     // 删除该数据库
-    if (database_manager_.drop_database(database_name)) {
-        result.set_success(true);
+    if (database_manager_->drop_database(database_name)) {
+        result.set_is_success(true);
         result.set_message("Database '" + database_name + "' dropped successfully");
     } else {
-        result.set_success(false);
+        result.set_is_success(false);
         result.set_message("Database: " + database_name + " does not exists");
     }
 
@@ -353,20 +417,20 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
 
     ExecutorResult result;
 
-    Database * database = database_manager_.get_current_database();
+    Database * database = get_current_database();
     if (database == nullptr) {
-        result.set_success(false);
+        result.set_is_success(false);
         result.set_message("No database selected");
         return result;
     }
 
     // 删除集合
     if (database->drop_collection(collection_name)) {
-        result.set_success(true);
+        result.set_is_success(true);
         result.set_message("Collection: " + collection_name + " dropped successfully");
     } else {
         // 集合不存在
-        result.set_success(false);
+        result.set_is_success(false);
         result.set_message("Collection: " + collection_name + " does not exists");
     }
 
@@ -376,9 +440,61 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
 ExecutorResult Executor::execute_drop_index(const DropStmt &)
 {
     ExecutorResult result;
-    result.set_success(false);
+    result.set_is_success(false);
     result.set_message("Executor::execute_drop_index not implemented");
     return result;
+}
+
+ExecutorResult Executor::execute_show_databases(const ShowStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_show_databases not implemented");
+    return result;
+}
+
+ExecutorResult Executor::execute_show_collections(const ShowStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_show_collections not implemented");
+    return result;
+}
+
+ExecutorResult Executor::execute_show_indexes(const ShowStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_show_indexes not implemented");
+    return result;
+}
+
+ExecutorResult Executor::execute_show_vindexes(const ShowStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_show_vindexes not implemented");
+    return result;
+}
+
+Database * Executor::get_current_database()
+{
+    // 统一入口，未来可以在这里注入事务等上下文
+    // 例如：检查事务状态、获取事务相关的数据库视图等
+    return database_manager_->get_current_database();
+}
+
+Collection * Executor::get_collection(const std::string & name)
+{
+    // 统一入口，未来可以在这里注入事务等上下文
+    // 例如：返回事务感知的 Collection 包装器等
+
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        return nullptr;
+    }
+
+    return database->get_collection(name);
 }
 
 } // namespace dreamdb
