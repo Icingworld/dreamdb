@@ -28,6 +28,10 @@ class DescribeStmt;
 class UnaryExpr;
 class BinaryExpr;
 class FunctionCallExpr;
+class InExpr;
+class LikeExpr;
+class BetweenExpr;
+class NullExpr;
 class IdentifierExpr;
 class LiteralExpr;
 class ColumnDefinition;
@@ -205,6 +209,26 @@ private:
     std::unique_ptr<AstNode> parse_comparison_expression();
 
     /**
+     * @brief 解析 LIKE 表达式
+     */
+    std::unique_ptr<LikeExpr> parse_like_expression(std::unique_ptr<AstNode> left);
+
+    /**
+     * @brief 解析 IN 表达式
+     */
+    std::unique_ptr<InExpr> parse_in_expression(std::unique_ptr<AstNode> left);
+
+    /**
+     * @brief 解析 BETWEEN 表达式
+     */
+    std::unique_ptr<BetweenExpr> parse_between_expression(std::unique_ptr<AstNode> left);
+
+    /**
+     * @brief 解析 NULL 表达式
+     */
+    std::unique_ptr<NullExpr> parse_null_expression(std::unique_ptr<AstNode> left);
+
+    /**
      * @brief 解析算术加减表达式
      */
     std::unique_ptr<AstNode> parse_additive_expression();
@@ -260,6 +284,11 @@ private:
      * @brief 解析 NULL 字面量
      */
     std::unique_ptr<LiteralExpr> parse_null_literal();
+
+    /**
+     * @brief 解析向量字面量
+     */
+    std::unique_ptr<LiteralExpr> parse_vector_literal();
 
     // ========== CREATE 语句辅助方法 ==========
 

@@ -62,6 +62,8 @@ enum class TokenType : std::uint8_t
     DB_ORDER,              // ORDER
     DB_BY,                 // BY
     DB_ASC,                // ASC
+    DB_GROUP,              // GROUP
+    DB_HAVING,             // HAVING
     DB_BETWEEN,            // BETWEEN
     DB_IN,                 // IN
     DB_LIKE,               // LIKE

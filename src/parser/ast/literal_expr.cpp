@@ -7,61 +7,63 @@ namespace dreamdb
 
 LiteralExpr::LiteralExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::LITERAL_EXPR, line, column)
-    , type_(LiteralType::NULL_VALUE)
-    , value_(nullptr)
+    , literal_type_(LiteralType::NULL_VALUE)
+    , literal_value_(Null{})
 {
 }
 
-void LiteralExpr::set_literal_type(LiteralType type) noexcept
+void LiteralExpr::set_literal_type(LiteralType literal_type) noexcept
 {
-    type_ = type;
+    literal_type_ = literal_type;
 }
 
-LiteralType LiteralExpr::get_literal_type() const noexcept
+void LiteralExpr::set_literal_value(const LiteralValue & literal_value)
 {
-    return type_;
+    literal_value_ = literal_value;
 }
 
-void LiteralExpr::set_value(const LiteralValue & value) noexcept
+LiteralExpr::LiteralType LiteralExpr::get_literal_type() const noexcept
 {
-    value_ = value;
+    return literal_type_;
 }
 
-const LiteralValue & LiteralExpr::get_value() const noexcept
+const LiteralExpr::LiteralValue & LiteralExpr::get_literal_value() const noexcept
 {
-    return value_;
-}
-
-void LiteralExpr::set_null(bool is_null) noexcept
-{
-    is_null_ = is_null;
-}
-
-bool LiteralExpr::is_null() const noexcept
-{
-    return is_null_;
+    return literal_value_;
 }
 
 std::string LiteralExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "LiteralExpr(";
-    switch (type_) {
-        case LiteralType::INTERGER:
-            oss << "INTERGER, value=" << std::get<int64_t>(value_);
+    switch (literal_type_) {
+        case LiteralType::INTEGER:
+            oss << "INTEGER, value=" << std::get<int64_t>(literal_value_);
             break;
         case LiteralType::FLOAT:
-            oss << "FLOAT, value=" << std::get<double>(value_);
+            oss << "FLOAT, value=" << std::get<double>(literal_value_);
             break;
         case LiteralType::STRING:
-            oss << "STRING, value=" << std::get<std::string>(value_);
+            oss << "STRING, value=\"" << std::get<std::string>(literal_value_) << "\"";
             break;
         case LiteralType::BOOLEAN:
-            oss << "BOOLEAN, value=" << std::get<bool>(value_);
+            oss << "BOOLEAN, value=" << (std::get<bool>(literal_value_) ? "true" : "false");
             break;
         case LiteralType::NULL_VALUE:
             oss << "NULL_VALUE";
             break;
+        case LiteralType::VECTOR: {
+            oss << "VECTOR, value=[";
+            const auto & vec = std::get<std::vector<float>>(literal_value_);
+            for (std::size_t i = 0; i < vec.size(); ++i) {
+                if (i > 0) {
+                    oss << ", ";
+                }
+                oss << vec[i];
+            }
+            oss << "]";
+            break;
+        }
         default:
             oss << "UNKNOWN";
             break;

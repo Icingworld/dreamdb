@@ -7,50 +7,40 @@ namespace dreamdb
 
 BinaryExpr::BinaryExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::BINARY_EXPR, line, column)
-    , op_type(BinaryOperatorType::PLUS)
-    , left(nullptr)
-    , right(nullptr)
+    , operator_type_(OperatorType::DB_PLUS)
+    , left_(nullptr)
+    , right_(nullptr)
 {
 }
 
-void BinaryExpr::set_op_type(BinaryOperatorType op_type) noexcept
+void BinaryExpr::set_operator_type(OperatorType operator_type) noexcept
 {
-    this->op_type = op_type;
+    operator_type_ = operator_type;
 }
 
-BinaryOperatorType BinaryExpr::get_op_type() const noexcept
+void BinaryExpr::set_left(std::unique_ptr<AstNode> left) noexcept
 {
-    return op_type;
+    left_ = std::move(left);
 }
 
-void BinaryExpr::set_left(std::unique_ptr<AstNode> left)
+void BinaryExpr::set_right(std::unique_ptr<AstNode> right) noexcept
 {
-    this->left = std::move(left);
+    right_ = std::move(right);
+}
+
+BinaryExpr::OperatorType BinaryExpr::get_operator_type() const noexcept
+{
+    return operator_type_;
 }
 
 const AstNode * BinaryExpr::get_left() const noexcept
 {
-    return left.get();
-}
-
-AstNode * BinaryExpr::get_left() noexcept
-{
-    return left.get();
-}
-
-void BinaryExpr::set_right(std::unique_ptr<AstNode> right)
-{
-    this->right = std::move(right);
+    return left_.get();
 }
 
 const AstNode * BinaryExpr::get_right() const noexcept
 {
-    return right.get();
-}
-
-AstNode * BinaryExpr::get_right() noexcept
-{
-    return right.get();
+    return right_.get();
 }
 
 std::string BinaryExpr::debug_string() const
@@ -58,44 +48,44 @@ std::string BinaryExpr::debug_string() const
     std::ostringstream oss;
     oss << "BinaryExpr(op=";
     
-    switch (op_type) {
-        case BinaryOperatorType::PLUS:
+    switch (operator_type_) {
+        case OperatorType::DB_PLUS:
             oss << "PLUS";
             break;
-        case BinaryOperatorType::MINUS:
+        case OperatorType::DB_MINUS:
             oss << "MINUS";
             break;
-        case BinaryOperatorType::MULTIPLY:
+        case OperatorType::DB_MULTIPLY:
             oss << "MULTIPLY";
             break;
-        case BinaryOperatorType::DIVIDE:
+        case OperatorType::DB_DIVIDE:
             oss << "DIVIDE";
             break;
-        case BinaryOperatorType::MODULO:
+        case OperatorType::DB_MODULO:
             oss << "MODULO";
             break;
-        case BinaryOperatorType::EQUAL:
+        case OperatorType::DB_EQUAL:
             oss << "EQUAL";
             break;
-        case BinaryOperatorType::NOT_EQUAL:
+        case OperatorType::DB_NOT_EQUAL:
             oss << "NOT_EQUAL";
             break;
-        case BinaryOperatorType::LESS_THAN:
+        case OperatorType::DB_LESS_THAN:
             oss << "LESS_THAN";
             break;
-        case BinaryOperatorType::GREATER_THAN:
+        case OperatorType::DB_GREATER_THAN:
             oss << "GREATER_THAN";
             break;
-        case BinaryOperatorType::LESS_EQUAL:
+        case OperatorType::DB_LESS_EQUAL:
             oss << "LESS_EQUAL";
             break;
-        case BinaryOperatorType::GREATER_EQUAL:
+        case OperatorType::DB_GREATER_EQUAL:
             oss << "GREATER_EQUAL";
             break;
-        case BinaryOperatorType::AND:
+        case OperatorType::DB_AND:
             oss << "AND";
             break;
-        case BinaryOperatorType::OR:
+        case OperatorType::DB_OR:
             oss << "OR";
             break;
         default:
@@ -104,15 +94,15 @@ std::string BinaryExpr::debug_string() const
     }
     
     oss << ", left=";
-    if (left) {
-        oss << left->debug_string();
+    if (left_) {
+        oss << left_->debug_string();
     } else {
         oss << "<null>";
     }
     
     oss << ", right=";
-    if (right) {
-        oss << right->debug_string();
+    if (right_) {
+        oss << right_->debug_string();
     } else {
         oss << "<null>";
     }

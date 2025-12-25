@@ -840,12 +840,12 @@ Error: Unknown collection 'collection_name'
 **语法**
 
 ```sql
-SELECT <column_list> 
-FROM <collection_name> 
-[WHERE <condition>] 
+SELECT <column_list>
+FROM <collection_name>
+[WHERE <condition>]
 [GROUP BY <column> [, <column> ...]]
 [HAVING <condition>]
-[ORDER BY <column> [ASC | DESC] [, <column> [ASC | DESC] ...]] 
+[ORDER BY <column> [ASC | DESC] [, <column> [ASC | DESC] ...]]
 [LIMIT <limit>];
 ```
 
@@ -866,7 +866,7 @@ FROM <collection_name>
 - `collection_name`：要查询的集合名称
 - `WHERE condition`：可选，查询条件表达式。只有满足条件的记录才会被返回
   - 支持标量字段的条件判断（如 `id = 1`、`name = 'value'`、`price > 100`）
-  - 支持比较运算符：`=`、`!=`、`<>`、`>`、`<`、`>=`、`<=`
+  - 支持比较运算符：`=`、`!=`、`>`、`<`、`>=`、`<=`
   - 支持逻辑运算符：`AND`、`OR`、`NOT`
   - 支持 `IN`、`NOT IN`、`BETWEEN ... AND ...`、`LIKE` 等操作
   - 不支持向量字段的条件判断（向量相似度搜索需要通过 API 实现）

@@ -33,7 +33,7 @@ std::size_t Token::get_column() const noexcept
 
 bool Token::is_keyword() const noexcept
 {
-    return type_ >= TokenType::DB_SELECT && type_ <= TokenType::DB_WITH;
+    return type_ >= TokenType::DB_SELECT && type_ <= TokenType::DB_HNSW;
 }
 
 bool Token::is_operator() const noexcept
@@ -82,9 +82,6 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_DESCRIBE:
             result += "DESCRIBE";
-            break;
-        case TokenType::DB_DESC:
-            result += "DESC";
             break;
         case TokenType::DB_ADD:
             result += "ADD";
@@ -190,6 +187,15 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_ASC:
             result += "ASC";
+            break;
+        case TokenType::DB_DESC:
+            result += "DESC";
+            break;
+        case TokenType::DB_GROUP:
+            result += "GROUP";
+            break;
+        case TokenType::DB_HAVING:
+            result += "HAVING";
             break;
         case TokenType::DB_BETWEEN:
             result += "BETWEEN";

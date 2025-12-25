@@ -7,64 +7,60 @@ namespace dreamdb
 
 UnaryExpr::UnaryExpr(std::size_t line, std::size_t column)
     : AstNode(AstNodeType::UNARY_EXPR, line, column)
-    , op_type(UnaryOperatorType::NOT)
-    , operand(nullptr)
+    , operator_type_(OperatorType::DB_NOT)
+    , operand_(nullptr)
 {
 }
 
-void UnaryExpr::set_op_type(UnaryOperatorType op_type) noexcept
+void UnaryExpr::set_operator_type(OperatorType operator_type) noexcept
 {
-    this->op_type = op_type;
+    operator_type_ = operator_type;
 }
 
-UnaryOperatorType UnaryExpr::get_op_type() const noexcept
+void UnaryExpr::set_operand(std::unique_ptr<AstNode> operand) noexcept
 {
-    return op_type;
+    operand_ = std::move(operand);
 }
 
-void UnaryExpr::set_operand(std::unique_ptr<AstNode> operand)
+UnaryExpr::OperatorType UnaryExpr::get_operator_type() const noexcept
 {
-    this->operand = std::move(operand);
+    return operator_type_;
 }
 
 const AstNode * UnaryExpr::get_operand() const noexcept
 {
-    return operand.get();
-}
-
-AstNode * UnaryExpr::get_operand() noexcept
-{
-    return operand.get();
+    return operand_.get();
 }
 
 std::string UnaryExpr::debug_string() const
 {
     std::ostringstream oss;
     oss << "UnaryExpr(op=";
-    
-    switch (op_type) {
-        case UnaryOperatorType::MINUS:
+
+    switch (operator_type_) {
+        case OperatorType::DB_MINUS:
             oss << "MINUS";
             break;
-        case UnaryOperatorType::PLUS:
+        case OperatorType::DB_PLUS:
             oss << "PLUS";
             break;
-        case UnaryOperatorType::NOT:
+        case OperatorType::DB_NOT:
             oss << "NOT";
             break;
         default:
             oss << "UNKNOWN";
             break;
     }
-    
+
     oss << ", operand=";
-    if (operand) {
-        oss << operand->debug_string();
+    if (operand_) {
+        oss << operand_->debug_string();
     } else {
         oss << "<null>";
     }
-    
+
     oss << ")";
+
     return oss.str();
 }
 

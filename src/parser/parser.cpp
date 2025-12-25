@@ -19,6 +19,10 @@
 #include "dreamdb/parser/ast/function_call_expr.h"
 #include "dreamdb/parser/ast/identifier_expr.h"
 #include "dreamdb/parser/ast/literal_expr.h"
+#include "dreamdb/parser/ast/in_expr.h"
+#include "dreamdb/parser/ast/like_expr.h"
+#include "dreamdb/parser/ast/between_expr.h"
+#include "dreamdb/parser/ast/null_expr.h"
 
 namespace dreamdb
 {
@@ -68,6 +72,7 @@ std::unique_ptr<AstNode> Parser::parse()
     // 检查是否为空输入
     if (current_token_.get_type() == TokenType::DB_EOF_TOKEN) {
         error("Unexpected end of input");
+        return nullptr;
     }
 
     // 解析单个语句
@@ -80,6 +85,7 @@ std::unique_ptr<AstNode> Parser::parse()
     if (current_token_.get_type() != TokenType::DB_EOF_TOKEN) {
         // 不应该有更多内容，有则非法
         error("Unexpected token after statement: " + current_token_.to_string());
+        return nullptr;
     }
 
     // 如果解析过程中发生了错误，stmt 应该已经被设置为 nullptr 或者抛出了异常
@@ -112,9 +118,10 @@ std::unique_ptr<AstNode> Parser::parse_statement()
         case TokenType::DB_DESCRIBE:
         case TokenType::DB_DESC:
             return parse_describe_stmt();
-        default:
+        default: {
             error("Expected SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, USE, ALTER, SHOW, or DESCRIBE, but got: " + current_token_.to_string());
             return nullptr;
+        }
     }
 }
 
@@ -158,6 +165,7 @@ void Parser::consume(TokenType type, const std::string & message)
         advance();
     } else {
         error(message + ", but got: " + current_token_.to_string());
+        return;
     }
 }
 
@@ -184,14 +192,7 @@ void Parser::skip_semicolon()
 }
 
 std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
-{
-    // SELECT 语句示例
-    // SELECT * FROM my_collection;
-    // SELECT my_column FROM my_collection;
-    // SELECT my_column1, my_column2 FROM my_collection;
-    // SELECT * FROM my_collection WHERE my_column = 'value';
-    // SELECT * FROM my_collection WHERE my_column = 'value' AND my_column2 = 'value2';
-    
+{    
     // 获取 SELECT 关键字的位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
@@ -202,51 +203,48 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
     // 消耗 SELECT 关键字
     advance();
 
-    // 解析 SELECT 列表
-    // 支持两种形式：
-    // SELECT * FROM ...
-    // SELECT column1, column2, ... FROM ...
-    // SELECT COUNT(*) FROM ...
-    // SELECT column1 AS alias FROM ...
-
+    // 解析 SELECT 列表，有 * 和列名列表两种形式
     if (check(TokenType::DB_MULTIPLY)) {
         // 处理 SELECT *
         stmt->add_select_item(SelectItem::create_star_item());
-        advance(); // 消耗 '*'
+        // 消耗 '*'
+        advance();
     } else {
-        // 处理 SELECT column1, column2, ...
-        // 至少需要一个表达式
+        // 存在列名列表，至少需要一个表达式
         do {
-            // 解析表达式（可以是标识符、函数调用等）
+            // 解析表达式，可能是标识符或函数调用
             auto expr = parse_expression();
             std::string alias = "";
 
-            // 检查是否有别名（仅支持 AS alias 形式）
+            // 检查是否有别名，仅支持 AS alias 形式
             if (match(TokenType::DB_AS)) {
-                // AS 关键字后必须有标识符作为别名
+                // 解析别名标识符
                 if (!check(TokenType::DB_IDENTIFIER)) {
-                    error("Expected alias name after AS, but got: " + current_token_.to_string());
+                    error("Expected alias identifier after AS, but got: " + current_token_.to_string());
+                    return nullptr;
                 }
                 alias = current_token_.get_value();
-                advance(); // 消耗别名标识符
+                // 消耗别名标识符
+                advance();
             }
 
+            // 添加选择项
             stmt->add_select_item(SelectItem::create_expression_item(std::move(expr), alias));
-
-            // 如果遇到逗号，继续解析下一个表达式
         } while (match(TokenType::DB_COMMA));
     }
 
-    // 解析 FROM 关键字
+    // 期望 FROM 关键字
     consume(TokenType::DB_FROM, "Expected FROM after SELECT list");
 
-    // 解析表名
+    // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected table name after FROM, but got: " + current_token_.to_string());
+        error("Expected collection name after FROM, but got: " + current_token_.to_string());
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
-    advance(); // 消耗表名
+    // 消耗集合名
+    advance();
 
     // 解析可选的 WHERE 子句
     if (match(TokenType::DB_WHERE)) {
@@ -254,13 +252,60 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
         stmt->set_where_clause(std::move(where_expr));
     }
 
+    // 解析可选的 GROUP BY 子句
+    if (match(TokenType::DB_GROUP)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after GROUP");
+
+        // 解析 GROUP BY 表达式列表，至少需要一个表达式
+        do {
+            auto expr = parse_expression();
+            stmt->add_group_by_expression(std::move(expr));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 解析可选的 HAVING 子句
+    if (match(TokenType::DB_HAVING)) {
+        auto having_expr = parse_expression();
+        stmt->set_having_clause(std::move(having_expr));
+    }
+
+    // 解析可选的 ORDER BY 子句
+    if (match(TokenType::DB_ORDER)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after ORDER");
+
+        // 解析 ORDER BY 项列表，至少需要一项
+        do {
+            // 解析排序表达式
+            auto expr = parse_expression();
+
+            // 创建 OrderByItem
+            OrderByItem order_item;
+            order_item.set_expression(std::move(expr));
+
+            // 解析可选的 ASC 或 DESC
+            if (match(TokenType::DB_ASC)) {
+                order_item.set_order_type(OrderByItem::OrderType::ASC);
+            } else if (match(TokenType::DB_DESC)) {
+                order_item.set_order_type(OrderByItem::OrderType::DESC);
+            } else {
+                // 如果不指定排序类型，默认使用 ASC
+                order_item.set_order_type(OrderByItem::OrderType::ASC);
+            }
+
+            stmt->add_order_by_item(std::move(order_item));
+        } while (match(TokenType::DB_COMMA));
+    }
+
     // 解析可选的 LIMIT 子句
     if (match(TokenType::DB_LIMIT)) {
         // LIMIT 后必须是数字字面量
         if (!check(TokenType::DB_NUMBER_LITERAL)) {
             error("Expected number after LIMIT, but got: " + current_token_.to_string());
+            return nullptr;
         }
-        
+
         // 解析 LIMIT 数字
         const std::string & limit_text = current_token_.get_value();
         try {
@@ -268,19 +313,24 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
             long long limit_value = std::stoll(limit_text);
             if (limit_value < 0) {
                 error("LIMIT value must be non-negative, but got: " + limit_text);
+                return nullptr;
             }
             std::size_t max_limit = std::numeric_limits<std::size_t>::max();
             if (limit_value > static_cast<long long>(max_limit)) {
                 error("LIMIT value too large: " + limit_text);
+                return nullptr;
             }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
         } catch (const std::exception & e) {
             error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+            return nullptr;
         }
         
-        advance(); // 消耗数字字面量
+        // 消耗数字字面量
+        advance();
     }
 
+    // SELECT 语句解析完成
     return stmt;
 }
 
@@ -302,6 +352,7 @@ std::unique_ptr<InsertStmt> Parser::parse_insert_stmt()
     // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected collection_name after INTO");
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
@@ -318,6 +369,7 @@ std::unique_ptr<InsertStmt> Parser::parse_insert_stmt()
         do {
             if (!check(TokenType::DB_IDENTIFIER)) {
                 error("Expected column_name, but got: " + current_token_.to_string());
+                return nullptr;
             }
             std::string column_name = current_token_.get_value();
             stmt->add_column_name(column_name);
@@ -364,6 +416,7 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
     // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected collection_name after UPDATE");
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
@@ -378,6 +431,7 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
         // 解析列名
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column_name in SET clause, but got: " + current_token_.to_string());
+            return nullptr;
         }
         std::string column_name = current_token_.get_value();
         // 消耗列名
@@ -405,6 +459,7 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
         // 解析列名
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column name after ORDER BY");
+            return nullptr;
         }
         std::string column_name = current_token_.get_value();
         stmt->set_order_column(column_name);
@@ -427,20 +482,24 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
         // 期望一个数字字面量
         if (!check(TokenType::DB_NUMBER_LITERAL)) {
             error("Expected number after LIMIT, but got: " + current_token_.to_string());
+            return nullptr;
         }
         std::string limit_text = current_token_.get_value();
         try {
             long long limit_value = std::stoll(limit_text);
             if (limit_value < 0) {
                 error("LIMIT value must be non-negative, but got: " + limit_text);
+                return nullptr;
             }
             std::size_t max_limit = std::numeric_limits<std::size_t>::max();
             if (limit_value > static_cast<long long>(max_limit)) {
                 error("LIMIT value too large: " + limit_text);
+                return nullptr;
             }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
         } catch (const std::exception & e) {
             error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+            return nullptr;
         }
         // 消耗数字字面量
         advance();
@@ -468,6 +527,7 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
     // 解析集合名
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected collection_name after FROM");
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
@@ -488,6 +548,7 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
         // 解析列名
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column name after ORDER BY");
+            return nullptr;
         }
         std::string column_name = current_token_.get_value();
         stmt->set_order_column(column_name);
@@ -510,20 +571,24 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
         // 期望一个数字字面量
         if (!check(TokenType::DB_NUMBER_LITERAL)) {
             error("Expected number after LIMIT, but got: " + current_token_.to_string());
+            return nullptr;
         }
         std::string limit_text = current_token_.get_value();
         try {
             long long limit_value = std::stoll(limit_text);
             if (limit_value < 0) {
                 error("LIMIT value must be non-negative, but got: " + limit_text);
+                return nullptr;
             }
             std::size_t max_limit = std::numeric_limits<std::size_t>::max();
             if (limit_value > static_cast<long long>(max_limit)) {
                 error("LIMIT value too large: " + limit_text);
+                return nullptr;
             }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
         } catch (const std::exception & e) {
             error("Invalid LIMIT value '" + limit_text + "': " + e.what());
+            return nullptr;
         }
         // 消耗数字字面量
         advance();
@@ -557,6 +622,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
         create_type = CreateStmt::CreateType::VINDEX;
     } else {
         error("Expected DATABASE, COLLECTION, INDEX or VINDEX after CREATE");
+        return nullptr;
     }
     stmt->set_create_type(create_type);
 
@@ -571,6 +637,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
     // 解析对象名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected object name after " + CreateStmt::create_type_to_string(create_type));
+        return nullptr;
     }
     std::string object_name = current_token_.get_value();
     stmt->set_object_name(object_name);
@@ -601,6 +668,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
         // 解析集合名
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected collection name after ON");
+            return nullptr;
         }
         std::string collection_name = current_token_.get_value();
         stmt->set_collection_name(collection_name);
@@ -614,6 +682,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
         do {
             if (!check(TokenType::DB_IDENTIFIER)) {
                 error("Expected column name after '('");
+                return nullptr;
             }
             std::string column_name = current_token_.get_value();
             stmt->add_column_name(column_name);
@@ -636,6 +705,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
                     stmt->set_index_type(IndexType::HASH);
                 } else {
                     error("Expected BTREE or HASH after USING");
+                    return nullptr;
                 }
                 // 消耗 index_type
                 advance();
@@ -650,6 +720,7 @@ std::unique_ptr<CreateStmt> Parser::parse_create_stmt()
                     stmt->set_vindex_type(VIndexType::HNSW);
                 } else {
                     error("Expected FLAT, IVF_FLAT or HNSW after USING");
+                    return nullptr;
                 }
                 // 消耗 vindex_type
                 advance();
@@ -734,6 +805,7 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
         drop_type = DropStmt::DropType::VINDEX;
     } else {
         error("Expected DATABASE, COLLECTION, INDEX or VINDEX after DROP");
+        return nullptr;
     }
 
     stmt->set_drop_type(drop_type);
@@ -741,6 +813,7 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
     // 解析对象名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected object_name after DROP" + DropStmt::drop_type_to_string(drop_type));
+        return nullptr;
     }
     std::string object_name = current_token_.get_value();
     // 消耗 object_name
@@ -767,6 +840,7 @@ std::unique_ptr<UseStmt> Parser::parse_use_stmt()
     // 解析数据库名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected database_name after USE");
+        return nullptr;
     }
     std::string database_name = current_token_.get_value();
     // 消耗 database_name
@@ -796,6 +870,7 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
     // 解析集合名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected collection_name after ALTER");
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     stmt->set_collection_name(collection_name);
@@ -814,6 +889,7 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
         alter_type = AlterStmt::AlterType::RENAME_COLUMN;
     } else {
         error("Expected ADD, DROP, MODIFY or RENAME after ALTER");
+        return nullptr;
     }
 
     stmt->set_alter_type(alter_type);
@@ -826,6 +902,7 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
         // 解析字段名称
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column_name after COLUMN");
+            return nullptr;
         }
         std::string old_column_name = current_token_.get_value();
         // 消耗 old_column_name
@@ -835,6 +912,7 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
         // 解析旧字段名称
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column_name after COLUMN");
+            return nullptr;
         }
         std::string old_column_name = current_token_.get_value();
         // 消耗 old_column_name
@@ -847,6 +925,7 @@ std::unique_ptr<AlterStmt> Parser::parse_alter_stmt()
         // 解析新字段名称
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected column_name after RENAME");
+            return nullptr;
         }
         std::string new_column_name = current_token_.get_value();
         // 消耗 new_column_name
@@ -894,6 +973,7 @@ std::unique_ptr<ShowStmt> Parser::parse_show_stmt()
         show_type = ShowStmt::ShowType::VINDEXES;
     } else {
         error("Expected DATABASES, COLLECTIONS or INDEXES after SHOW");
+        return nullptr;
     }
 
     stmt->set_show_type(show_type);
@@ -904,6 +984,7 @@ std::unique_ptr<ShowStmt> Parser::parse_show_stmt()
 
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected collection_name after FROM");
+            return nullptr;
         }
         std::string collection_name = current_token_.get_value();
         stmt->set_collection_name(collection_name);
@@ -933,6 +1014,7 @@ std::unique_ptr<DescribeStmt> Parser::parse_describe_stmt()
     // 解析集合名称
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected collection_name after DESCRIBE");
+        return nullptr;
     }
     std::string collection_name = current_token_.get_value();
     // 消耗 collection_name
@@ -946,17 +1028,17 @@ std::unique_ptr<DescribeStmt> Parser::parse_describe_stmt()
 
 std::unique_ptr<AstNode> Parser::parse_expression()
 {
-    // 该接口只是表达式解析入口，具体解析逻辑在各个解析函数中实现
+    // 该接口是表达式解析入口，具体解析逻辑在各个解析函数中实现
     // 递归下降解析器会自动处理所有优先级
 
     // 表达式优先级：
-    // 1. DB_OR          (最低优先级，如: a DB_OR b)
-    // 2. DB_AND         (如: a DB_AND b)
-    // 3. 比较运算符   (如: =, !=, <, >, <=, >=)
-    // 4. 加减        (如: +, -)
-    // 5. 乘除        (如: *, /, %)
-    // 6. 一元运算符   (如: +, -, DB_NOT)
-    // 7. 基础表达式   (最高优先级，如: 字面量、标识符、括号、函数调用)
+    // 1. OR             (最低优先级，如: a OR b)
+    // 2. AND            (如: a AND b)
+    // 3. 比较运算符      (如: =, !=, <, >, <=, >=)
+    // 4. 加减            (如: +, -)
+    // 5. 乘除            (如: *, /, %)
+    // 6. 一元运算符      (如: +, -, NOT)
+    // 7. 基础表达式      (最高优先级，如: 字面量、标识符、括号、函数调用)
 
     // 完整解析流程：
     // parse_expression()
@@ -975,106 +1057,110 @@ std::unique_ptr<AstNode> Parser::parse_expression()
 
     // 根据当前 Token 的类型判断是哪种表达式
     switch (current_token_.get_type()) {
-        // 字面量：数字、字符串、布尔值
+        // 字面量：数字、字符串、布尔值、NULL
         case TokenType::DB_NUMBER_LITERAL:
         case TokenType::DB_STRING_LITERAL:
         case TokenType::DB_TRUE:
         case TokenType::DB_FALSE:
+        case TokenType::DB_NULL:
         // 标识符：字段名、变量等
         case TokenType::DB_IDENTIFIER:
         // 一元运算符：+、-、NOT
         case TokenType::DB_PLUS:
         case TokenType::DB_MINUS:
         case TokenType::DB_NOT:
-        // 括号表达式
+        // 括号表达式 '('
         case TokenType::DB_LEFT_PAREN:
+        // 向量字面量 '['
+        case TokenType::DB_LEFT_BRACKET:
             // 调用最低优先级解析函数
             return parse_or_expression();
-        default:
-            // 非法的表达式开始 token
+        default: {
             error("Expected expression, but got: " + current_token_.to_string());
             return nullptr;
+        }
     }
 }
 
 std::unique_ptr<AstNode> Parser::parse_or_expression()
 {
-    // 解析左侧的 DB_AND 表达式
+    // 递归下降解析左侧的 AND 表达式
     auto left = parse_and_expression();
-    
-    // 循环处理多个 DB_OR 运算符（左结合）
-    // 例如: a DB_OR b DB_OR c 解析为 ((a DB_OR b) DB_OR c)
+
+    // 左结合循环处理多个 OR 运算符
+    // 例如: a OR b OR c 解析为 ((a OR b) OR c)
     while (check(TokenType::DB_OR)) {
-        // 保存 DB_OR token 的位置信息
+        // 保存 OR token 的位置信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
-        
-        // 消耗 DB_OR token
+
+        // 消耗 OR token
         advance();
-        
+
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
-        
-        // 设置运算符类型为 DB_OR
-        expr->set_op_type(BinaryOperatorType::DB_OR);
-        
+
+        // 设置运算符类型为 OR
+        expr->set_operator_type(BinaryExpr::OperatorType::DB_OR);
+
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
-        
-        // 解析右侧的 DB_AND 表达式
+
+        // 递归下降解析右侧的 AND 表达式
         auto right = parse_and_expression();
         expr->set_right(std::move(right));
-        
+
         // 将当前表达式作为下一次的左操作数
         left = std::move(expr);
     }
-    
+
+    // or 表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_and_expression()
 {
-    // 解析左侧的比较表达式
+    // 递归下降解析左侧的比较表达式
     auto left = parse_comparison_expression();
-    
-    // 循环处理多个 DB_AND 运算符（左结合）
-    // 例如: a DB_AND b DB_AND c 解析为 ((a DB_AND b) DB_AND c)
+
+    // 左结合循环处理多个 AND 运算符
+    // 例如: a AND b AND c 解析为 ((a AND b) AND c)
     while (check(TokenType::DB_AND)) {
-        // 保存 DB_AND token 的位置信息
+        // 保存 AND token 的位置信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
-        
-        // 消耗 DB_AND token
+
+        // 消耗 AND token
         advance();
-        
+
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
-        
-        // 设置运算符类型为 DB_AND
-        expr->set_op_type(BinaryOperatorType::DB_AND);
-        
+
+        // 设置运算符类型为 AND
+        expr->set_operator_type(BinaryExpr::OperatorType::DB_AND);
+
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
-        
-        // 解析右侧的比较表达式
+
+        // 递归下降解析右侧的比较表达式
         auto right = parse_comparison_expression();
         expr->set_right(std::move(right));
-        
+
         // 将当前表达式作为下一次的左操作数
         left = std::move(expr);
     }
-    
+
+    // and 表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_comparison_expression()
 {
-    // 解析左侧的加减表达式
+    // 递归下降解析左侧的加减表达式
     auto left = parse_additive_expression();
-    
+
     // 检查是否有比较运算符
-    BinaryOperatorType op_type;
-    bool has_comparison = false;
+    BinaryExpr::OperatorType operator_type;
     std::size_t line = 0;
     std::size_t column = 0;
     
@@ -1083,96 +1169,247 @@ std::unique_ptr<AstNode> Parser::parse_comparison_expression()
         case TokenType::DB_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_EQUAL;
+            // 消耗等于运算符
             advance();
             break;
         case TokenType::DB_NOT_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_NOT_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_NOT_EQUAL;
+            // 消耗不等于运算符
             advance();
             break;
         case TokenType::DB_LESS_THAN:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_LESS_THAN;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_LESS_THAN;
+            // 消耗小于运算符
             advance();
             break;
         case TokenType::DB_GREATER_THAN:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_GREATER_THAN;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_GREATER_THAN;
+            // 消耗大于运算符
             advance();
             break;
         case TokenType::DB_LESS_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_LESS_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_LESS_EQUAL;
+            // 消耗小于等于运算符
             advance();
             break;
         case TokenType::DB_GREATER_EQUAL:
             line = current_token_.get_line();
             column = current_token_.get_column();
-            op_type = BinaryOperatorType::DB_GREATER_EQUAL;
-            has_comparison = true;
+            operator_type = BinaryExpr::OperatorType::DB_GREATER_EQUAL;
+            // 消耗大于等于运算符
             advance();
             break;
+        case TokenType::DB_NOT: {
+            // peek 下一个 token 是否为 IN, LIKE, BETWEEN
+            Token next = lexer_->peek_token();
+            if (next.get_type() == TokenType::DB_IN) {
+                return parse_in_expression(std::move(left));
+            } else if (next.get_type() == TokenType::DB_LIKE) {
+                return parse_like_expression(std::move(left));
+            } else if (next.get_type() == TokenType::DB_BETWEEN) {
+                return parse_between_expression(std::move(left));
+            } else {
+                error("Expected IN, LIKE or BETWEEN after NOT");
+                return nullptr;
+            }
+        }
+        case TokenType::DB_IN: {
+            return parse_in_expression(std::move(left));
+        }
+        case TokenType::DB_LIKE: {
+            return parse_like_expression(std::move(left));
+        }
+        case TokenType::DB_BETWEEN: {
+            return parse_between_expression(std::move(left));
+        }
+        case TokenType::DB_IS: {
+            return parse_null_expression(std::move(left));
+        }
         default:
             // 没有比较运算符，直接返回左侧表达式
             return left;
     }
-    
-    // 如果有比较运算符，创建二元表达式节点
-    if (has_comparison) {
-        auto expr = std::make_unique<BinaryExpr>(line, column);
-        expr->set_op_type(op_type);
-        expr->set_left(std::move(left));
-        
-        // 解析右侧的加减表达式
-        auto right = parse_additive_expression();
-        expr->set_right(std::move(right));
-        
-        return expr;
+
+    // 如果有比较运算符，则创建二元表达式节点
+    auto expr = std::make_unique<BinaryExpr>(line, column);
+    expr->set_operator_type(operator_type);
+    expr->set_left(std::move(left));
+
+    // 递归下降解析右侧的加减表达式
+    auto right = parse_additive_expression();
+    expr->set_right(std::move(right));
+
+    // 比较表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<LikeExpr> Parser::parse_like_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 LIKE 表达式节点
+    auto expr = std::make_unique<LikeExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_like(true);
+        // 消耗 NOT 运算符
+        advance();
     }
-    
-    // 理论上不会执行到这里，但为了完整性保留
-    return left;
+
+    // 消耗 LIKE 关键字
+    advance();
+
+    // 解析右侧模式字符串
+    auto right = parse_additive_expression();
+    expr->set_right(std::move(right));
+
+    // LIKE 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<InExpr> Parser::parse_in_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 IN 表达式节点
+    auto expr = std::make_unique<InExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_in(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 消耗 IN 关键字
+    advance();
+
+    // 期望 '('
+    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after IN");
+
+    // 解析 IN 表达式右侧的值列表
+    if (!check(TokenType::DB_RIGHT_PAREN)) {
+        // 如果右侧不为 ')'，则解析右侧值列表
+        do {
+            auto value = parse_expression();
+            expr->add_value(std::move(value));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 期望 ')'
+    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after IN values");
+
+    // IN 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<BetweenExpr> Parser::parse_between_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 BETWEEN 表达式节点
+    auto expr = std::make_unique<BetweenExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_between(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 消耗 BETWEEN 关键字
+    advance();
+
+    // 解析起始值
+    auto min_value = parse_additive_expression();
+    expr->set_min_value(std::move(min_value));
+
+    // 期望 'AND'
+    consume(TokenType::DB_AND, "Expected 'AND' after min value");
+
+    // 解析结束值
+    auto max_value = parse_additive_expression();
+    expr->set_max_value(std::move(max_value));
+
+    // BETWEEN 表达式解析完成
+    return expr;
+}
+
+std::unique_ptr<NullExpr> Parser::parse_null_expression(std::unique_ptr<AstNode> left)
+{
+    // 获取当前 token 位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 消耗 IS 关键字
+    advance();
+
+    // 创建 NULL 表达式节点
+    auto expr = std::make_unique<NullExpr>(line, column);
+    expr->set_left(std::move(left));
+
+    // 检查是否为 NOT NULL
+    if (check(TokenType::DB_NOT)) {
+        expr->set_is_not_null(true);
+        // 消耗 NOT 运算符
+        advance();
+    }
+
+    // 期望 'NULL'
+    consume(TokenType::DB_NULL, "Expected NULL after IS [NOT]");
+
+    // NULL 表达式解析完成
+    return expr;
 }
 
 std::unique_ptr<AstNode> Parser::parse_additive_expression()
 {
-    // 解析左侧的乘除表达式
+    // 递归下降解析左侧的乘除表达式
     auto left = parse_multiplicative_expression();
 
-    // 循环处理加减运算符（左结合）
+    // 左结合循环处理多个加减运算符
     while (check(TokenType::DB_PLUS) || check(TokenType::DB_MINUS)) {
-        // 保存运算符信息
-        TokenType op_token_type = current_token_.get_type();
+        // 保存加减运算符信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType token_type = current_token_.get_type();
 
-        // 消耗运算符
+        // 消耗加减运算符
         advance();
 
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
 
         // 设置运算符类型
-            if (op_token_type == TokenType::DB_PLUS) {
-                expr->set_op_type(BinaryOperatorType::DB_PLUS);
+        if (token_type == TokenType::DB_PLUS) {
+            expr->set_operator_type(BinaryExpr::OperatorType::DB_PLUS);
         } else {
-            expr->set_op_type(BinaryOperatorType::DB_MINUS);
+            expr->set_operator_type(BinaryExpr::OperatorType::DB_MINUS);
         }
 
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
 
-        // 解析右侧的乘除表达式
+        // 递归下降解析右侧的乘除表达式
         auto right = parse_multiplicative_expression();
         expr->set_right(std::move(right));
 
@@ -1180,49 +1417,51 @@ std::unique_ptr<AstNode> Parser::parse_additive_expression()
         left = std::move(expr);
     }
 
+    // 加减表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
 {
-    // 解析左侧的一元表达式
+    // 递归下降解析左侧的一元表达式
     auto left = parse_unary_expression();
 
-    // 循环处理乘除模运算符（左结合）
+    // 左结合循环处理多个乘除模运算符
     while (check(TokenType::DB_MULTIPLY) ||
            check(TokenType::DB_DIVIDE) ||
            check(TokenType::DB_MODULO)) {
-        // 保存运算符信息
-        TokenType op_token_type = current_token_.get_type();
+        // 保存乘除模运算符信息
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType token_type = current_token_.get_type();
 
-        // 消耗运算符
+        // 消耗乘除模运算符
         advance();
 
         // 创建二元表达式节点
         auto expr = std::make_unique<BinaryExpr>(line, column);
 
         // 设置运算符类型
-        switch (op_token_type) {
+        switch (token_type) {
             case TokenType::DB_MULTIPLY:
-                expr->set_op_type(BinaryOperatorType::DB_MULTIPLY);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_MULTIPLY);
                 break;
             case TokenType::DB_DIVIDE:
-                expr->set_op_type(BinaryOperatorType::DB_DIVIDE);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_DIVIDE);
                 break;
             case TokenType::DB_MODULO:
-                expr->set_op_type(BinaryOperatorType::DB_MODULO);
+                expr->set_operator_type(BinaryExpr::OperatorType::DB_MODULO);
                 break;
-            default:
-                // 理论上不会到这里
+            default: {
                 error("Unexpected token in multiplicative expression: " + current_token_.to_string());
+                return nullptr;
+            }
         }
 
         // 设置左操作数为之前解析的结果
         expr->set_left(std::move(left));
 
-        // 解析右侧的一元表达式
+        // 递归下降解析右侧的一元表达式
         auto right = parse_unary_expression();
         expr->set_right(std::move(right));
 
@@ -1230,44 +1469,51 @@ std::unique_ptr<AstNode> Parser::parse_multiplicative_expression()
         left = std::move(expr);
     }
 
+    // 乘除模表达式解析完成
     return left;
 }
 
 std::unique_ptr<AstNode> Parser::parse_unary_expression()
 {
     // 一元运算符：NOT, +, -
+    // 注意：+ 和 - 同时可以在一元和二元表达式中出现，在这里处理一元的情况
+    // 如：-5, +10, NOT condition, - -x
     if (check(TokenType::DB_NOT) ||
         check(TokenType::DB_PLUS) ||
         check(TokenType::DB_MINUS)) {
-        TokenType op_token_type = current_token_.get_type();
+        // 获取一元运算符位置和类型
         std::size_t line = current_token_.get_line();
         std::size_t column = current_token_.get_column();
+        TokenType op_token_type = current_token_.get_type();
 
         // 消耗一元运算符
         advance();
 
+        // 创建一元运算符表达式节点
         auto expr = std::make_unique<UnaryExpr>(line, column);
 
-        // 设置运算符类型
+        // 设置一元运算符类型
         switch (op_token_type) {
             case TokenType::DB_NOT:
-                expr->set_op_type(UnaryOperatorType::DB_NOT);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_NOT);
                 break;
             case TokenType::DB_PLUS:
-                expr->set_op_type(UnaryOperatorType::DB_PLUS);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_PLUS);
                 break;
             case TokenType::DB_MINUS:
-                expr->set_op_type(UnaryOperatorType::DB_MINUS);
+                expr->set_operator_type(UnaryExpr::OperatorType::DB_MINUS);
                 break;
-            default:
-                // 理论上不会到这里
+            default: {
                 error("Unexpected token in unary expression: " + current_token_.to_string());
+                return nullptr;
+            }
         }
 
-        // 递归解析操作数（仍然是 unary_expression，保证右结合）
+        // 递归解析操作数
         auto operand = parse_unary_expression();
         expr->set_operand(std::move(operand));
 
+        // 一元运算符表达式解析完毕
         return expr;
     }
 
@@ -1290,13 +1536,20 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
         return expr;
     }
 
+    // 向量字面量，格式为 [1, 2, 3]
+    if (check(TokenType::DB_LEFT_BRACKET)) {
+        return parse_vector_literal();
+    }
+
     // 标识符：可能是函数调用或普通标识符
     if (check(TokenType::DB_IDENTIFIER)) {
-        // 通过 Lexer 的 peek_token 判断是否为函数调用
+        // 通过 peek_token 判断是否为函数调用
         Token next = lexer_->peek_token();
         if (next.get_type() == TokenType::DB_LEFT_PAREN) {
+            // 发现 '('，尝试解析为函数调用
             return parse_function_call();
         } else {
+            // 否则解析为普通标识符
             return parse_identifier_expr();
         }
     }
@@ -1317,14 +1570,10 @@ std::unique_ptr<AstNode> Parser::parse_primary_expression()
 
 std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
 {
-    // 当前 token 应该是函数名（标识符）
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected function name before '(' in function call, but got: " + current_token_.to_string());
-    }
-
-    std::string function_name = current_token_.get_value();
+    // 获取函数表达式位置信息和函数名
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
+    std::string function_name = current_token_.get_value();
 
     // 消耗函数名
     advance();
@@ -1332,65 +1581,69 @@ std::unique_ptr<FunctionCallExpr> Parser::parse_function_call()
     // 期望 '('
     consume(TokenType::DB_LEFT_PAREN, "Expected '(' after function name");
 
+    // 创建函数调用表达式节点
     auto func = std::make_unique<FunctionCallExpr>(line, column);
     func->set_function_name(function_name);
 
     // 处理无参数情况：立即遇到 ')'
     if (check(TokenType::DB_RIGHT_PAREN)) {
-        advance(); // 消耗 ')'
+        // 消耗 ')'
+        advance();
+        // 函数调用表达式解析完毕
         return func;
     }
 
-    // 解析第一个参数
-    func->add_argument(parse_expression());
-
-    // 解析后续参数
-    while (match(TokenType::DB_COMMA)) {
+    // 解析参数列表
+    do {
         func->add_argument(parse_expression());
-    }
+    } while (match(TokenType::DB_COMMA));
 
     // 期望 ')'
     consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after function arguments");
 
+    // 函数调用表达式解析完毕
     return func;
 }
 
 std::unique_ptr<IdentifierExpr> Parser::parse_identifier_expr()
 {
-    if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected identifier, but got: " + current_token_.to_string());
-    }
-
+    // 获取标识符位置信息和第一个标识符部分
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     std::string first_part = current_token_.get_value();
 
+    // 创建标识符表达式节点
     auto ident = std::make_unique<IdentifierExpr>(line, column);
-    ident->set_type(IdentifierType::COLUMN); // 默认视为列名，后续可根据上下文调整
+    // 标识符类型通过默认构造设置为 COLUMN
     ident->add_part(first_part);
-    ident->set_original_text(first_part);
+    ident->set_original_identifier(first_part);
 
     // 消耗第一个标识符
     advance();
 
-    // 处理限定名：schema.table.column
+    // 处理限定名：schema.collection.column
     while (match(TokenType::DB_DOT)) {
+        // 期望标识符
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected identifier after '.', but got: " + current_token_.to_string());
+            return nullptr;
         }
-        std::string part = current_token_.get_value();
-        ident->add_part(part);
-        // 更新 original_text 表示完整限定名
-        ident->set_original_text(ident->get_original_text() + "." + part);
+        std::string next_part = current_token_.get_value();
+        ident->add_part(next_part);
+        // 更新 original_identifier 表示完整限定名
+        ident->set_original_identifier(ident->get_original_identifier() + "." + next_part);
 
+        // 消耗标识符
         advance();
     }
 
+    // 标识符表达式解析完毕
     return ident;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_literal_expr()
 {
+    // 根据当前 token 类型解析字面量
     switch (current_token_.get_type()) {
         case TokenType::DB_STRING_LITERAL:
             return parse_string_literal();
@@ -1401,111 +1654,188 @@ std::unique_ptr<LiteralExpr> Parser::parse_literal_expr()
             return parse_boolean_literal();
         case TokenType::DB_NULL:
             return parse_null_literal();
-        default:
+        default: {
             error("Expected literal expression, but got: " + current_token_.to_string());
             return nullptr;
+        }
     }
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_string_literal()
 {
-    if (!check(TokenType::DB_STRING_LITERAL)) {
-        error("Expected string literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取字符串字面量位置信息和字符串值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     std::string value = current_token_.get_value();
 
+    // 创建字符串字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::STRING);
-    literal->set_value(LiteralValue{value});
+    literal->set_literal_type(LiteralExpr::LiteralType::STRING);
+    literal->set_literal_value(LiteralExpr::LiteralValue{value});
 
-    advance(); // 消耗字面量 token
+    // 消耗字符串字面量
+    advance();
+
+    // 字符串字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_number_literal()
 {
-    if (!check(TokenType::DB_NUMBER_LITERAL)) {
-        error("Expected number literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取数字字面量位置信息和数字值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
     const std::string & text = current_token_.get_value();
 
+    // 创建数字字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
 
+    // 解析数字字面量
     try {
-        // 判断是否为浮点数：包含 '.' 或 'e'/'E'
-        bool is_float = (text.find('.') != std::string::npos) ||
-                        (text.find('e') != std::string::npos) ||
-                        (text.find('E') != std::string::npos);
+        // 判断是否为浮点数，暂不支持科学计数法解析，如需支持，需要修改 Lexer::read_number()
+        // Lexer 确保如果存在小数点，则必然存在小数部分
+        bool is_float = (text.find('.') != std::string::npos);
 
         if (is_float) {
             double v = std::stod(text);
-            literal->set_literal_type(LiteralType::FLOAT);
-            literal->set_value(LiteralValue{v});
+            literal->set_literal_type(LiteralExpr::LiteralType::FLOAT);
+            literal->set_literal_value(LiteralExpr::LiteralValue{v});
         } else {
             long long v = std::stoll(text);
-            literal->set_literal_type(LiteralType::INTERGER);
-            literal->set_value(LiteralValue{static_cast<std::int64_t>(v)});
+            literal->set_literal_type(LiteralExpr::LiteralType::INTEGER);
+            literal->set_literal_value(LiteralExpr::LiteralValue{static_cast<std::int64_t>(v)});
         }
     } catch (const std::exception & e) {
         error(std::string("Invalid number literal '") + text + "': " + e.what());
+        return nullptr;
     }
 
-    advance(); // 消耗字面量 token
+    // 消耗数字字面量
+    advance();
+
+    // 数字字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_boolean_literal()
 {
-    if (!check(TokenType::DB_TRUE) && !check(TokenType::DB_FALSE)) {
-        error("Expected boolean literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取布尔字面量位置信息和布尔值
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
-    std::string text = current_token_.get_value();
 
-    // 转为大写进行比较
-    std::transform(text.begin(), text.end(), text.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-
+    // 根据 token 类型确定布尔值
     bool value;
-    if (text == "TRUE") {
+    if (current_token_.get_type() == TokenType::DB_TRUE) {
         value = true;
-    } else if (text == "FALSE") {
+    } else if (current_token_.get_type() == TokenType::DB_FALSE) {
         value = false;
     } else {
-        error("Invalid boolean literal: " + current_token_.to_string());
+        error("Expected TRUE or FALSE, but got: " + current_token_.to_string());
         return nullptr;
     }
 
+    // 创建布尔字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::BOOLEAN);
-    literal->set_value(LiteralValue{value});
+    literal->set_literal_type(LiteralExpr::LiteralType::BOOLEAN);
+    literal->set_literal_value(LiteralExpr::LiteralValue{value});
 
-    advance(); // 消耗字面量 token
+    // 消耗布尔字面量
+    advance();
+
+    // 布尔字面量解析完毕
     return literal;
 }
 
 std::unique_ptr<LiteralExpr> Parser::parse_null_literal()
 {
-    if (!check(TokenType::DB_NULL)) {
-        error("Expected NULL literal, but got: " + current_token_.to_string());
-    }
-
+    // 获取空值字面量位置信息
     std::size_t line = current_token_.get_line();
     std::size_t column = current_token_.get_column();
 
+    // 创建空值字面量表达式节点
     auto literal = std::make_unique<LiteralExpr>(line, column);
-    literal->set_literal_type(LiteralType::NULL_VALUE);
-    literal->set_null(true);
+    literal->set_literal_type(LiteralExpr::LiteralType::NULL_VALUE);
+    literal->set_literal_value(LiteralExpr::LiteralValue{Null{}});
 
-    advance(); // 消耗 NULL token
+    // 消耗空值字面量
+    advance();
+
+    // 空值字面量解析完毕
+    return literal;
+}
+
+std::unique_ptr<LiteralExpr> Parser::parse_vector_literal()
+{
+    // 获取向量字面量位置信息和向量值
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建向量字面量表达式节点
+    auto literal = std::make_unique<LiteralExpr>(line, column);
+
+    // 开始解析向量字面量
+    // 期望 '['
+    consume(TokenType::DB_LEFT_BRACKET, "Expected '[' at start of vector literal");
+
+    // 解析向量元素列表
+    std::vector<float> values;
+
+    // 如果下一个字符是 ']'，则处理空向量的情况
+    if (check(TokenType::DB_RIGHT_BRACKET)) {
+        // 消耗 ']'
+        advance();
+
+        // 设置向量类型和值
+        literal->set_literal_type(LiteralExpr::LiteralType::VECTOR);
+        literal->set_literal_value(LiteralExpr::LiteralValue{values});
+        return literal;
+    }
+
+    // 解析向量元素，至少包含一个元素
+    do {
+        // 期望数字字面量
+        if (!check(TokenType::DB_NUMBER_LITERAL)) {
+            error("Expected number in vector literal, but got: " + current_token_.to_string());
+            return nullptr;
+        }
+
+        // 解析数字
+        const std::string & number_text = current_token_.get_value();
+        try {
+            // 向量元素必须是浮点数（即使输入是整数，也转换为浮点数）
+            double v = std::stod(number_text);
+            values.push_back(static_cast<float>(v));
+        } catch (const std::exception & e) {
+            error(std::string("Invalid number in vector literal '") + number_text + "': " + e.what());
+            return nullptr;
+        }
+
+        // 消耗数字字面量
+        advance();
+
+        // 如果遇到 ']'，结束解析
+        if (check(TokenType::DB_RIGHT_BRACKET)) {
+            break;
+        }
+
+        // 期望 ',' 分隔符
+        consume(TokenType::DB_COMMA, "Expected ',' or ']' after vector element");
+
+        // 如果遇到 ']'，结束解析（处理末尾逗号的情况）
+        if (check(TokenType::DB_RIGHT_BRACKET)) {
+            break;
+        }
+
+    } while (true);
+
+    // 期望 ']'
+    consume(TokenType::DB_RIGHT_BRACKET, "Expected ']' at end of vector literal");
+
+    // 设置向量类型和值
+    literal->set_literal_type(LiteralExpr::LiteralType::VECTOR);
+    literal->set_literal_value(LiteralExpr::LiteralValue{values});
+
+    // 向量字面量解析完毕
     return literal;
 }
 
@@ -1516,6 +1846,7 @@ ColumnDefinition Parser::parse_column_definition()
     // 解析列名
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected column name, but got: " + current_token_.to_string());
+        return ColumnDefinition();
     }
     std::string column_name = current_token_.get_value();
     col_def.set_name(column_name);
@@ -1538,6 +1869,7 @@ ColumnDefinition Parser::parse_column_definition()
             // 解析长度参数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number in type parameter, but got: " + current_token_.to_string());
+                return ColumnDefinition();
             }
             int length = std::stoi(current_token_.get_value());
             col_def.set_length(length);
@@ -1556,6 +1888,7 @@ ColumnDefinition Parser::parse_column_definition()
             // 解析长度参数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number in type parameter, but got: " + current_token_.to_string());
+                return ColumnDefinition();
             }
             int length = std::stoi(current_token_.get_value());
             col_def.set_length(length);
@@ -1568,6 +1901,7 @@ ColumnDefinition Parser::parse_column_definition()
             // 解析精度参数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number in type parameter, but got: " + current_token_.to_string());
+                return ColumnDefinition();
             }
             int precision = std::stoi(current_token_.get_value());
             col_def.set_precision(precision);
@@ -1588,6 +1922,7 @@ ColumnDefinition Parser::parse_column_definition()
             do {
                 if (!check(TokenType::DB_IDENTIFIER)) {
                     error("Expected identifier in options, but got: " + current_token_.to_string());
+                    return ColumnDefinition();
                 }
                 std::string option = current_token_.get_value();
                 options.push_back(option);
@@ -1635,6 +1970,7 @@ FieldType Parser::parse_field_type()
     // 解析字段类型关键字
     if (!check(TokenType::DB_IDENTIFIER)) {
         error("Expected field type, but got: " + current_token_.to_string());
+        return FieldType::TINYINT;
     }
 
     std::string type_name = current_token_.get_value();
@@ -1675,6 +2011,7 @@ FieldType Parser::parse_field_type()
         return FieldType::VECTOR;
     } else {
         error("Unknown field type: " + type_name);
+        return FieldType::TINYINT;
     }
 }
 
@@ -1684,6 +2021,7 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
         // 解析参数名
         if (!check(TokenType::DB_IDENTIFIER)) {
             error("Expected parameter name in WITH clause, but got: " + current_token_.to_string());
+            return;
         }
         std::string param_name = current_token_.get_value();
         // 转为小写进行比较
@@ -1703,6 +2041,7 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
             // nlist 必须是整数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number for nlist parameter, but got: " + current_token_.to_string());
+                return;
             }
             int nlist_value = std::stoi(current_token_.get_value());
             with_clause.nlist = static_cast<std::int32_t>(nlist_value);
@@ -1712,6 +2051,7 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
             // M 必须是整数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number for M parameter, but got: " + current_token_.to_string());
+                return;
             }
             int m_value = std::stoi(current_token_.get_value());
             with_clause.M = static_cast<std::int32_t>(m_value);
@@ -1721,6 +2061,7 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
             // ef_construction 必须是整数
             if (!check(TokenType::DB_NUMBER_LITERAL)) {
                 error("Expected number for ef_construction parameter, but got: " + current_token_.to_string());
+                return;
             }
             int ef_value = std::stoi(current_token_.get_value());
             with_clause.ef_construction = static_cast<std::int32_t>(ef_value);
@@ -1730,6 +2071,7 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
             // metric 必须是字符串
             if (!check(TokenType::DB_STRING_LITERAL)) {
                 error("Expected string for metric parameter, but got: " + current_token_.to_string());
+                return;
             }
             std::string metric_str = current_token_.get_value();
             // 转为大写进行比较
@@ -1748,11 +2090,13 @@ void Parser::parse_vindex_with_clause(VIndexWithClause & with_clause)
                 with_clause.metric = MetricType::COSINE;
             } else {
                 error("Invalid metric value: " + metric_str + ". Expected L2, IP, or COSINE");
+                return;
             }
             // 消耗字符串
             advance();
         } else {
             error("Unknown parameter name in WITH clause: " + param_name + ". Expected nlist, M, ef_construction, or metric");
+            return;
         }
 
         // 如果遇到 ','，继续解析下一个参数
