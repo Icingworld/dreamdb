@@ -257,6 +257,52 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
         stmt->set_where_clause(std::move(where_expr));
     }
 
+    // 解析可选的 GROUP BY 子句
+    if (match(TokenType::DB_GROUP)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after GROUP");
+
+        // 解析 GROUP BY 表达式列表（至少需要一个表达式）
+        do {
+            auto expr = parse_expression();
+            stmt->add_group_by_expression(std::move(expr));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 解析可选的 HAVING 子句
+    if (match(TokenType::DB_HAVING)) {
+        auto having_expr = parse_expression();
+        stmt->set_having_clause(std::move(having_expr));
+    }
+
+    // 解析可选的 ORDER BY 子句
+    if (match(TokenType::DB_ORDER)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after ORDER");
+
+        // 解析 ORDER BY 项列表（至少需要一项）
+        do {
+            // 解析排序表达式
+            auto expr = parse_expression();
+
+            // 创建 OrderByItem
+            OrderByItem order_item;
+            order_item.set_expression(std::move(expr));
+
+            // 解析可选的 ASC 或 DESC
+            if (match(TokenType::DB_ASC)) {
+                order_item.set_order_type(OrderByItem::OrderType::ASC);
+            } else if (match(TokenType::DB_DESC)) {
+                order_item.set_order_type(OrderByItem::OrderType::DESC);
+            } else {
+                // 如果不指定排序类型，默认使用 ASC
+                order_item.set_order_type(OrderByItem::OrderType::ASC);
+            }
+
+            stmt->add_order_by_item(std::move(order_item));
+        } while (match(TokenType::DB_COMMA));
+    }
+
     // 解析可选的 LIMIT 子句
     if (match(TokenType::DB_LIMIT)) {
         // LIMIT 后必须是数字字面量

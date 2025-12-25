@@ -83,9 +83,6 @@ std::string Token::to_string() const
         case TokenType::DB_DESCRIBE:
             result += "DESCRIBE";
             break;
-        case TokenType::DB_DESC:
-            result += "DESC";
-            break;
         case TokenType::DB_ADD:
             result += "ADD";
             break;
@@ -190,6 +187,15 @@ std::string Token::to_string() const
             break;
         case TokenType::DB_ASC:
             result += "ASC";
+            break;
+        case TokenType::DB_DESC:
+            result += "DESC";
+            break;
+        case TokenType::DB_GROUP:
+            result += "GROUP";
+            break;
+        case TokenType::DB_HAVING:
+            result += "HAVING";
             break;
         case TokenType::DB_BETWEEN:
             result += "BETWEEN";

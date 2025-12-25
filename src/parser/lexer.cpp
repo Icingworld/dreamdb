@@ -451,6 +451,12 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "DESC") {
         return TokenType::DB_DESC;
     }
+    if (upper_keyword == "GROUP") {
+        return TokenType::DB_GROUP;
+    }
+    if (upper_keyword == "HAVING") {
+        return TokenType::DB_HAVING;
+    }
     if (upper_keyword == "BETWEEN") {
         return TokenType::DB_BETWEEN;
     }
