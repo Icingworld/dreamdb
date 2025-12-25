@@ -487,6 +487,21 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
     if (upper_keyword == "NULL") {
         return TokenType::DB_NULL;
     }
+    if (upper_keyword == "BTREE") {
+        return TokenType::DB_BTREE;
+    }
+    if (upper_keyword == "HASH") {
+        return TokenType::DB_HASH;
+    }
+    if (upper_keyword == "FLAT") {
+        return TokenType::DB_FLAT;
+    }
+    if (upper_keyword == "IVF_FLAT") {
+        return TokenType::DB_IVF_FLAT;
+    }
+    if (upper_keyword == "HNSW") {
+        return TokenType::DB_HNSW;
+    }
 
     return TokenType::DB_IDENTIFIER;
 }

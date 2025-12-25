@@ -33,7 +33,7 @@ std::size_t Token::get_column() const noexcept
 
 bool Token::is_keyword() const noexcept
 {
-    return type_ >= TokenType::DB_SELECT && type_ <= TokenType::DB_WITH;
+    return type_ >= TokenType::DB_SELECT && type_ <= TokenType::DB_HNSW;
 }
 
 bool Token::is_operator() const noexcept
