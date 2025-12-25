@@ -840,12 +840,12 @@ Error: Unknown collection 'collection_name'
 **语法**
 
 ```sql
-SELECT <column_list> 
-FROM <collection_name> 
-[WHERE <condition>] 
+SELECT <column_list>
+FROM <collection_name>
+[WHERE <condition>]
 [GROUP BY <column> [, <column> ...]]
 [HAVING <condition>]
-[ORDER BY <column> [ASC | DESC] [, <column> [ASC | DESC] ...]] 
+[ORDER BY <column> [ASC | DESC] [, <column> [ASC | DESC] ...]]
 [LIMIT <limit>];
 ```
 
