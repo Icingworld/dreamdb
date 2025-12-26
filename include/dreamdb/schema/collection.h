@@ -2,8 +2,10 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "dreamdb/schema/field.h"
 #include "dreamdb/schema/entity.h"
@@ -65,6 +67,13 @@ public:
      */
     const std::vector<Field> & get_schema() const;
 
+    /**
+     * @brief 获取字段索引
+     * @param name 字段名称
+     * @return 字段索引
+     */
+    std::optional<std::size_t> get_field_index(const std::string & name) const;
+
 public:
     /** 实体操作接口 */
 
@@ -109,6 +118,7 @@ public:
 private:
     std::string name_;                                  // 集合名称
     std::vector<Field> schema_;                         // 字段定义列表
+    std::unordered_map<std::string, std::size_t> field_index_map_; // 字段索引映射
     std::int64_t next_id_;                              // 自增 ID 生成器
     std::unique_ptr<SegmentManager> segment_manager_;   // 段管理器
     std::shared_ptr<Segment> active_segment_;           // 当前活动段

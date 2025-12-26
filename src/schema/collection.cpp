@@ -13,10 +13,15 @@ Collection::Collection(
 )
     : name_(name)
     , schema_(schema)
+    , field_index_map_()
     , next_id_(1)
     , segment_manager_(std::move(segment_manager))
     , active_segment_(segment_manager_->create_segment())
 {
+    // 初始化字段映射表
+    for (std::size_t i = 0; i < schema.size(); ++i) {
+        field_index_map_[schema[i].get_name()] = i;
+    }
 }
 
 Collection::~Collection() = default;
@@ -34,6 +39,16 @@ const std::string & Collection::get_name() const
 const std::vector<Field> & Collection::get_schema() const
 {
     return schema_;
+}
+
+std::optional<std::size_t> Collection::get_field_index(const std::string & name) const
+{
+    auto it = field_index_map_.find(name);
+    if (it != field_index_map_.end()) {
+        return it->second;
+    }
+
+    return std::nullopt;
 }
 
 Entity Collection::create_entity()

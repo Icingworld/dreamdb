@@ -1,5 +1,7 @@
 #include "dreamdb/executor/executor.h"
 
+#include <algorithm>
+
 #include "dreamdb/parser/ast/select_stmt.h"
 #include "dreamdb/parser/ast/delete_stmt.h"
 #include "dreamdb/parser/ast/insert_stmt.h"
@@ -12,6 +14,7 @@
 #include "dreamdb/parser/ast/alter_stmt.h"
 #include "dreamdb/schema/database.h"
 #include "dreamdb/schema/collection.h"
+#include "dreamdb/parser/ast/literal_expr.h"
 
 namespace dreamdb
 {
@@ -125,11 +128,185 @@ ExecutorResult Executor::execute_delete(const DeleteStmt &)
     return result;
 }
 
-ExecutorResult Executor::execute_insert(const InsertStmt &)
+ExecutorResult Executor::execute_insert(const InsertStmt & insert_stmt)
 {
+    // 获取插入的集合名称
+    const std::string & collection_name = insert_stmt.get_collection_name();
+
+    // 获取插入的列名
+    const std::vector<std::string> & column_names = insert_stmt.get_column_names();
+    // 获取插入的值
+    const std::vector<std::unique_ptr<AstNode>> & values = insert_stmt.get_values();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_insert not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 获取集合的 Schema
+    const std::vector<Field> & schema = collection->get_schema();
+
+    // 检查值和列名的数量匹配
+    if (!column_names.empty() && column_names.size() != values.size()) {
+        result.set_is_success(false);
+        result.set_message("Number of columns and values do not match");
+        return result;
+    }
+
+    // 创建实体
+    Entity entity = collection->create_entity();
+    // 记录是否提供值
+    std::vector<bool> is_filled(schema.size(), false);
+
+    if (column_names.empty()) {
+        // 按表结构顺序插入
+        if (values.size() != schema.size()) {
+            result.set_is_success(false);
+            result.set_message("Number of values does not match number of columns");
+            return result;
+        }
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            // 转换 AstNode 为 FieldValue
+            FieldType field_type = schema[i].get_type();
+            FieldValue field_value = ast_to_field_value(values[i].get(), field_type);
+            
+            is_filled[i] = true;
+            entity.set_value(i, field_value);
+        }
+    } else {
+        // 填充已有的列名和值
+        for (std::size_t i = 0; i < column_names.size(); ++i) {
+            const std::string & column_name = column_names[i];
+            const std::unique_ptr<AstNode> & value = values[i];
+            
+            // 找到该列的索引
+            std::optional<std::size_t> index = collection->get_field_index(column_name);
+            if (!index.has_value()) {
+                result.set_is_success(false);
+                result.set_message("Unknown column: '" + column_name + "'");
+                return result;
+            }
+            
+            // 检查重复列名
+            if (is_filled[index.value()]) {
+                result.set_is_success(false);
+                result.set_message("Duplicate column: '" + column_name + "'");
+                return result;
+            }
+            
+            // 转换 AstNode 为 FieldValue
+            FieldType field_type = schema[index.value()].get_type();
+            FieldValue field_value = ast_to_field_value(value.get(), field_type);
+
+            is_filled[index.value()] = true;
+            entity.set_value(index.value(), field_value);
+        }
+    }
+
+    // 统一验证实体合法性
+    for (std::size_t i = 0; i < schema.size(); ++i) {
+        if (is_filled[i]) {
+            // 已填充，验证值的合法性
+            const FieldValue & value = entity.get_value(i);
+
+            // 验证 NULL 约束
+            if (std::holds_alternative<Null>(value) && !schema[i].get_is_nullable()) {
+                result.set_is_success(false);
+                result.set_message("Field '" + schema[i].get_name() + "' cannot be NULL");
+                return result;
+            }
+
+            // 验证 ENUM 约束（仅在非 NULL 时验证）
+            if (schema[i].get_type() == FieldType::ENUM && !std::holds_alternative<Null>(value)) {
+                if (!std::holds_alternative<std::string>(value)) {
+                    result.set_is_success(false);
+                    result.set_message("Field '" + schema[i].get_name() + "' must be a string");
+                    return result;
+                }
+                const std::vector<std::string> & options = schema[i].get_options();
+                const std::string & str_value = std::get<std::string>(value);
+                if (std::find(options.begin(), options.end(), str_value) == options.end()) {
+                    result.set_is_success(false);
+                    result.set_message("Invalid value for field '" + schema[i].get_name() + "': '" + str_value + "'");
+                    return result;
+                }
+            }
+
+            // 验证字符串长度约束
+            if ((schema[i].get_type() == FieldType::VARCHAR || schema[i].get_type() == FieldType::CHAR)
+                && !std::holds_alternative<Null>(value)) {
+                if (!std::holds_alternative<std::string>(value)) {
+                    result.set_is_success(false);
+                    result.set_message("Field '" + schema[i].get_name() + "' must be a string");
+                    return result;
+                }
+                const std::string & str_value = std::get<std::string>(value);
+                if (static_cast<int>(str_value.length()) > schema[i].get_length()) {
+                    result.set_is_success(false);
+                    result.set_message("Field '" + schema[i].get_name() + "' exceeds maximum length " 
+                                     + std::to_string(schema[i].get_length()));
+                    return result;
+                }
+            }
+
+            // 验证 PRIMARY KEY 约束
+            // TODO: 实现 PRIMARY KEY 约束验证
+        } else {
+            // 未填充，验证默认值、自动递增、NULL 检查
+
+            // 验证自动递增
+            if (schema[i].get_is_auto_increment()) {
+                // TODO: 实现自动递增
+                continue;
+            }
+
+            // 允许 NULL，验证默认值
+            const FieldValue & default_value = schema[i].get_default_value();
+            // 当前实现中，不设置默认值时，默认值为 Null()
+            if (!std::holds_alternative<Null>(default_value)) {
+                // 有默认值，使用默认值，无论是否允许 NULL
+                entity.set_value(i, default_value);
+                continue;
+            }
+
+            // 验证 NULL 约束
+            if (!schema[i].get_is_nullable()) {
+                // 不允许 NULL，且没有默认值，报错
+                result.set_is_success(false);
+                result.set_message("Field '" + schema[i].get_name() + "' is required but not provided");
+                return result;
+            }
+
+            // 允许 NULL，且没有默认值，设置为 NULL
+            // Entity 构造函数已初始化为 Null()，无需设置
+            // entity.set_value(i, Null());
+        }
+    }
+
+    // 验证合法，执行插入
+    MutationResult mutation_result = collection->insert(entity);
+    if (!mutation_result.is_success()) {
+        result.set_is_success(false);
+        result.set_message(mutation_result.get_error_message());
+        return result;
+    }
+
+    result.set_is_success(true);
+    result.set_message("Inserted " + std::to_string(mutation_result.get_affected_count()) + " rows");
+    result.set_affected_count(1);
     return result;
 }
 
@@ -218,8 +395,16 @@ ExecutorResult Executor::execute_describe(const DescribeStmt & describe_stmt)
 
     ExecutorResult result;
 
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
     // 获取集合
-    Collection * collection = get_collection(collection_name);
+    Collection * collection = database->get_collection(collection_name);
 
     if (collection == nullptr) {
         result.set_is_success(false);
@@ -412,15 +597,12 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
         // 处理 options：如果是 optional，有值则使用，否则传空 vector
         const auto & options_opt = column_definition.get_options();
         const std::vector<std::string> & options = options_opt.has_value() ? options_opt.value() : std::vector<std::string>{};
-        
-        // 处理 default_value：AST 节点暂时转换为 Null()，后续需要实现 AST 到 FieldValue 的转换
-        // TODO: 实现 AST 节点到 FieldValue 的转换
+
         FieldValue default_value = Null();
         const AstNode * default_ast = column_definition.get_default_value();
         if (default_ast != nullptr) {
-            // 这里需要实现 AST 节点到 FieldValue 的转换逻辑
-            // 暂时使用 Null() 作为占位符
-            default_value = Null();
+            // 使用字段类型进行类型转换
+            default_value = ast_to_field_value(default_ast, column_definition.get_type());
         }
 
         fields.emplace_back(
@@ -588,24 +770,106 @@ ExecutorResult Executor::execute_show_vindexes(const ShowStmt &)
     return result;
 }
 
+FieldValue Executor::ast_to_field_value(const AstNode * ast_node, std::optional<FieldType> target_field_type)
+{
+    if (ast_node == nullptr) {
+        return Null();
+    }
+
+    // 目前只支持字面量表达式
+    if (ast_node->get_type() != AstNodeType::LITERAL_EXPR) {
+        // TODO: 未来可能需要支持其他表达式类型（如函数调用、计算表达式等）
+        return Null();
+    }
+
+    const LiteralExpr * literal = static_cast<const LiteralExpr *>(ast_node);
+    const auto & literal_value = literal->get_literal_value();
+    LiteralExpr::LiteralType literal_type = literal->get_literal_type();
+
+    // 根据字面量类型和目标字段类型进行转换
+    switch (literal_type) {
+        case LiteralExpr::LiteralType::INTEGER: {
+            std::int64_t int_val = std::get<std::int64_t>(literal_value);
+
+            // 如果有目标类型，进行类型转换
+            if (target_field_type.has_value()) {
+                switch (target_field_type.value()) {
+                    case FieldType::TINYINT:
+                        return static_cast<std::int8_t>(int_val);
+                    case FieldType::SMALLINT:
+                        return static_cast<std::int16_t>(int_val);
+                    case FieldType::INTEGER:
+                        return static_cast<std::int32_t>(int_val);
+                    case FieldType::BIGINT:
+                    case FieldType::TIMESTAMP:
+                        return int_val;
+                    case FieldType::FLOAT:
+                        return static_cast<float>(int_val);
+                    case FieldType::DOUBLE:
+                        return static_cast<double>(int_val);
+                    default:
+                        // 对于其他类型，返回 BIGINT
+                        return int_val;
+                }
+            }
+            // 没有目标类型，默认返回 BIGINT
+            return int_val;
+        }
+
+        case LiteralExpr::LiteralType::FLOAT: {
+            double float_val = std::get<double>(literal_value);
+            
+            if (target_field_type.has_value()) {
+                switch (target_field_type.value()) {
+                    case FieldType::FLOAT:
+                        return static_cast<float>(float_val);
+                    case FieldType::DOUBLE:
+                        return float_val;
+                    case FieldType::TINYINT:
+                        return static_cast<std::int8_t>(float_val);
+                    case FieldType::SMALLINT:
+                        return static_cast<std::int16_t>(float_val);
+                    case FieldType::INTEGER:
+                        return static_cast<std::int32_t>(float_val);
+                    case FieldType::BIGINT:
+                        return static_cast<std::int64_t>(float_val);
+                    default:
+                        return float_val;
+                }
+            }
+            return float_val;
+        }
+
+        case LiteralExpr::LiteralType::STRING: {
+            const std::string & str_val = std::get<std::string>(literal_value);
+            // 字符串直接返回，适用于 CHAR, VARCHAR, ENUM
+            return str_val;
+        }
+
+        case LiteralExpr::LiteralType::BOOLEAN: {
+            bool bool_val = std::get<bool>(literal_value);
+            return bool_val;
+        }
+
+        case LiteralExpr::LiteralType::NULL_VALUE: {
+            return Null();
+        }
+
+        case LiteralExpr::LiteralType::VECTOR: {
+            const std::vector<float> & vec_val = std::get<std::vector<float>>(literal_value);
+            return vec_val;
+        }
+
+        default:
+            return Null();
+    }
+}
+
 Database * Executor::get_current_database()
 {
     // 统一入口，未来可以在这里注入事务等上下文
     // 例如：检查事务状态、获取事务相关的数据库视图等
     return database_manager_->get_current_database();
-}
-
-Collection * Executor::get_collection(const std::string & name)
-{
-    // 统一入口，未来可以在这里注入事务等上下文
-    // 例如：返回事务感知的 Collection 包装器等
-
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        return nullptr;
-    }
-
-    return database->get_collection(name);
 }
 
 } // namespace dreamdb

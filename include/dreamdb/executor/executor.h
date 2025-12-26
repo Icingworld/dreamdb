@@ -291,6 +291,16 @@ private:
      */
     ExecutorResult execute_show_vindexes(const ShowStmt & show_stmt);
 
+    /** 辅助方法 */
+
+    /**
+     * @brief 将 AST 节点转换为 FieldValue
+     * @param ast_node AST 节点（必须是 LITERAL_EXPR）
+     * @param target_field_type 目标字段类型（可选，用于类型转换）
+     * @return FieldValue，如果转换失败则返回 Null()
+     */
+    FieldValue ast_to_field_value(const AstNode * ast_node, std::optional<FieldType> target_field_type = std::nullopt);
+
     /** 辅助方法 - 统一访问入口，便于未来扩展 */
 
     /**
@@ -299,14 +309,6 @@ private:
      * @details 统一入口，未来可以在这里注入事务等上下文
      */
     Database * get_current_database();
-
-    /**
-     * @brief 获取集合
-     * @param name 集合名称
-     * @return 集合指针，如果数据库未选择或集合不存在返回 nullptr
-     * @details 统一入口，未来可以在这里注入事务等上下文
-     */
-    Collection * get_collection(const std::string & name);
 
     /**
      * @brief 执行操作（模板方法，用于包装存储操作）
