@@ -365,7 +365,9 @@ ExecutorResult Executor::execute_alter(const AlterStmt &)
 ExecutorResult Executor::execute_create_database(const CreateStmt & create_stmt)
 {
     // 获取数据库名称
-    std::string database_name = create_stmt.get_object_name();
+    const std::string & database_name = create_stmt.get_object_name();
+    // 获取是否跳过存在性检查
+    const bool is_if_not_exists = create_stmt.get_is_if_not_exists();
 
     ExecutorResult result;
 
@@ -374,18 +376,81 @@ ExecutorResult Executor::execute_create_database(const CreateStmt & create_stmt)
         result.set_is_success(true);
         result.set_message("Database created");
     } else {
-        result.set_is_success(false);
-        result.set_message("Database '" + database_name + "' already exists");
+        if (is_if_not_exists) {
+            result.set_is_success(true);
+            result.set_message("Database already exists, skipping");
+        } else {
+            result.set_is_success(false);
+            result.set_message("Database '" + database_name + "' already exists");
+        }
     }
 
     return result;
 }
 
-ExecutorResult Executor::execute_create_collection(const CreateStmt &)
+ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stmt)
 {
+    // 获取集合名称
+    const std::string & collection_name = create_stmt.get_object_name();
+    // 获取是否跳过存在性检查
+    const bool is_if_not_exists = create_stmt.get_is_if_not_exists();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_create_collection not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 构造字段定义列表
+    std::vector<Field> fields;
+    const std::vector<ColumnDefinition> & column_definitions = create_stmt.get_column_definitions().value();
+    for (const auto & column_definition : column_definitions) {
+        // 处理 options：如果是 optional，有值则使用，否则传空 vector
+        const auto & options_opt = column_definition.get_options();
+        const std::vector<std::string> & options = options_opt.has_value() ? options_opt.value() : std::vector<std::string>{};
+        
+        // 处理 default_value：AST 节点暂时转换为 Null()，后续需要实现 AST 到 FieldValue 的转换
+        // TODO: 实现 AST 节点到 FieldValue 的转换
+        FieldValue default_value = Null();
+        const AstNode * default_ast = column_definition.get_default_value();
+        if (default_ast != nullptr) {
+            // 这里需要实现 AST 节点到 FieldValue 的转换逻辑
+            // 暂时使用 Null() 作为占位符
+            default_value = Null();
+        }
+
+        fields.emplace_back(
+            column_definition.get_name(),
+            column_definition.get_type(),
+            column_definition.get_length(),
+            column_definition.get_precision(),
+            options,
+            column_definition.get_is_nullable(),
+            column_definition.get_is_primary(),
+            column_definition.get_comment(),
+            default_value,
+            column_definition.get_is_auto_increment()
+        );
+    }
+
+    // 创建集合
+    if (database->create_collection(collection_name, fields)) {
+        result.set_is_success(true);
+        result.set_message("Collection created");
+    } else {
+        if (is_if_not_exists) {
+            result.set_is_success(true);
+            result.set_message("Collection already exists, skipping");
+        } else {
+            result.set_is_success(false);
+            result.set_message("Collection '" + collection_name + "' already exists");
+        }
+    }
+
     return result;
 }
 
