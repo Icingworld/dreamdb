@@ -50,5 +50,14 @@ bool CollectionManager::has_collection(const std::string & name) const
     return collections_.find(name) != collections_.end();
 }
 
+std::vector<std::string> CollectionManager::get_collections() const
+{
+    std::vector<std::string> collections;
+    for (const auto & [name, _] : collections_) {
+        collections.push_back(name);
+    }
+    return collections;
+}
+
 } // namespace dreamdb
 

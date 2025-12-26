@@ -231,6 +231,13 @@ private:
     ExecutorResult execute_create_index(const CreateStmt & create_stmt);
 
     /**
+     * @brief 执行 CREATE VINDEX 语句
+     * @param create_stmt 创建语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_create_vindex(const CreateStmt & create_stmt);
+
+    /**
      * @brief 执行 DROP DATABASE 语句
      * @param drop_stmt 删除语句节点
      * @return 执行结果
@@ -252,22 +259,27 @@ private:
     ExecutorResult execute_drop_index(const DropStmt & drop_stmt);
 
     /**
+     * @brief 执行 DROP VINDEX 语句
+     * @param drop_stmt 删除语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_drop_vindex(const DropStmt & drop_stmt);
+
+    /**
      * @brief 执行 SHOW DATABASES 语句
      * @param show_stmt 显示语句节点
      * @return 执行结果
      */
-    ExecutorResult execute_show_databases(const ShowStmt & show_stmt);
+    ExecutorResult execute_show_databases();
 
     /**
      * @brief 执行 SHOW COLLECTIONS 语句
-     * @param show_stmt 显示语句节点
      * @return 执行结果
      */
-    ExecutorResult execute_show_collections(const ShowStmt & show_stmt);
+    ExecutorResult execute_show_collections();
 
     /**
      * @brief 执行 SHOW INDEXES 语句
-     * @param show_stmt 显示语句节点
      * @return 执行结果
      */
     ExecutorResult execute_show_indexes(const ShowStmt & show_stmt);

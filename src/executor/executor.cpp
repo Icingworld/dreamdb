@@ -154,6 +154,8 @@ ExecutorResult Executor::execute_create(const CreateStmt & create_stmt)
             return execute_create_collection(create_stmt);
         case CreateStmt::CreateType::INDEX:
             return execute_create_index(create_stmt);
+        case CreateStmt::CreateType::VINDEX:
+            return execute_create_vindex(create_stmt);
         default: {
             ExecutorResult result;
             result.set_is_success(false);
@@ -170,10 +172,14 @@ ExecutorResult Executor::execute_drop(const DropStmt & drop_stmt)
 
     // 根据不同删除类型执行不同删除操作
     switch (drop_type) {
+        case DropStmt::DropType::DATABASE:
+            return execute_drop_database(drop_stmt);
         case DropStmt::DropType::COLLECTION:
             return execute_drop_collection(drop_stmt);
         case DropStmt::DropType::INDEX:
             return execute_drop_index(drop_stmt);
+        case DropStmt::DropType::VINDEX:
+            return execute_drop_vindex(drop_stmt);
         default: {
             ExecutorResult result;
             result.set_is_success(false);
@@ -193,14 +199,14 @@ ExecutorResult Executor::execute_use(const UseStmt & use_stmt)
     // 检查数据库是否存在
     if (!database_manager_->has_database(database_name)) {
         result.set_is_success(false);
-        result.set_message("Database: " + database_name + " does not exists");
+        result.set_message("Unknown database: '" + database_name + "'");
         return result;
     }
 
     // 设置当前数据库
     database_manager_->set_current_database(database_name);
     result.set_is_success(true);
-    result.set_message("Database switched to '" + database_name + "'");
+    result.set_message("Database changed");
 
     return result;
 }
@@ -217,7 +223,7 @@ ExecutorResult Executor::execute_describe(const DescribeStmt & describe_stmt)
 
     if (collection == nullptr) {
         result.set_is_success(false);
-        result.set_message("Collection: " + collection_name + " does not exists");
+        result.set_message("Unknown collection: '" + collection_name + "'");
         return result;
     }
 
@@ -332,9 +338,9 @@ ExecutorResult Executor::execute_show(const ShowStmt & show_stmt)
     // 根据不同显示类型执行不同显示操作
     switch (show_type) {
         case ShowStmt::ShowType::DATABASES:
-            return execute_show_databases(show_stmt);
+            return execute_show_databases();
         case ShowStmt::ShowType::COLLECTIONS:
-            return execute_show_collections(show_stmt);
+            return execute_show_collections();
         case ShowStmt::ShowType::INDEXES:
             return execute_show_indexes(show_stmt);
         case ShowStmt::ShowType::VINDEXES:
@@ -366,10 +372,10 @@ ExecutorResult Executor::execute_create_database(const CreateStmt & create_stmt)
     // 创建数据库
     if (database_manager_->create_database(database_name)) {
         result.set_is_success(true);
-        result.set_message("Database: " + database_name + " created successfully");
+        result.set_message("Database created");
     } else {
         result.set_is_success(false);
-        result.set_message("Database: " + database_name + " already exists");
+        result.set_message("Database '" + database_name + "' already exists");
     }
 
     return result;
@@ -391,20 +397,35 @@ ExecutorResult Executor::execute_create_index(const CreateStmt &)
     return result;
 }
 
+ExecutorResult Executor::execute_create_vindex(const CreateStmt &)
+{
+    ExecutorResult result;
+    result.set_is_success(false);
+    result.set_message("Executor::execute_create_vindex not implemented");
+    return result;
+}
+
 ExecutorResult Executor::execute_drop_database(const DropStmt & drop_stmt)
 {
     // 获取数据库名称
     std::string database_name = drop_stmt.get_object_name();
+
+    // 检查是否为当前数据库
+    Database * database = get_current_database();
+    if (database != nullptr && database->get_name() == database_name) {
+        // 是当前数据库，设置为空后再进行删除操作
+        database_manager_->set_current_database("");
+    }
 
     ExecutorResult result;
 
     // 删除该数据库
     if (database_manager_->drop_database(database_name)) {
         result.set_is_success(true);
-        result.set_message("Database '" + database_name + "' dropped successfully");
+        result.set_message("Database dropped");
     } else {
         result.set_is_success(false);
-        result.set_message("Database: " + database_name + " does not exists");
+        result.set_message("Unknown database: '" + database_name + "'");
     }
 
     return result;
@@ -427,11 +448,11 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
     // 删除集合
     if (database->drop_collection(collection_name)) {
         result.set_is_success(true);
-        result.set_message("Collection: " + collection_name + " dropped successfully");
+        result.set_message("Collection dropped");
     } else {
         // 集合不存在
         result.set_is_success(false);
-        result.set_message("Collection: " + collection_name + " does not exists");
+        result.set_message("Unknown collection: '" + collection_name + "'");
     }
 
     return result;
@@ -445,19 +466,44 @@ ExecutorResult Executor::execute_drop_index(const DropStmt &)
     return result;
 }
 
-ExecutorResult Executor::execute_show_databases(const ShowStmt &)
+ExecutorResult Executor::execute_drop_vindex(const DropStmt &)
 {
     ExecutorResult result;
     result.set_is_success(false);
-    result.set_message("Executor::execute_show_databases not implemented");
+    result.set_message("Executor::execute_drop_vindex not implemented");
     return result;
 }
 
-ExecutorResult Executor::execute_show_collections(const ShowStmt &)
+ExecutorResult Executor::execute_show_databases()
 {
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_show_collections not implemented");
+    result.set_is_success(true);
+    result.set_message("Databases:\n");
+    for (const std::string & database : database_manager_->get_databases()) {
+        result.set_message(database + "\n");
+    }
+    return result;
+}
+
+ExecutorResult Executor::execute_show_collections()
+{
+    ExecutorResult result;
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+
+    if (database == nullptr) {
+        // 没有选择数据库
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    result.set_is_success(true);
+    result.set_message("Collections:\n");
+    for (const std::string & collection : database->get_collections()) {
+        result.set_message(collection + "\n");
+    }
     return result;
 }
 

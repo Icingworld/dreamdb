@@ -38,4 +38,9 @@ bool Database::has_collection(const std::string & name) const
     return collection_manager_->has_collection(name);
 }
 
+std::vector<std::string> Database::get_collections() const
+{
+    return collection_manager_->get_collections();
+}
+
 } // namespace dreamdb

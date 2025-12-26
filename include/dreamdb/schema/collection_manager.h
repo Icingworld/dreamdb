@@ -63,6 +63,12 @@ public:
      */
     bool has_collection(const std::string & name) const;
 
+    /**
+     * @brief 获取集合列表
+     * @return 集合列表
+     */
+    std::vector<std::string> get_collections() const;
+
 private:
     std::unordered_map<std::string, std::unique_ptr<Collection>> collections_;          // 集合映射表
 };
