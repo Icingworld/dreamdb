@@ -2,9 +2,35 @@
 
 #include "dreamdb/parser/ast/literal_expr.h"
 #include "dreamdb/parser/ast/identifier_expr.h"
+#include "dreamdb/parser/ast/binary_expr.h"
 
 namespace dreamdb
 {
+
+// 辅助函数：将数值类型转换为 double
+namespace {
+    template<typename T>
+    double to_double_value(const T & value) {
+        if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+            return static_cast<double>(value);
+        } else if constexpr (std::is_same_v<T, Decimal>) {
+            return value.to_double();
+        } else {
+            // 不应该到达这里
+            return 0.0;
+        }
+    }
+    
+    template<typename T>
+    std::int64_t to_int64_value(const T & value) {
+        if constexpr (std::is_integral_v<T>) {
+            return static_cast<std::int64_t>(value);
+        } else {
+            // 不应该到达这里
+            return 0;
+        }
+    }
+}
 
 EvaluateResult::EvaluateResult() noexcept
     : value_(Null{})
@@ -298,8 +324,95 @@ EvaluateResult Evaluator::evaluate_binary(
     const EvaluatorContext & context
 ) const
 {
+    // 检查表达式是否为空
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
+    }
+
+    // 检查表达式类型
+    if (expr->get_type() != AstNodeType::BINARY_EXPR) {
+        return EvaluateResult::make_error("Invalid binary expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+    }
+
+    // 获取二元表达式
+    const BinaryExpr * binary = static_cast<const BinaryExpr *>(expr);
+    // 获取二元表达式类型和操作数
+    BinaryExpr::OperatorType operator_type = binary->get_operator_type();
+    const AstNode * left_expr = binary->get_left();
+    const AstNode * right_expr = binary->get_right();
+
+    // 递归评估左右操作数
+    EvaluateResult left_result = evaluate(left_expr, context);
+    EvaluateResult right_result = evaluate(right_expr, context);
+
+    // 如果左右操作数评估失败，返回错误
+    if (!left_result.get_is_success() || !right_result.get_is_success()) {
+        return EvaluateResult::make_error("Failed to evaluate binary expression: " + left_result.get_error_message() + " or " + right_result.get_error_message());
+    }
+
+    // 如果左右操作数评估成功，根据运算符类型进行计算
+    const FieldValue & left_value = left_result.get_value();
+    const FieldValue & right_value = right_result.get_value();
+
+    // 根据运算符类型进行计算
+    switch (operator_type) {
+        // 比较运算符
+        case BinaryExpr::OperatorType::DB_EQUAL:
+            return EvaluateResult::make_success(FieldValue(compare_values_equal(left_value, right_value)));
+        case BinaryExpr::OperatorType::DB_NOT_EQUAL:
+            return EvaluateResult::make_success(FieldValue(!compare_values_equal(left_value, right_value)));
+        case BinaryExpr::OperatorType::DB_GREATER_THAN: {
+            auto cmp = compare_values(left_value, right_value);
+            if (cmp.has_value()) {
+                return EvaluateResult::make_success(FieldValue(cmp.value() > 0));
+            } else {
+                return EvaluateResult::make_error("Cannot compare values of incompatible types");
+            }
+        }
+        case BinaryExpr::OperatorType::DB_LESS_THAN: {
+            auto cmp = compare_values(left_value, right_value);
+            if (cmp.has_value()) {
+                return EvaluateResult::make_success(FieldValue(cmp.value() < 0));
+            } else {
+                return EvaluateResult::make_error("Cannot compare values of incompatible types");
+            }
+        }
+        case BinaryExpr::OperatorType::DB_GREATER_EQUAL: {
+            auto cmp = compare_values(left_value, right_value);
+            if (cmp.has_value()) {
+                return EvaluateResult::make_success(FieldValue(cmp.value() >= 0));
+            } else {
+                return EvaluateResult::make_error("Cannot compare values of incompatible types");
+            }
+        }
+        case BinaryExpr::OperatorType::DB_LESS_EQUAL: {
+            auto cmp = compare_values(left_value, right_value);
+            if (cmp.has_value()) {
+                return EvaluateResult::make_success(FieldValue(cmp.value() <= 0));
+            } else {
+                return EvaluateResult::make_error("Cannot compare values of incompatible types");
+            }
+        }
+        // 逻辑运算符
+        case BinaryExpr::OperatorType::DB_AND: {
+            bool left = field_value_to_bool(left_value);
+            bool right = field_value_to_bool(right_value);
+            return EvaluateResult::make_success(FieldValue(left && right));
+        }
+        case BinaryExpr::OperatorType::DB_OR: {
+            bool left = field_value_to_bool(left_value);
+            bool right = field_value_to_bool(right_value);
+            return EvaluateResult::make_success(FieldValue(left || right));
+        }
+        // TODO: 算数运算符
+        case BinaryExpr::OperatorType::DB_PLUS:
+        case BinaryExpr::OperatorType::DB_MINUS:
+        case BinaryExpr::OperatorType::DB_MULTIPLY:
+        case BinaryExpr::OperatorType::DB_DIVIDE:
+        case BinaryExpr::OperatorType::DB_MODULO:
+            return EvaluateResult::make_error("Arithmetic operators not yet supported");
+        default:
+            return EvaluateResult::make_error("Unsupported binary operator: " + std::to_string(static_cast<std::uint8_t>(operator_type)));
     }
 }
 
@@ -401,6 +514,157 @@ bool Evaluator::field_value_to_bool(const FieldValue & value) const
             return false;
         }
     }, value);
+}
+
+bool Evaluator::compare_values_equal(const FieldValue & left, const FieldValue & right) const
+{
+    // 如果都是 NULL，则相等
+    if (std::holds_alternative<Null>(left) && std::holds_alternative<Null>(right)) {
+        return true;
+    }
+
+    // 如果一个是 NULL，一个是非 NULL，则不相等
+    if (std::holds_alternative<Null>(left) || std::holds_alternative<Null>(right)) {
+        return false;
+    }
+
+    // 如果类型相同，则比较值
+    return std::visit([&](const auto & lv) -> bool {
+        return std::visit([&](const auto & rv) -> bool {
+            using LT = std::decay_t<decltype(lv)>;
+            using RT = std::decay_t<decltype(rv)>;
+
+            // 如果类型相同，直接比较
+            if constexpr (std::is_same_v<LT, RT>) {
+                return lv == rv;
+            }
+
+            // 如果有 Decimal 类型，与基本数值类型比较
+            if constexpr (std::is_same_v<LT, Decimal>) {
+                if constexpr (std::is_integral_v<RT> || std::is_floating_point_v<RT>) {
+                    // Decimal 转换为 double 与基本类型比较
+                    return lv.to_double() == static_cast<double>(rv);
+                } else {
+                    return false;
+                }
+            } else if constexpr (std::is_same_v<RT, Decimal>) {
+                if constexpr (std::is_integral_v<LT> || std::is_floating_point_v<LT>) {
+                    // 基本类型转换为 double 与 Decimal 比较
+                    return static_cast<double>(lv) == rv.to_double();
+                } else {
+                    return false;
+                }
+            }
+
+            // 如果都是基本数值类型（整数或浮点数），转换为 double 比较
+            else if constexpr ((std::is_integral_v<LT> || std::is_floating_point_v<LT>) && 
+                               (std::is_integral_v<RT> || std::is_floating_point_v<RT>)) {
+                return to_double_value(lv) == to_double_value(rv);
+            }
+
+            // 其他情况不相等
+            return false;
+        }, right);
+    }, left);
+}
+
+std::optional<int> Evaluator::compare_values(const FieldValue & left, const FieldValue & right) const
+{
+    // NULL 值处理：NULL 不能与其他值比较
+    if (std::holds_alternative<Null>(left) || std::holds_alternative<Null>(right)) {
+        return std::nullopt;
+    }
+
+    return std::visit([&](const auto & lv) -> std::optional<int> {
+        return std::visit([&](const auto & rv) -> std::optional<int> {
+            using LT = std::decay_t<decltype(lv)>;
+            using RT = std::decay_t<decltype(rv)>;
+
+            // 如果类型相同，直接比较
+            if constexpr (std::is_same_v<LT, RT>) {
+                // Null 类型已经在函数开头处理，这里不应该出现
+                if constexpr (std::is_same_v<LT, Null>) {
+                    return std::nullopt;
+                } else {
+                    if (lv < rv) return -1;
+                    if (lv > rv) return 1;
+                    return 0;
+                }
+            }
+
+            // Decimal 类型需要特殊处理
+            if constexpr (std::is_same_v<LT, Decimal>) {
+                // Decimal 与整数或浮点数比较
+                if constexpr (std::is_integral_v<RT> || std::is_floating_point_v<RT>) {
+                    // Decimal 转换为 double 与基本类型比较
+                    double l = lv.to_double();
+                    double r = static_cast<double>(rv);
+                    if (l < r) return -1;
+                    if (l > r) return 1;
+                    return 0;
+                } else {
+                    return std::nullopt;
+                }
+            } else if constexpr (std::is_same_v<RT, Decimal>) {
+                // 整数或浮点数与 Decimal 比较
+                if constexpr (std::is_integral_v<LT> || std::is_floating_point_v<LT>) {
+                    // 基本类型转换为 double 与 Decimal 比较
+                    double l = static_cast<double>(lv);
+                    double r = rv.to_double();
+                    if (l < r) return -1;
+                    if (l > r) return 1;
+                    return 0;
+                } else {
+                    return std::nullopt;
+                }
+            }
+
+            // 字符串类型
+            else if constexpr (std::is_same_v<LT, std::string> && std::is_same_v<RT, std::string>) {
+                if (lv < rv) return -1;
+                if (lv > rv) return 1;
+                return 0;
+            }
+
+            // 如果都是整数类型，转换为 int64_t 比较
+            else if constexpr (std::is_integral_v<LT> && std::is_integral_v<RT>) {
+                std::int64_t l = to_int64_value(lv);
+                std::int64_t r = to_int64_value(rv);
+                if (l < r) return -1;
+                if (l > r) return 1;
+                return 0;
+            }
+
+            // 如果都是浮点数类型，转换为 double 比较
+            else if constexpr (std::is_floating_point_v<LT> && std::is_floating_point_v<RT>) {
+                double l = to_double_value(lv);
+                double r = to_double_value(rv);
+                if (l < r) return -1;
+                if (l > r) return 1;
+                return 0;
+            }
+
+            // 如果一个是整数，一个是浮点数，转换为 double 比较
+            else if constexpr (std::is_integral_v<LT> && std::is_floating_point_v<RT>) {
+                double l = to_double_value(lv);
+                double r = to_double_value(rv);
+                if (l < r) return -1;
+                if (l > r) return 1;
+                return 0;
+            } else if constexpr (std::is_floating_point_v<LT> && std::is_integral_v<RT>) {
+                double l = to_double_value(lv);
+                double r = to_double_value(rv);
+                if (l < r) return -1;
+                if (l > r) return 1;
+                return 0;
+            }
+
+            // 其他类型不兼容
+            else {
+                return std::nullopt;
+            }
+        }, right);
+    }, left);
 }
 
 } // namespace dreamdb

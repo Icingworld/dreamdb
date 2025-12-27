@@ -246,6 +246,23 @@ private:
      * @return 布尔值
      */
     bool field_value_to_bool(const FieldValue & value) const;
+
+    /**
+     * @brief 比较两个字段值是否相等
+     * @param left_value 左字段值
+     * @param right_value 右字段值
+     * @return 是否相等
+     */
+    bool compare_values_equal(const FieldValue & left_value, const FieldValue & right_value) const;
+
+    /**
+     * @brief 比较两个 FieldValue 的大小关系
+     * @param left 左值
+     * @param right 右值
+     * @return 比较结果：-1 (left < right), 0 (left == right), 1 (left > right)
+     *         如果类型不兼容返回 std::nullopt
+     */
+    std::optional<int> compare_values(const FieldValue & left, const FieldValue & right) const;
 };
 
 } // namespace dreamdb
