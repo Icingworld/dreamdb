@@ -1,6 +1,7 @@
 #include "dreamdb/evaluator/evaluator.h"
 
 #include "dreamdb/parser/ast/literal_expr.h"
+#include "dreamdb/parser/ast/identifier_expr.h"
 
 namespace dreamdb
 {
@@ -145,18 +146,19 @@ EvaluateResult Evaluator::evaluate_literal(
     std::optional<FieldType> target_type
 ) const
 {
+    // 检查表达式是否为空
     if (expr == nullptr) {
-        // 字面量表达式为空，返回错误
         return EvaluateResult::make_error("Expression is null");
     }
 
+    // 检查表达式类型
     if (expr->get_type() != AstNodeType::LITERAL_EXPR) {
-        // 不是字面量表达式，返回错误
         return EvaluateResult::make_error("Invalid literal expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
     }
 
     // 获取字面量表达式
     const LiteralExpr * literal = static_cast<const LiteralExpr *>(expr);
+    // 获取字面量类型和值
     LiteralExpr::LiteralType literal_type = literal->get_literal_type();
     const LiteralExpr::LiteralValue & literal_value = literal->get_literal_value();
     
@@ -244,8 +246,50 @@ EvaluateResult Evaluator::evaluate_identifier(
     const EvaluatorContext & context
 ) const
 {
+    // 检查表达式是否为空
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
+    }
+
+    // 检查表达式类型
+    if (expr->get_type() != AstNodeType::IDENTIFIER_EXPR) {
+        return EvaluateResult::make_error("Invalid identifier expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+    }
+
+    // 检查上下文是否有效
+    if (!context.is_valid()) {
+        return EvaluateResult::make_error("Invalid evaluator context: entity or collection is null");
+    }
+
+    // 获取标识符表达式
+    const IdentifierExpr * identifier = static_cast<const IdentifierExpr *>(expr);
+    // 获取标识符类型和名称
+    IdentifierExpr::IdentifierType identifier_type = identifier->get_identifier_type();
+    const std::string & field_name = identifier->get_original_identifier();
+
+    // 根据标识符类型和名称获取字段值
+    switch (identifier_type) {
+        // TODO: 支持集合名、别名、函数名
+        case IdentifierExpr::IdentifierType::COLUMN: {
+            // 从上下文中获取集合，查找字段
+            const Collection * collection = context.get_collection();
+            auto field_index = collection->get_field_index(field_name);
+
+            if (!field_index.has_value()) {
+                return EvaluateResult::make_error("Unknown field: " + field_name);
+            }
+
+            // 从 Entity 中读取字段值
+            const Entity * entity = context.get_entity();
+            try {
+                const FieldValue & field_value = entity->get_value(field_index.value());
+                return EvaluateResult::make_success(field_value);
+            } catch (const std::out_of_range & e) {
+                return EvaluateResult::make_error("Field index out of range: " + std::string(e.what()));
+            }
+        }
+        default:
+            return EvaluateResult::make_error("Unsupported identifier type: " + std::to_string(static_cast<std::uint8_t>(identifier_type)));
     }
 }
 
