@@ -1,7 +1,6 @@
 #pragma once
 
 #include <optional>
-#include <memory>
 
 #include "dreamdb/query/condition.h"
 #include "dreamdb/query/order.h"
