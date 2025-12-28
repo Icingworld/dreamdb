@@ -154,7 +154,7 @@ ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
         query.set_where_clause(where_clause);
     }
     // 设置 order by 条件
-    const std::optional<std::string> & order_column = delete_stmt.get_order_column();
+    std::optional<std::string> order_column = delete_stmt.get_order_column();
     if (order_column.has_value()) {
         // 存在排序，设置排序条件
         std::optional<std::size_t> field_index = collection->get_field_index(order_column.value());
@@ -165,7 +165,10 @@ ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
                 result.set_message("Field index too large for ordering");
                 return result;
             }
-            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), delete_stmt.get_order_type()));
+            // 获取 order_type，也需要检查是否存在
+            std::optional<Direction> order_type_opt = delete_stmt.get_order_type();
+            Direction order_type = order_type_opt.value_or(Direction::ASC); // 默认 ASC
+            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_type));
         } else {
             result.set_is_success(false);
             result.set_message("Unknown column: '" + order_column.value() + "'");
@@ -173,7 +176,7 @@ ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
         }
     }
     // 设置 limit 条件
-    const std::optional<std::size_t> & limit = delete_stmt.get_limit();
+    std::optional<std::size_t> limit = delete_stmt.get_limit();
     if (limit.has_value()) {
         query.set_limit(Limit(limit.value()));
     }

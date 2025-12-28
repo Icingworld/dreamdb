@@ -50,19 +50,19 @@ const AstNode * DeleteStmt::get_where_clause() const noexcept
     return where_clause_.get();
 }
 
-const std::string & DeleteStmt::get_order_column() const noexcept
+const std::optional<std::string> & DeleteStmt::get_order_column() const noexcept
 {
-    return order_column_.value();
+    return order_column_;
 }
 
-Direction DeleteStmt::get_order_type() const noexcept
+std::optional<Direction> DeleteStmt::get_order_type() const noexcept
 {
-    return order_type_.value();
+    return order_type_;
 }
 
-std::size_t DeleteStmt::get_limit() const noexcept
+std::optional<std::size_t> DeleteStmt::get_limit() const noexcept
 {
-    return limit_.value();
+    return limit_;
 }
 
 std::string DeleteStmt::debug_string() const
