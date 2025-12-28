@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "dreamdb/storage/memory_storage.h"
+#include "dreamdb/schema/collection.h"
 
 namespace dreamdb
 {
@@ -63,9 +64,9 @@ std::unique_ptr<Entity> Segment::get_by_id(std::int64_t id) const
     return storage_->get_by_id(id);
 }
 
-std::vector<std::unique_ptr<Entity>> Segment::query(const Query & query) const
+std::vector<std::unique_ptr<Entity>> Segment::query(const Query & query, const Collection * collection) const
 {
-    return storage_->query(query);
+    return storage_->query(query, collection);
 }
 
 std::size_t Segment::size() const noexcept

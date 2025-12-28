@@ -77,7 +77,7 @@ MutationResult Collection::update(std::int64_t id, std::vector<std::pair<std::si
 
 std::vector<std::unique_ptr<Entity>> Collection::query(const Query & query) const
 {
-    return active_segment_->query(query);
+    return active_segment_->query(query, this);
 }
 
 } // namespace dreamdb

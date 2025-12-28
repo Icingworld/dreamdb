@@ -286,12 +286,12 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
 
             // 解析可选的 ASC 或 DESC
             if (match(TokenType::DB_ASC)) {
-                order_item.set_order_type(OrderByItem::OrderType::ASC);
+                order_item.set_order_type(Direction::ASC);
             } else if (match(TokenType::DB_DESC)) {
-                order_item.set_order_type(OrderByItem::OrderType::DESC);
+                order_item.set_order_type(Direction::DESC);
             } else {
                 // 如果不指定排序类型，默认使用 ASC
-                order_item.set_order_type(OrderByItem::OrderType::ASC);
+                order_item.set_order_type(Direction::ASC);
             }
 
             stmt->add_order_by_item(std::move(order_item));
@@ -468,12 +468,12 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
 
         // 期望 ASC 或 DESC 关键字
         if (match(TokenType::DB_ASC)) {
-            stmt->set_order_type(UpdateStmt::OrderType::ASC);
+            stmt->set_order_type(Direction::ASC);
         } else if (match(TokenType::DB_DESC)) {
-            stmt->set_order_type(UpdateStmt::OrderType::DESC);
+            stmt->set_order_type(Direction::DESC);
         } else {
             // 如果不指定排序类型，默认使用 ASC
-            stmt->set_order_type(UpdateStmt::OrderType::ASC);
+            stmt->set_order_type(Direction::ASC);
         }
     }
 
@@ -557,12 +557,12 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
 
         // 期望 ASC 或 DESC 关键字
         if (match(TokenType::DB_ASC)) {
-            stmt->set_order_type(DeleteStmt::OrderType::ASC);
+            stmt->set_order_type(Direction::ASC);
         } else if (match(TokenType::DB_DESC)) {
-            stmt->set_order_type(DeleteStmt::OrderType::DESC);
+            stmt->set_order_type(Direction::DESC);
         } else {
             // 如果不指定排序类型，默认使用 ASC
-            stmt->set_order_type(DeleteStmt::OrderType::ASC);
+            stmt->set_order_type(Direction::ASC);
         }
     }
 

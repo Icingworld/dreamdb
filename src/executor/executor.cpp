@@ -15,6 +15,9 @@
 #include "dreamdb/schema/database.h"
 #include "dreamdb/schema/collection.h"
 #include "dreamdb/parser/ast/literal_expr.h"
+#include "dreamdb/query/query.h"
+#include "dreamdb/query/order.h"
+#include "dreamdb/query/limit.h"
 
 namespace dreamdb
 {
@@ -120,11 +123,76 @@ ExecutorResult Executor::execute_select(const SelectStmt &)
     return result;
 }
 
-ExecutorResult Executor::execute_delete(const DeleteStmt &)
+ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
 {
+    // 获取删除的集合名称
+    const std::string & collection_name = delete_stmt.get_collection_name();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_delete not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 构造一个 Query
+    Query query;
+    // 设置 where 条件
+    const AstNode * where_clause = delete_stmt.get_where_clause();
+    if (where_clause != nullptr) {
+        query.set_where_clause(where_clause);
+    }
+    // 设置 order by 条件
+    const std::optional<std::string> & order_column = delete_stmt.get_order_column();
+    if (order_column.has_value()) {
+        // 存在排序，设置排序条件
+        std::optional<std::size_t> field_index = collection->get_field_index(order_column.value());
+        if (field_index.has_value()) {
+            // Order 需要 std::uint8_t，进行类型转换
+            if (field_index.value() > 255) {
+                result.set_is_success(false);
+                result.set_message("Field index too large for ordering");
+                return result;
+            }
+            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), delete_stmt.get_order_type()));
+        } else {
+            result.set_is_success(false);
+            result.set_message("Unknown column: '" + order_column.value() + "'");
+            return result;
+        }
+    }
+    // 设置 limit 条件
+    const std::optional<std::size_t> & limit = delete_stmt.get_limit();
+    if (limit.has_value()) {
+        query.set_limit(Limit(limit.value()));
+    }
+    
+    // 执行查询，获取符合条件的实体
+    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+    
+    // 删除查询结果中的实体
+    std::size_t deleted_count = 0;
+    for (const auto & entity : entities) {
+        MutationResult remove_result = collection->remove(entity->get_id());
+        if (remove_result.is_success()) {
+            deleted_count++;
+        }
+    }
+    
+    result.set_is_success(true);
+    result.set_affected_count(deleted_count);
+    result.set_message("Deleted " + std::to_string(deleted_count) + " row(s)");
     return result;
 }
 

@@ -12,6 +12,8 @@
 namespace dreamdb
 {
 
+class Collection;
+
 /**
  * @brief 存储基类
  * @details 存储基类定义了存储的抽象接口，所有存储实现都应该继承此类
@@ -62,9 +64,10 @@ public:
     /**
      * @brief 执行查询
      * @param query 查询对象，包含条件、排序和限制
+     * @param collection 集合对象，用于创建评估上下文
      * @return 匹配的实体列表
      */
-    virtual std::vector<std::unique_ptr<Entity>> query(const Query & query) const = 0;
+    virtual std::vector<std::unique_ptr<Entity>> query(const Query & query, const Collection * collection) const = 0;
 
 public:
     /** 统计信息 */

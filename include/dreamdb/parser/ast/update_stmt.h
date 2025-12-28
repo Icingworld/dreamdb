@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "dreamdb/parser/ast/ast_node.h"
+#include "dreamdb/common/type.h"
 
 namespace dreamdb
 {
@@ -19,16 +20,6 @@ namespace dreamdb
  */
 class UpdateStmt : public AstNode
 {
-public:
-    /**
-     * @brief 排序类型
-     */
-    enum class OrderType : std::uint8_t
-    {
-        ASC,                 // 升序
-        DESC                 // 降序
-    };
-
 public:
     UpdateStmt(std::size_t line = 0, std::size_t column = 0);
 
@@ -72,7 +63,7 @@ public:
      * @brief 设置排序类型
      * @param order_type 排序类型
      */
-    void set_order_type(OrderType order_type) noexcept;
+    void set_order_type(Direction order_type) noexcept;
 
     /**
      * @brief 设置限制数量
@@ -108,7 +99,7 @@ public:
      * @brief 获取排序类型
      * @return 排序类型
      */
-    OrderType get_order_type() const noexcept;
+    Direction get_order_type() const noexcept;
 
     /**
      * @brief 获取限制数量
@@ -128,7 +119,7 @@ private:
     std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> assignments_;  // SET 子句：列名 -> 值表达式
     std::unique_ptr<AstNode> where_clause_;                                      // WHERE 条件
     std::optional<std::string> order_column_;    // 排序列名
-    std::optional<OrderType> order_type_;        // 排序类型
+    std::optional<Direction> order_type_;        // 排序类型
     std::optional<std::size_t> limit_;           // 限制数量
 };
 

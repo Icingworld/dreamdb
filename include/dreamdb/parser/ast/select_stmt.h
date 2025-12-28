@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "dreamdb/parser/ast/ast_node.h"
+#include "dreamdb/common/type.h"
 
 namespace dreamdb
 {
@@ -86,16 +87,6 @@ private:
 class OrderByItem
 {
 public:
-    /**
-     * @brief 排序类型
-     */
-    enum class OrderType : std::uint8_t
-    {
-        ASC,                 // 升序
-        DESC                 // 降序
-    };
-
-public:
     OrderByItem();
 
     OrderByItem(const OrderByItem &) = delete;
@@ -119,7 +110,7 @@ public:
      * @brief 设置排序类型
      * @param order_type 排序类型
      */
-    void set_order_type(OrderType order_type) noexcept;
+    void set_order_type(Direction order_type) noexcept;
 
     /**
      * @brief 获取排序表达式
@@ -131,11 +122,11 @@ public:
      * @brief 获取排序类型
      * @return 排序类型
      */
-    OrderType get_order_type() const noexcept;
+    Direction get_order_type() const noexcept;
 
 private:
     std::unique_ptr<AstNode> expression_;  // 排序表达式
-    OrderType order_type_;                 // 排序类型
+    Direction order_type_;                 // 排序类型
 };
 
 /**
