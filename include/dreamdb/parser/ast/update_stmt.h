@@ -91,21 +91,21 @@ public:
 
     /**
      * @brief 获取排序列名
-     * @return 排序列名
+     * @return 排序列名的引用，如果不存在则为 std::nullopt
      */
-    const std::string & get_order_column() const noexcept;
+    const std::optional<std::string> & get_order_column() const noexcept;
 
     /**
      * @brief 获取排序类型
-     * @return 排序类型
+     * @return 排序类型的引用，如果不存在则为 std::nullopt
      */
-    Direction get_order_type() const noexcept;
+    const std::optional<Direction> & get_order_type() const noexcept;
 
     /**
      * @brief 获取限制数量
-     * @return 限制数量
+     * @return 限制数量的引用，如果不存在则为 std::nullopt
      */
-    std::size_t get_limit() const noexcept;
+    const std::optional<std::size_t> & get_limit() const noexcept;
 
 public:
     /**

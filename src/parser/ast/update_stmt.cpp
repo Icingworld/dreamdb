@@ -61,19 +61,19 @@ const AstNode * UpdateStmt::get_where_clause() const noexcept
     return where_clause_.get();
 }
 
-const std::string & UpdateStmt::get_order_column() const noexcept
+const std::optional<std::string> & UpdateStmt::get_order_column() const noexcept
 {
-    return order_column_.value();
+    return order_column_;
 }
 
-Direction UpdateStmt::get_order_type() const noexcept
+const std::optional<Direction> & UpdateStmt::get_order_type() const noexcept
 {
-    return order_type_.value();
+    return order_type_;
 }
 
-std::size_t UpdateStmt::get_limit() const noexcept
+const std::optional<std::size_t> & UpdateStmt::get_limit() const noexcept
 {
-    return limit_.value();
+    return limit_;
 }
 
 std::string UpdateStmt::debug_string() const

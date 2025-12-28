@@ -83,7 +83,7 @@ public:
      * @brief 获取排序类型
      * @return 排序类型
      */
-    std::optional<Direction> get_order_type() const noexcept;
+    const std::optional<Direction> & get_order_type() const noexcept;
 
     /**
      * @brief 获取限制数量

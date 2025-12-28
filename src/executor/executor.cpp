@@ -381,11 +381,162 @@ ExecutorResult Executor::execute_insert(const InsertStmt & insert_stmt)
     return result;
 }
 
-ExecutorResult Executor::execute_update(const UpdateStmt &)
+ExecutorResult Executor::execute_update(const UpdateStmt & update_stmt)
 {
+    // 获取更新的集合名称
+    const std::string & collection_name = update_stmt.get_collection_name();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_update not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 获取集合的 Schema
+    const std::vector<Field> & schema = collection->get_schema();
+
+    // 获取 SET 子句的赋值列表
+    const std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> & assignments = update_stmt.get_assignments();
+    if (assignments.empty()) {
+        result.set_is_success(false);
+        result.set_message("No fields to update");
+        return result;
+    }
+
+    // 验证所有列名是否存在，并构建更新字段列表（字段索引 -> 字段值）
+    std::vector<std::pair<std::size_t, FieldValue>> update_fields;
+    for (const auto & assignment : assignments) {
+        const std::string & column_name = assignment.first;
+        const std::unique_ptr<AstNode> & value_expr = assignment.second;
+
+        // 查找列索引
+        std::optional<std::size_t> field_index = collection->get_field_index(column_name);
+        if (!field_index.has_value()) {
+            result.set_is_success(false);
+            result.set_message("Unknown column: '" + column_name + "'");
+            return result;
+        }
+
+        // 检查重复列名（在同一个 UPDATE 语句中）
+        for (const auto & [idx, _] : update_fields) {
+            if (idx == field_index.value()) {
+                result.set_is_success(false);
+                result.set_message("Duplicate column: '" + column_name + "'");
+                return result;
+            }
+        }
+
+        // 转换 AstNode 为 FieldValue
+        FieldType field_type = schema[field_index.value()].get_type();
+        FieldValue field_value = ast_to_field_value(value_expr.get(), field_type);
+
+        // 验证值的合法性
+        // 验证 NULL 约束
+        if (std::holds_alternative<Null>(field_value) && !schema[field_index.value()].get_is_nullable()) {
+            result.set_is_success(false);
+            result.set_message("Field '" + column_name + "' cannot be NULL");
+            return result;
+        }
+
+        // 验证 ENUM 约束
+        if (schema[field_index.value()].get_type() == FieldType::ENUM && !std::holds_alternative<Null>(field_value)) {
+            if (!std::holds_alternative<std::string>(field_value)) {
+                result.set_is_success(false);
+                result.set_message("Field '" + column_name + "' must be a string");
+                return result;
+            }
+            const std::vector<std::string> & options = schema[field_index.value()].get_options();
+            const std::string & str_value = std::get<std::string>(field_value);
+            if (std::find(options.begin(), options.end(), str_value) == options.end()) {
+                result.set_is_success(false);
+                result.set_message("Invalid value for field '" + column_name + "': '" + str_value + "'");
+                return result;
+            }
+        }
+
+        // 验证字符串长度约束
+        if ((schema[field_index.value()].get_type() == FieldType::VARCHAR || 
+             schema[field_index.value()].get_type() == FieldType::CHAR) &&
+            !std::holds_alternative<Null>(field_value)) {
+            if (!std::holds_alternative<std::string>(field_value)) {
+                result.set_is_success(false);
+                result.set_message("Field '" + column_name + "' must be a string");
+                return result;
+            }
+            const std::string & str_value = std::get<std::string>(field_value);
+            if (static_cast<int>(str_value.length()) > schema[field_index.value()].get_length()) {
+                result.set_is_success(false);
+                result.set_message("Field '" + column_name + "' exceeds maximum length " 
+                                 + std::to_string(schema[field_index.value()].get_length()));
+                return result;
+            }
+        }
+
+        update_fields.emplace_back(field_index.value(), field_value);
+    }
+
+    // 构造一个 Query
+    Query query;
+    // 设置 where 条件
+    const AstNode * where_clause = update_stmt.get_where_clause();
+    if (where_clause != nullptr) {
+        query.set_where_clause(where_clause);
+    }
+    // 设置 order by 条件
+    const std::optional<std::string> & order_column = update_stmt.get_order_column();
+    if (order_column.has_value()) {
+        // 存在排序，设置排序条件
+        std::optional<std::size_t> field_index = collection->get_field_index(order_column.value());
+        if (field_index.has_value()) {
+            // Order 需要 std::uint8_t，进行类型转换
+            if (field_index.value() > 255) {
+                result.set_is_success(false);
+                result.set_message("Field index too large for ordering");
+                return result;
+            }
+            // 获取 order_type，也需要检查是否存在
+            const std::optional<Direction> & order_type_opt = update_stmt.get_order_type();
+            Direction order_type = order_type_opt.value_or(Direction::ASC); // 默认 ASC
+            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_type));
+        } else {
+            result.set_is_success(false);
+            result.set_message("Unknown column: '" + order_column.value() + "'");
+            return result;
+        }
+    }
+    // 设置 limit 条件
+    const std::optional<std::size_t> & limit = update_stmt.get_limit();
+    if (limit.has_value()) {
+        query.set_limit(Limit(limit.value()));
+    }
+    
+    // 执行查询，获取符合条件的实体
+    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+    
+    // 更新查询结果中的实体
+    std::size_t updated_count = 0;
+    for (const auto & entity : entities) {
+        MutationResult update_result = collection->update(entity->get_id(), update_fields);
+        if (update_result.is_success()) {
+            updated_count++;
+        }
+    }
+    
+    result.set_is_success(true);
+    result.set_affected_count(updated_count);
+    result.set_message("Updated " + std::to_string(updated_count) + " row(s)");
     return result;
 }
 

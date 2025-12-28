@@ -55,7 +55,7 @@ const std::optional<std::string> & DeleteStmt::get_order_column() const noexcept
     return order_column_;
 }
 
-std::optional<Direction> DeleteStmt::get_order_type() const noexcept
+const std::optional<Direction> & DeleteStmt::get_order_type() const noexcept
 {
     return order_type_;
 }

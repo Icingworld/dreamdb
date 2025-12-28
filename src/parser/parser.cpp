@@ -315,11 +315,6 @@ std::unique_ptr<SelectStmt> Parser::parse_select_stmt()
                 error("LIMIT value must be non-negative, but got: " + limit_text);
                 return nullptr;
             }
-            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
-            if (limit_value > static_cast<long long>(max_limit)) {
-                error("LIMIT value too large: " + limit_text);
-                return nullptr;
-            }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
         } catch (const std::exception & e) {
             error("Invalid LIMIT value '" + limit_text + "': " + e.what());
@@ -491,11 +486,6 @@ std::unique_ptr<UpdateStmt> Parser::parse_update_stmt()
                 error("LIMIT value must be non-negative, but got: " + limit_text);
                 return nullptr;
             }
-            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
-            if (limit_value > static_cast<long long>(max_limit)) {
-                error("LIMIT value too large: " + limit_text);
-                return nullptr;
-            }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
         } catch (const std::exception & e) {
             error("Invalid LIMIT value '" + limit_text + "': " + e.what());
@@ -578,11 +568,6 @@ std::unique_ptr<DeleteStmt> Parser::parse_delete_stmt()
             long long limit_value = std::stoll(limit_text);
             if (limit_value < 0) {
                 error("LIMIT value must be non-negative, but got: " + limit_text);
-                return nullptr;
-            }
-            std::size_t max_limit = std::numeric_limits<std::size_t>::max();
-            if (limit_value > static_cast<long long>(max_limit)) {
-                error("LIMIT value too large: " + limit_text);
                 return nullptr;
             }
             stmt->set_limit(static_cast<std::size_t>(limit_value));
