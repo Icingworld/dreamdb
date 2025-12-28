@@ -7,23 +7,25 @@
 
 #include <iostream>
 #include <string>
+#include <memory>
 
 #include "dreamdb/server/server.h"
 #include "dreamdb/executor/executor.h"
 #include "dreamdb/parser/parser.h"
 #include "dreamdb/schema/database_manager.h"
 
-dreamdb::DatabaseManager db_manager;
-dreamdb::Executor executor(db_manager);
-
 int main()
 {
     try {
+        // 创建数据库管理器和执行器
+        auto db_manager = std::make_unique<dreamdb::DatabaseManager>();
+        dreamdb::Executor executor(std::move(db_manager));
+
         // 创建服务器，监听 9527 端口
         dreamdb::Server server(9527);
 
         // 设置请求处理器
-        server.set_request_handler([](const std::string & sql) -> std::pair<bool, std::string> {
+        server.set_request_handler([&executor](const std::string & sql) -> std::pair<bool, std::string> {
             std::cout << "[Handler] Processing SQL: " << sql << std::endl;
 
             try {                
@@ -33,7 +35,7 @@ int main()
 
                 // 2. 执行
                 auto result = executor.execute(*ast);
-                return {result.is_success(), result.get_message()};
+                return {result.get_is_success(), result.get_message()};
             } catch (const std::exception & e) {
                 return {false, e.what()};
             }
@@ -52,4 +54,3 @@ int main()
 
     return 0;
 }
-

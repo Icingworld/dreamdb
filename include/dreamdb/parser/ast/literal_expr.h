@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "dreamdb/parser/ast/ast_node.h"
-#include "dreamdb/common/type.h"
 #include "dreamdb/common/null.h"
 
 namespace dreamdb
@@ -36,7 +35,7 @@ public:
      * @brief 不同字面量类型对应的具体值类型
      */
     using LiteralValue = std::variant<
-        int64_t,            // INTERGER
+        std::int64_t,       // INTEGER
         double,             // FLOAT
         std::string,        // STRING
         bool,               // BOOLEAN

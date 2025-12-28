@@ -68,4 +68,13 @@ bool DatabaseManager::has_database(const std::string & name) const
     return databases_.find(name) != databases_.end();
 }
 
+std::vector<std::string> DatabaseManager::get_databases() const
+{
+    std::vector<std::string> databases;
+    for (const auto & [name, _] : databases_) {
+        databases.push_back(name);
+    }
+    return databases;
+}
+
 } // namespace dreamdb

@@ -45,7 +45,7 @@ const std::string & SelectItem::get_select_item_alias() const noexcept
 
 OrderByItem::OrderByItem()
     : expression_(nullptr)
-    , order_type_(OrderType::ASC)
+    , order_type_(Direction::ASC)
 {
 }
 
@@ -54,7 +54,7 @@ void OrderByItem::set_expression(std::unique_ptr<AstNode> expression) noexcept
     expression_ = std::move(expression);
 }
 
-void OrderByItem::set_order_type(OrderType order_type) noexcept
+void OrderByItem::set_order_type(Direction order_type) noexcept
 {
     order_type_ = order_type;
 }
@@ -64,7 +64,7 @@ const AstNode * OrderByItem::get_expression() const noexcept
     return expression_.get();
 }
 
-OrderByItem::OrderType OrderByItem::get_order_type() const noexcept
+Direction OrderByItem::get_order_type() const noexcept
 {
     return order_type_;
 }
@@ -219,7 +219,7 @@ std::string SelectStmt::debug_string() const
             } else {
                 oss << "<null>";
             }
-            oss << " " << (item.get_order_type() == OrderByItem::OrderType::ASC ? "ASC" : "DESC");
+            oss << " " << (item.get_order_type() == Direction::ASC ? "ASC" : "DESC");
         }
         oss << "]";
     } else {

@@ -3,27 +3,31 @@
 namespace dreamdb
 {
 
-Query & Query::where(const Condition & condition)
+Query::Query() noexcept
+    : where_clause_(nullptr)
+    , order_(std::nullopt)
+    , limit_(std::nullopt)
 {
-    condition_ = condition;
-    return *this;
 }
 
-Query & Query::order_by(const Order & order)
+void Query::set_where_clause(const AstNode * where_clause) noexcept
+{
+    where_clause_ = where_clause;
+}
+
+void Query::set_order(const Order & order)
 {
     order_ = order;
-    return *this;
 }
 
-Query & Query::limit(const Limit & limit)
+void Query::set_limit(const Limit & limit)
 {
     limit_ = limit;
-    return *this;
 }
 
-const std::optional<Condition> & Query::get_condition() const noexcept
+const AstNode * Query::get_where_clause() const noexcept
 {
-    return condition_;
+    return where_clause_;
 }
 
 const std::optional<Order> & Query::get_order() const noexcept
@@ -36,9 +40,9 @@ const std::optional<Limit> & Query::get_limit() const noexcept
     return limit_;
 }
 
-bool Query::has_condition() const noexcept
+bool Query::has_where_clause() const noexcept
 {
-    return condition_.has_value();
+    return where_clause_ != nullptr;
 }
 
 bool Query::has_order() const noexcept
@@ -53,15 +57,14 @@ bool Query::has_limit() const noexcept
 
 bool Query::is_empty() const noexcept
 {
-    return !condition_.has_value() && !order_.has_value() && !limit_.has_value();
+    return where_clause_ == nullptr && !order_.has_value() && !limit_.has_value();
 }
 
 void Query::clear()
 {
-    condition_.reset();
+    where_clause_ = nullptr;
     order_.reset();
     limit_.reset();
 }
 
 } // namespace dreamdb
-

@@ -8,6 +8,8 @@
 namespace dreamdb
 {
 
+class Collection;
+
 /**
  * @brief 简单的内存存储实现
  * @details 使用 unordered_map 存储 Entity，主要用于原型阶段测试
@@ -55,9 +57,10 @@ public:
     /**
      * @brief 执行查询
      * @param query 查询对象，包含条件、排序和限制
+     * @param collection 集合对象，用于创建评估上下文
      * @return 匹配的实体列表
      */
-    std::vector<std::unique_ptr<Entity>> query(const Query & query) const override;
+    std::vector<std::unique_ptr<Entity>> query(const Query & query, const Collection * collection) const override;
 
     /**
      * @brief 获取存储的实体数量

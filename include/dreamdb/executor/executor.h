@@ -1,8 +1,9 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
-#include <cstddef>
+#include <optional>
 
 #include "dreamdb/parser/ast/ast_node.h"
 #include "dreamdb/schema/entity.h"
@@ -19,6 +20,11 @@ class UpdateStmt;
 class CreateStmt;
 class DropStmt;
 class UseStmt;
+class DescribeStmt;
+class ShowStmt;
+class AlterStmt;
+class Database;
+class Collection;
 
 /**
  * @brief 执行器结果
@@ -47,25 +53,13 @@ public:
     /**
      * @brief 设置执行成功
      */
-    void set_success(bool success) noexcept;
-
-    /**
-     * @brief 检查执行是否成功
-     * @return 如果成功返回 true
-     */
-    bool is_success() const noexcept;
-
+    void set_is_success(bool is_success) noexcept;
+    
     /**
      * @brief 设置消息（用于成功或错误信息）
      * @param message 消息内容
      */
     void set_message(const std::string & message);
-
-    /**
-     * @brief 获取消息
-     * @return 消息内容
-     */
-    const std::string & get_message() const noexcept;
 
     /**
      * @brief 设置受影响的行数（用于 INSERT/UPDATE/DELETE）
@@ -74,16 +68,28 @@ public:
     void set_affected_count(std::size_t count) noexcept;
 
     /**
-     * @brief 获取受影响的行数
-     * @return 受影响的行数
-     */
-    std::size_t get_affected_count() const noexcept;
-
-    /**
      * @brief 添加查询结果行（用于 SELECT）
      * @param entity 实体
      */
     void add_row(Entity && entity);
+
+    /**
+     * @brief 检查执行是否成功
+     * @return 如果成功返回 true
+     */
+    bool get_is_success() const noexcept;
+
+    /**
+     * @brief 获取消息
+     * @return 消息内容
+     */
+    const std::string & get_message() const noexcept;
+
+    /**
+     * @brief 获取受影响的行数
+     * @return 受影响的行数
+     */
+    std::size_t get_affected_count() const noexcept;
 
     /**
      * @brief 获取查询结果行数
@@ -97,16 +103,11 @@ public:
      */
     const std::vector<Entity> & get_rows() const noexcept;
 
-    /**
-     * @brief 清空所有结果
-     */
-    void clear() noexcept;
-
 private:
-    bool success;                           // 执行是否成功
-    std::string message;                    // 消息（成功或错误信息）
-    std::size_t affected_count;             // 受影响的行数
-    std::vector<Entity> rows;               // 查询结果
+    bool is_success_;                               // 执行是否成功
+    std::string message_;                           // 成功或错误信息
+    std::optional<std::size_t> affected_count_;     // 受影响的行数
+    std::optional<std::vector<Entity>> rows_;       // 查询结果
 };
 
 /**
@@ -115,7 +116,15 @@ private:
 class Executor
 {
 public:
-    Executor(DatabaseManager & database_manager);
+    Executor(std::unique_ptr<DatabaseManager> database_manager);
+
+    Executor(const Executor &) = delete;
+
+    Executor(Executor &&) noexcept = default;
+
+    Executor & operator=(const Executor &) = delete;
+
+    Executor & operator=(Executor &&) noexcept = default;
 
     ~Executor();
 
@@ -178,6 +187,29 @@ private:
     ExecutorResult execute_use(const UseStmt & use_stmt);
 
     /**
+     * @brief 执行 DESCRIBE 语句
+     * @param describe_stmt 描述语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_describe(const DescribeStmt & describe_stmt);
+
+    /**
+     * @brief 执行 SHOW 语句
+     * @param show_stmt 显示语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_show(const ShowStmt & show_stmt);
+
+    /**
+     * @brief 执行 ALTER 语句
+     * @param alter_stmt 修改语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_alter(const AlterStmt & alter_stmt);
+
+    /** 辅助解析语句 */
+
+    /**
      * @brief 执行 CREATE DATABASE 语句
      * @param create_stmt 创建语句节点
      * @return 执行结果
@@ -197,6 +229,13 @@ private:
      * @return 执行结果
      */
     ExecutorResult execute_create_index(const CreateStmt & create_stmt);
+
+    /**
+     * @brief 执行 CREATE VINDEX 语句
+     * @param create_stmt 创建语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_create_vindex(const CreateStmt & create_stmt);
 
     /**
      * @brief 执行 DROP DATABASE 语句
@@ -219,8 +258,80 @@ private:
      */
     ExecutorResult execute_drop_index(const DropStmt & drop_stmt);
 
+    /**
+     * @brief 执行 DROP VINDEX 语句
+     * @param drop_stmt 删除语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_drop_vindex(const DropStmt & drop_stmt);
+
+    /**
+     * @brief 执行 SHOW DATABASES 语句
+     * @param show_stmt 显示语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_show_databases();
+
+    /**
+     * @brief 执行 SHOW COLLECTIONS 语句
+     * @return 执行结果
+     */
+    ExecutorResult execute_show_collections();
+
+    /**
+     * @brief 执行 SHOW INDEXES 语句
+     * @return 执行结果
+     */
+    ExecutorResult execute_show_indexes(const ShowStmt & show_stmt);
+
+    /**
+     * @brief 执行 SHOW VINDEXES 语句
+     * @param show_vindex_stmt 显示虚拟索引语句节点
+     * @return 执行结果
+     */
+    ExecutorResult execute_show_vindexes(const ShowStmt & show_stmt);
+
+    /** 辅助方法 */
+
+    /**
+     * @brief 将 AST 节点转换为 FieldValue
+     * @param ast_node AST 节点（必须是 LITERAL_EXPR）
+     * @param target_field_type 目标字段类型（可选，用于类型转换）
+     * @return FieldValue，如果转换失败则返回 Null()
+     */
+    FieldValue ast_to_field_value(const AstNode * ast_node, std::optional<FieldType> target_field_type = std::nullopt);
+
+    /** 辅助方法 - 统一访问入口，便于未来扩展 */
+
+    /**
+     * @brief 获取当前数据库
+     * @return 当前数据库指针，如果未选择数据库返回 nullptr
+     * @details 统一入口，未来可以在这里注入事务等上下文
+     */
+    Database * get_current_database();
+
+    /**
+     * @brief 执行操作（模板方法，用于包装存储操作）
+     * @param func 要执行的操作函数
+     * @return 执行结果
+     * @details 现在直接执行，未来可以在这里包装事务、日志等横切关注点
+     * 
+     * 使用示例：
+     * ```cpp
+     * return execute_with_context([&]() -> ExecutorResult {
+     *     auto* collection = get_collection(collection_name);
+     *     // 执行操作...
+     *     return result;
+     * });
+     * ```
+     */
+    template<typename Func>
+    ExecutorResult execute_with_context(Func && func);
+
 private:
-    DatabaseManager & database_manager_;    // 数据库管理器引用
+    std::unique_ptr<DatabaseManager> database_manager_;    // 数据库管理器引用
 };
 
 } // namespace dreamdb
+
+#include "dreamdb/executor/executor.inl"

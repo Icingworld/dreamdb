@@ -1,11 +1,10 @@
 #pragma once
 
 #include <optional>
-#include <memory>
 
-#include "dreamdb/query/condition.h"
 #include "dreamdb/query/order.h"
 #include "dreamdb/query/limit.h"
+#include "dreamdb/parser/ast/ast_node.h"
 
 namespace dreamdb
 {
@@ -17,7 +16,7 @@ namespace dreamdb
 class Query
 {
 public:
-    Query() = default;
+    Query() noexcept;
 
     Query(const Query & other) = default;
 
@@ -32,31 +31,31 @@ public:
 public:
     /**
      * @brief 设置查询条件（WHERE 子句）
-     * @param condition 查询条件
+     * @param where_clause WHERE 子句的 AST 节点
      * @return 当前 Query 对象的引用，支持链式调用
      */
-    Query & where(const Condition & condition);
+    void set_where_clause(const AstNode * where_clause) noexcept;
 
     /**
      * @brief 设置排序规则（ORDER BY 子句）
      * @param order 排序规则
      * @return 当前 Query 对象的引用，支持链式调用
      */
-    Query & order_by(const Order & order);
+    void set_order(const Order & order);
 
     /**
      * @brief 设置限制数量（LIMIT 子句）
      * @param limit 限制数量
      * @return 当前 Query 对象的引用，支持链式调用
      */
-    Query & limit(const Limit & limit);
+    void set_limit(const Limit & limit);
 
 public:
     /**
-     * @brief 获取查询条件
-     * @return 查询条件，如果没有设置返回 std::nullopt
+     * @brief 获取查询条件（WHERE 子句的 AST 节点）
+     * @return WHERE 子句的 AST 节点，如果没有设置返回 nullptr
      */
-    const std::optional<Condition> & get_condition() const noexcept;
+    const AstNode * get_where_clause() const noexcept;
 
     /**
      * @brief 获取排序规则
@@ -74,7 +73,7 @@ public:
      * @brief 检查是否有查询条件
      * @return 如果有查询条件返回 true
      */
-    bool has_condition() const noexcept;
+    bool has_where_clause() const noexcept;
 
     /**
      * @brief 检查是否有排序规则
@@ -100,7 +99,7 @@ public:
     void clear();
 
 private:
-    std::optional<Condition> condition_;    // 查询条件（WHERE 子句）
+    const AstNode * where_clause_;          // 查询条件（WHERE 子句的 AST 节点）
     std::optional<Order> order_;            // 排序规则（ORDER BY 子句）
     std::optional<Limit> limit_;            // 限制数量（LIMIT 子句）
 };

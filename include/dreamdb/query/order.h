@@ -13,7 +13,6 @@ namespace dreamdb
 class Order
 {
 public:
-
     Order() = delete;
 
     Order(std::uint8_t field_index, Direction direction) noexcept;

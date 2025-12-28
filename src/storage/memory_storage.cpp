@@ -5,11 +5,14 @@
 #include <stdexcept>
 
 #include "dreamdb/query/query.h"
-#include "dreamdb/query/condition.h"
 #include "dreamdb/query/order.h"
 #include "dreamdb/query/limit.h"
 #include "dreamdb/common/null.h"
 #include "dreamdb/common/decimal.h"
+#include "dreamdb/schema/collection.h"
+#include "dreamdb/evaluator/evaluator.h"
+#include "dreamdb/evaluator/evaluator_context.h"
+#include "dreamdb/parser/ast/ast_node.h"
 
 namespace dreamdb
 {
@@ -72,165 +75,7 @@ int compare_field_values(const FieldValue & lhs, const FieldValue & rhs)
     }, lhs, rhs);
 }
 
-/**
- * @brief LIKE 模式匹配
- * @param text 要匹配的文本
- * @param pattern LIKE 模式（% 匹配任意字符，_ 匹配单个字符）
- * @return 是否匹配
- */
-bool match_like_pattern(const std::string & text, const std::string & pattern)
-{
-    // 将 SQL LIKE 模式转换为正则表达式
-    std::string regex_pattern;
-    regex_pattern.reserve(pattern.size() * 2);
 
-    for (char c : pattern) {
-        if (c == '%') {
-            regex_pattern += ".*";
-        }
-        else if (c == '_') {
-            regex_pattern += ".";
-        }
-        else if (c == '.' || c == '^' || c == '$' || c == '|' || c == '(' || c == ')' ||
-                 c == '[' || c == ']' || c == '{' || c == '}' || c == '+' || c == '*' || c == '?') {
-            // 转义正则表达式特殊字符
-            regex_pattern += '\\';
-            regex_pattern += c;
-        }
-        else {
-            regex_pattern += c;
-        }
-    }
-
-    try {
-        std::regex regex(regex_pattern, std::regex_constants::icase);
-        return std::regex_match(text, regex);
-    } catch (const std::regex_error &) {
-        // 正则表达式错误，返回 false
-        return false;
-    }
-}
-
-/**
- * @brief 评估单个条件是否匹配实体
- * @param entity 实体
- * @param condition 条件
- * @return 是否匹配
- */
-bool evaluate_condition(const Entity & entity, const Condition & condition)
-{
-    // 组合条件（AND, OR）
-    if (condition.is_composite()) {
-        // 获取组合条件类型
-        const auto logic_op = condition.get_logic_operator();
-        // 获取左条件
-        const auto * left = condition.get_left();
-        // 获取右条件
-        const auto * right = condition.get_right();
-
-        // 如果左条件或右条件为空，则不匹配
-        if (!left || !right) {
-            return false;
-        }
-
-        // 递归评估左条件和右条件
-        bool left_result = evaluate_condition(entity, *left);
-        bool right_result = evaluate_condition(entity, *right);
-
-        if (logic_op == LogicOperator::AND) {
-            return left_result && right_result;
-        }
-        else if (logic_op == LogicOperator::OR) {
-            return left_result || right_result;
-        }
-
-        // 理论上不会执行到这里
-        return false;
-    }
-
-    // 字段索引是通用成员，取出判断是否有效，并取出值
-
-    // 获取字段索引
-    const auto field_index_opt = condition.get_field_index();
-    if (!field_index_opt) {
-        return false;
-    }
-
-    const std::size_t field_index = *field_index_opt;
-
-    // 检查字段索引是否有效
-    if (field_index >= entity.field_count()) {
-        return false;
-    }
-
-    const FieldValue & field_value = entity.get_value(field_index);
-
-    // BETWEEN 条件
-    if (condition.is_between()) {
-        const auto min_opt = condition.get_min_value();
-        const auto max_opt = condition.get_max_value();
-        if (!min_opt || !max_opt) {
-            return false;
-        }
-
-        int cmp_min = compare_field_values(field_value, *min_opt);
-        int cmp_max = compare_field_values(field_value, *max_opt);
-        return cmp_min >= 0 && cmp_max <= 0;
-    }
-
-    // IN 条件
-    if (condition.is_in()) {
-        const auto values = condition.get_values();
-        for (const auto & value : values) {
-            if (compare_field_values(field_value, value) == 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // LIKE 条件
-    if (condition.is_like()) {
-        const auto pattern_opt = condition.get_pattern();
-        if (!pattern_opt) {
-            return false;
-        }
-
-        // LIKE 只支持字符串类型
-        if (!std::holds_alternative<std::string>(field_value)) {
-            return false;
-        }
-
-        const std::string & text = std::get<std::string>(field_value);
-        return match_like_pattern(text, *pattern_opt);
-    }
-
-    // 单个值条件（EQ, NE, GT, GE, LT, LE）
-    const auto value_opt = condition.get_value();
-    if (!value_opt) {
-        return false;
-    }
-
-    const ConditionType type = condition.get_condition_type();
-    int cmp = compare_field_values(field_value, *value_opt);
-
-    switch (type) {
-        case ConditionType::EQ:
-            return cmp == 0;
-        case ConditionType::NE:
-            return cmp != 0;
-        case ConditionType::GT:
-            return cmp > 0;
-        case ConditionType::GE:
-            return cmp >= 0;
-        case ConditionType::LT:
-            return cmp < 0;
-        case ConditionType::LE:
-            return cmp <= 0;
-        default:
-            return false;
-    }
-}
 
 /**
  * @brief 比较两个实体（用于排序）
@@ -319,16 +164,27 @@ std::unique_ptr<Entity> MemoryStorage::get_by_id(std::int64_t id) const
     return std::make_unique<Entity>(it->second);
 }
 
-std::vector<std::unique_ptr<Entity>> MemoryStorage::query(const Query & query) const
+std::vector<std::unique_ptr<Entity>> MemoryStorage::query(const Query & query, const Collection * collection) const
 {
     std::vector<std::unique_ptr<Entity>> results;
 
+    // 创建 Evaluator 和 EvaluatorContext
+    Evaluator evaluator;
+    EvaluatorContext context;
+    if (collection != nullptr) {
+        context.set_collection(collection);
+    }
+
     // 1. 条件过滤（WHERE）
-    if (query.has_condition()) {
-        const Condition & condition = *query.get_condition();
+    if (query.has_where_clause()) {
+        const AstNode * where_clause = query.get_where_clause();
         for (const auto & [id, entity] : entity_map_) {
-            // 评估每条记录是否满足条件
-            if (evaluate_condition(entity, condition)) {
+            // 设置当前实体到上下文
+            context.set_entity(&entity);
+
+            // 使用 Evaluator 评估 WHERE 条件
+            std::optional<bool> condition_result = evaluator.evaluate_condition(where_clause, context);
+            if (condition_result.value_or(false)) {
                 results.push_back(std::make_unique<Entity>(entity));
             }
         }

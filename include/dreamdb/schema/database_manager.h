@@ -64,6 +64,12 @@ public:
      */
     bool has_database(const std::string & name) const;
 
+    /**
+     * @brief 获取数据库列表
+     * @return 数据库列表
+     */
+    std::vector<std::string> get_databases() const;
+
 private:
     std::string current_database_;                                          // 当前数据库名称
     std::unordered_map<std::string, std::unique_ptr<Database>> databases_;  // 数据库映射表

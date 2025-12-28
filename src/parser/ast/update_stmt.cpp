@@ -31,7 +31,7 @@ void UpdateStmt::set_order_column(const std::string & order_column) noexcept
     order_column_ = order_column;
 }
 
-void UpdateStmt::set_order_type(OrderType order_type) noexcept
+void UpdateStmt::set_order_type(Direction order_type) noexcept
 {
     order_type_ = order_type;
 }
@@ -61,19 +61,19 @@ const AstNode * UpdateStmt::get_where_clause() const noexcept
     return where_clause_.get();
 }
 
-const std::string & UpdateStmt::get_order_column() const noexcept
+const std::optional<std::string> & UpdateStmt::get_order_column() const noexcept
 {
-    return order_column_.value();
+    return order_column_;
 }
 
-UpdateStmt::OrderType UpdateStmt::get_order_type() const noexcept
+const std::optional<Direction> & UpdateStmt::get_order_type() const noexcept
 {
-    return order_type_.value();
+    return order_type_;
 }
 
-std::size_t UpdateStmt::get_limit() const noexcept
+const std::optional<std::size_t> & UpdateStmt::get_limit() const noexcept
 {
-    return limit_.value();
+    return limit_;
 }
 
 std::string UpdateStmt::debug_string() const
@@ -108,7 +108,7 @@ std::string UpdateStmt::debug_string() const
     }
 
     if (order_type_ != std::nullopt) {
-        oss << ", order_type=" << (order_type_.value() == OrderType::ASC ? "ASC" : "DESC");
+        oss << ", order_type=" << (order_type_.value() == Direction::ASC ? "ASC" : "DESC");
     } else {
         oss << ", order_type=<none>";
     }
