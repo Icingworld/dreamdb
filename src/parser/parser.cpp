@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <limits>
 
 #include "dreamdb/parser/ast/select_stmt.h"
 #include "dreamdb/parser/ast/insert_stmt.h"

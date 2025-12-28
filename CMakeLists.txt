@@ -184,3 +184,17 @@ add_executable(client_demo
     "${CMAKE_CURRENT_SOURCE_DIR}/examples/client_demo.cpp"
 )
 target_link_libraries(client_demo PRIVATE dreamdb)
+
+# Auto Client
+add_executable(auto_client
+    "${CMAKE_CURRENT_SOURCE_DIR}/examples/auto_client.cpp"
+)
+target_link_libraries(auto_client PRIVATE dreamdb)
+
+# 复制 test.sql 到 build 目录
+add_custom_command(TARGET auto_client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/examples/test.sql"
+    "${CMAKE_CURRENT_BINARY_DIR}/test.sql"
+    COMMENT "Copying test.sql to build directory"
+)

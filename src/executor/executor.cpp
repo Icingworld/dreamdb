@@ -15,9 +15,12 @@
 #include "dreamdb/schema/database.h"
 #include "dreamdb/schema/collection.h"
 #include "dreamdb/parser/ast/literal_expr.h"
+#include "dreamdb/parser/ast/identifier_expr.h"
 #include "dreamdb/query/query.h"
 #include "dreamdb/query/order.h"
 #include "dreamdb/query/limit.h"
+#include "dreamdb/evaluator/evaluator.h"
+#include "dreamdb/evaluator/evaluator_context.h"
 
 namespace dreamdb
 {
@@ -115,11 +118,128 @@ ExecutorResult Executor::execute(const AstNode & ast)
     }
 }
 
-ExecutorResult Executor::execute_select(const SelectStmt &)
+ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
 {
+    // 获取查询的集合名称
+    const std::string & collection_name = select_stmt.get_collection_name();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_select not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 获取 SELECT 列表
+    const std::vector<SelectItem> & select_items = select_stmt.get_select_items();
+    if (select_items.empty()) {
+        result.set_is_success(false);
+        result.set_message("SELECT list is empty");
+        return result;
+    }
+
+    // 构造一个 Query
+    Query query;
+    // 设置 where 条件
+    const AstNode * where_clause = select_stmt.get_where_clause();
+    if (where_clause != nullptr) {
+        query.set_where_clause(where_clause);
+    }
+    // 设置 order by 条件（只支持第一个 ORDER BY 项）
+    const std::vector<OrderByItem> & order_by_items = select_stmt.get_order_by_items();
+    if (!order_by_items.empty()) {
+        const OrderByItem & first_order_item = order_by_items[0];
+        const AstNode * order_expr = first_order_item.get_expression();
+
+        // ORDER BY 表达式必须是标识符（列名）
+        if (order_expr != nullptr && order_expr->get_type() == AstNodeType::IDENTIFIER_EXPR) {
+            const IdentifierExpr * id_expr = static_cast<const IdentifierExpr *>(order_expr);
+            const std::string & column_name = id_expr->get_original_identifier();
+            std::optional<std::size_t> field_index = collection->get_field_index(column_name);
+            if (field_index.has_value()) {
+                if (field_index.value() <= 255) {
+                    Direction order_direction = first_order_item.get_order_type();
+                    query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_direction));
+                }
+            }
+        }
+    }
+    // 设置 limit 条件
+    const std::optional<std::size_t> & limit = select_stmt.get_limit();
+    if (limit.has_value()) {
+        query.set_limit(Limit(limit.value()));
+    }
+
+    // 执行查询，获取符合条件的实体
+    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+
+    // 准备评估器
+    Evaluator evaluator;
+    EvaluatorContext context;
+    context.set_collection(collection);
+
+    // 处理每个实体
+    for (const auto & entity : entities) {
+        context.set_entity(entity.get());
+
+        // 判断是否是 SELECT *
+        bool is_select_star = select_items.size() == 1 && 
+                              select_items[0].get_select_item_type() == SelectItem::SelectItemType::STAR;
+
+        Entity result_entity(0, is_select_star ? entity->field_count() : select_items.size());
+
+        if (is_select_star) {
+            // SELECT *: 直接复制所有字段
+            for (std::size_t i = 0; i < entity->field_count(); ++i) {
+                result_entity.set_value(i, entity->get_value(i));
+            }
+        } else {
+            // SELECT 表达式列表: 评估每个表达式
+
+            for (std::size_t i = 0; i < select_items.size(); ++i) {
+                const SelectItem & item = select_items[i];
+
+                if (item.get_select_item_type() == SelectItem::SelectItemType::EXPRESSION) {
+                    const AstNode * expr = item.get_select_item_expression();
+                    if (expr != nullptr) {
+                        // 评估表达式
+                        EvaluateResult eval_result = evaluator.evaluate(expr, context);
+                        if (eval_result.get_is_success()) {
+                            result_entity.set_value(i, eval_result.get_value());
+                        } else {
+                            result.set_is_success(false);
+                            result.set_message("Error evaluating expression: " + eval_result.get_error_message());
+                            return result;
+                        }
+                    } else {
+                        result_entity.set_value(i, Null());
+                    }
+                } else {
+                    // 不应该到达这里，因为已经检查了 SELECT *
+                    result.set_is_success(false);
+                    result.set_message("Invalid SELECT item type");
+                    return result;
+                }
+            }
+        }
+
+        result.add_row(std::move(result_entity));
+    }
+
+    result.set_is_success(true);
+    result.set_message("Selected " + std::to_string(entities.size()) + " row(s)");
+    result.set_affected_count(entities.size());
     return result;
 }
 
