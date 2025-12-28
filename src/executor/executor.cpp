@@ -1,6 +1,12 @@
 #include "dreamdb/executor/executor.h"
 
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
+#include "dreamdb/common/decimal.h"
+#include "dreamdb/common/null.h"
+#include <sstream>
+#include <iomanip>
 
 #include "dreamdb/parser/ast/select_stmt.h"
 #include "dreamdb/parser/ast/delete_stmt.h"
@@ -116,6 +122,47 @@ ExecutorResult Executor::execute(const AstNode & ast)
             return result;
         }
     }
+}
+
+/**
+ * @brief 将 FieldValue 转换为字符串表示
+ * @param value 字段值
+ * @return 字符串表示
+ */
+static std::string field_value_to_string(const FieldValue & value)
+{
+    if (std::holds_alternative<Null>(value)) {
+        return "NULL";
+    } else if (std::holds_alternative<std::int8_t>(value)) {
+        return std::to_string(std::get<std::int8_t>(value));
+    } else if (std::holds_alternative<std::int16_t>(value)) {
+        return std::to_string(std::get<std::int16_t>(value));
+    } else if (std::holds_alternative<std::int32_t>(value)) {
+        return std::to_string(std::get<std::int32_t>(value));
+    } else if (std::holds_alternative<std::int64_t>(value)) {
+        return std::to_string(std::get<std::int64_t>(value));
+    } else if (std::holds_alternative<float>(value)) {
+        return std::to_string(std::get<float>(value));
+    } else if (std::holds_alternative<double>(value)) {
+        return std::to_string(std::get<double>(value));
+    } else if (std::holds_alternative<Decimal>(value)) {
+        return std::get<Decimal>(value).to_string();
+    } else if (std::holds_alternative<std::string>(value)) {
+        return std::get<std::string>(value);
+    } else if (std::holds_alternative<bool>(value)) {
+        return std::get<bool>(value) ? "true" : "false";
+    } else if (std::holds_alternative<std::vector<float>>(value)) {
+        const auto & vec = std::get<std::vector<float>>(value);
+        std::ostringstream oss;
+        oss << "[";
+        for (std::size_t i = 0; i < vec.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << vec[i];
+        }
+        oss << "]";
+        return oss.str();
+    }
+    return "<unknown>";
 }
 
 ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
@@ -237,8 +284,108 @@ ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
         result.add_row(std::move(result_entity));
     }
 
+    // 格式化查询结果
+    std::ostringstream oss;
+
+    if (entities.empty()) {
+        oss << "Empty result set (0 row(s))";
+    } else {
+        // 获取列名（用于表头）
+        std::vector<std::string> column_names;
+        bool is_select_star = select_items.size() == 1 && 
+                              select_items[0].get_select_item_type() == SelectItem::SelectItemType::STAR;
+
+        if (is_select_star) {
+            // SELECT *: 使用 schema 中的所有字段名
+            const std::vector<Field> & schema = collection->get_schema();
+            for (const auto & field : schema) {
+                column_names.push_back(field.get_name());
+            }
+        } else {
+            // SELECT 表达式列表: 使用别名或表达式名称
+            for (const auto & item : select_items) {
+                if (item.get_select_item_type() == SelectItem::SelectItemType::EXPRESSION) {
+                    const std::string & alias = item.get_select_item_alias();
+                    if (!alias.empty()) {
+                        column_names.push_back(alias);
+                    } else {
+                        // 如果没有别名，使用表达式类型作为列名
+                        const AstNode * expr = item.get_select_item_expression();
+                        if (expr != nullptr) {
+                            if (expr->get_type() == AstNodeType::IDENTIFIER_EXPR) {
+                                const IdentifierExpr * id_expr = static_cast<const IdentifierExpr *>(expr);
+                                column_names.push_back(id_expr->get_original_identifier());
+                            } else {
+                                column_names.push_back("expr_" + std::to_string(column_names.size()));
+                            }
+                        } else {
+                            column_names.push_back("null");
+                        }
+                    }
+                }
+            }
+        }
+
+        // 从 result 中获取 rows（已经 add_row 了）
+        // 但是需要重新处理，因为 result.rows_ 可能还没有初始化
+        // 直接使用 entities 来格式化
+
+        // 先获取第一个实体的字段数来确定列数
+        std::size_t num_columns = entities[0]->field_count();
+
+        // 计算每列的最大宽度（用于格式化）
+        std::vector<std::size_t> column_widths(num_columns);
+        for (std::size_t i = 0; i < column_names.size() && i < num_columns; ++i) {
+            column_widths[i] = column_names[i].length();
+        }
+
+        // 将实体转换为字符串，并计算列宽
+        std::vector<std::vector<std::string>> rows;
+        for (const auto & entity_ptr : entities) {
+            std::vector<std::string> row;
+            for (std::size_t i = 0; i < entity_ptr->field_count(); ++i) {
+                const FieldValue & value = entity_ptr->get_value(i);
+                std::string value_str = field_value_to_string(value);
+                row.push_back(value_str);
+                if (i < column_widths.size() && value_str.length() > column_widths[i]) {
+                    column_widths[i] = value_str.length();
+                }
+            }
+            rows.push_back(row);
+        }
+
+        // 生成表头
+        oss << "|";
+        for (std::size_t i = 0; i < column_names.size() && i < num_columns; ++i) {
+            oss << " " << std::setw(static_cast<int>(column_widths[i])) << std::left << column_names[i] << " |";
+        }
+        oss << "\n";
+
+        // 生成分隔线
+        oss << "|";
+        for (std::size_t i = 0; i < num_columns; ++i) {
+            if (i < column_widths.size()) {
+                oss << std::string(column_widths[i] + 2, '-') << "|";
+            }
+        }
+        oss << "\n";
+
+        // 生成数据行
+        for (const auto & row : rows) {
+            oss << "|";
+            for (std::size_t i = 0; i < row.size(); ++i) {
+                if (i < column_widths.size()) {
+                    oss << " " << std::setw(static_cast<int>(column_widths[i])) << std::left << row[i] << " |";
+                }
+            }
+            oss << "\n";
+        }
+
+        oss << "\n(" << rows.size() << " row(s))";
+    }
+
     result.set_is_success(true);
-    result.set_message("Selected " + std::to_string(entities.size()) + " row(s)");
+    result.set_message(oss.str());
     result.set_affected_count(entities.size());
     return result;
 }
