@@ -3,34 +3,39 @@
 namespace dreamdb
 {
 
-bool IndexKeyBase::operator==(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator==(const ComparableIndexKeyBase & other) const
 {
     return compare(other) == 0;
 }
 
-bool IndexKeyBase::operator!=(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator!=(const ComparableIndexKeyBase & other) const
 {
     return compare(other) != 0;
 }
 
-bool IndexKeyBase::operator<(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator<(const ComparableIndexKeyBase & other) const
 {
     return compare(other) < 0;
 }
 
-bool IndexKeyBase::operator>(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator>(const ComparableIndexKeyBase & other) const
 {
     return compare(other) > 0;
 }
 
-bool IndexKeyBase::operator<=(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator<=(const ComparableIndexKeyBase & other) const
 {
     return compare(other) <= 0;
 }
 
-bool IndexKeyBase::operator>=(const IndexKeyBase & other) const
+bool ComparableIndexKeyBase::operator>=(const ComparableIndexKeyBase & other) const
 {
     return compare(other) >= 0;
+}
+
+bool HashableIndexKeyBase::operator==(const HashableIndexKeyBase & other) const
+{
+    return equals(other);
 }
 
 } // namespace dreamdb
