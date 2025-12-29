@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <vector>
 #include <unordered_map>
 #include <memory>
@@ -47,8 +47,8 @@ public:
     std::vector<std::shared_ptr<Segment>> get_all_segments() const;
 
 private:
-    std::int64_t next_id_;                                                 // 段 ID 生成器
-    std::unordered_map<std::int64_t, std::shared_ptr<Segment>> segments_;  // 段映射表
+    std::size_t next_id_;                                                 // 段 ID 生成器
+    std::unordered_map<std::size_t, std::shared_ptr<Segment>> segments_;  // 段映射表
 };
 
 } // namespace dreamdb

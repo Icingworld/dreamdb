@@ -65,12 +65,12 @@ MutationResult Collection::insert(const Entity & entity)
     return active_segment_->insert(entity);
 }
 
-MutationResult Collection::remove(std::int64_t id)
+MutationResult Collection::remove(std::size_t id)
 {
     return active_segment_->remove_by_id(id);
 }
 
-MutationResult Collection::update(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
+MutationResult Collection::update(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
 {
     return active_segment_->update_by_id(id, fields);
 }

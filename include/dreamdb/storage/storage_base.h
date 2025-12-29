@@ -40,7 +40,7 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    virtual MutationResult remove_by_id(std::int64_t id) = 0;
+    virtual MutationResult remove_by_id(std::size_t id) = 0;
 
     /**
      * @brief 按内部 ID 更新实体
@@ -49,7 +49,7 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    virtual MutationResult update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields) = 0;
+    virtual MutationResult update_by_id(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields) = 0;
 
 public:
     /** 查询操作 */
@@ -59,7 +59,7 @@ public:
      * @param id 内部 ID
      * @return 实体指针，如果不存在返回 nullptr
      */
-    virtual std::unique_ptr<Entity> get_by_id(std::int64_t id) const = 0;
+    virtual std::unique_ptr<Entity> get_by_id(std::size_t id) const = 0;
 
     /**
      * @brief 执行查询
@@ -89,7 +89,7 @@ public:
      * @param id 内部 ID
      * @return 如果存在返回 true
      */
-    virtual bool contains(std::int64_t id) const = 0;
+    virtual bool contains(std::size_t id) const = 0;
 
 public:
     /** 批量操作 */

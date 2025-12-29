@@ -10,7 +10,7 @@ namespace dreamdb
 
 Segment::~Segment() = default;
 
-Segment::Segment(std::int64_t id)
+Segment::Segment(std::size_t id)
     : id_(id)
     , status_(SegmentStatus::GROWING)
     , storage_(std::make_unique<MemoryStorage>())
@@ -24,7 +24,7 @@ void Segment::set_status(SegmentStatus status) noexcept
     status_ = status;
 }
 
-std::int64_t Segment::get_id() const noexcept
+std::size_t Segment::get_id() const noexcept
 {
     return id_;
 }
@@ -49,17 +49,17 @@ MutationResult Segment::insert(const Entity & entity)
     return storage_->insert(entity);
 }
 
-MutationResult Segment::remove_by_id(std::int64_t id)
+MutationResult Segment::remove_by_id(std::size_t id)
 {
     return storage_->remove_by_id(id);
 }
 
-MutationResult Segment::update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
+MutationResult Segment::update_by_id(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
 {
     return storage_->update_by_id(id, fields);
 }
 
-std::unique_ptr<Entity> Segment::get_by_id(std::int64_t id) const
+std::unique_ptr<Entity> Segment::get_by_id(std::size_t id) const
 {
     return storage_->get_by_id(id);
 }
