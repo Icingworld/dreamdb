@@ -27,7 +27,7 @@ endif()
 # 可以通过 -DProtobuf_ROOT=<path> 来指定 protobuf 路径
 if(NOT DEFINED Protobuf_ROOT)
     if(WIN32)
-        set(Protobuf_ROOT "D:/msys64/ucrt64")
+        set(Protobuf_ROOT "C:/msys64/ucrt64")
     endif()
 endif()
 
