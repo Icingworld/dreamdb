@@ -22,7 +22,7 @@ class Collection;
 class Segment
 {
 public:
-    explicit Segment(std::int64_t id);
+    explicit Segment(std::size_t id);
 
     Segment(const Segment & other) = delete;
 
@@ -47,7 +47,7 @@ public:
      * @brief 获取段 ID
      * @return 段 ID
      */
-    std::int64_t get_id() const noexcept;
+    std::size_t get_id() const noexcept;
 
     /**
      * @brief 获取段状态
@@ -90,7 +90,7 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    MutationResult remove_by_id(std::int64_t id);
+    MutationResult remove_by_id(std::size_t id);
 
     /**
      * @brief 按内部 ID 更新实体
@@ -99,14 +99,14 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    MutationResult update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields);
+    MutationResult update_by_id(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields);
  
     /**
      * @brief 按内部 ID 获取实体
      * @param id 内部 ID
      * @return 实体指针，如果不存在返回 nullptr
      */
-    std::unique_ptr<Entity> get_by_id(std::int64_t id) const;
+    std::unique_ptr<Entity> get_by_id(std::size_t id) const;
  
     /**
      * @brief 执行查询
@@ -132,7 +132,7 @@ public:
     bool empty() const noexcept;
 
 private:
-    std::int64_t id_;                                                   // 段 ID
+    std::size_t id_;                                                    // 段 ID
     SegmentStatus status_;                                              // 段状态
     std::unique_ptr<StorageBase> storage_;                              // 存储实现
     std::chrono::system_clock::time_point created_at_;                  // 创建时间

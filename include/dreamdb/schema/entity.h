@@ -1,7 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <vector>
-#include <cstdint>
 
 #include "dreamdb/schema/field.h"
 
@@ -21,7 +21,7 @@ public:
      * @param id 内部 ID
      * @param field_count 预分配字段数量
      */
-    explicit Entity(std::int64_t id, std::size_t field_count);
+    explicit Entity(std::size_t id, std::size_t field_count);
 
     Entity(const Entity & other) = default;
 
@@ -48,7 +48,7 @@ public:
      * @brief 获取内部 ID
      * @return 内部 ID
      */
-    std::int64_t get_id() const;
+    std::size_t get_id() const;
 
     /**
      * @brief 获取字段值
@@ -102,7 +102,7 @@ public:
     bool is_empty() const;
 
 private:
-    std::int64_t id_;                    // 内部 ID
+    std::size_t id_;                     // 内部 ID
     std::vector<FieldValue> values_;     // 字段值列表，按索引顺序存储
 };
 

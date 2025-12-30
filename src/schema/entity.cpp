@@ -7,7 +7,7 @@
 namespace dreamdb
 {
 
-Entity::Entity(std::int64_t id, std::size_t field_count)
+Entity::Entity(std::size_t id, std::size_t field_count)
     : id_(id)
     , values_(field_count, Null())
 {
@@ -22,7 +22,7 @@ void Entity::set_value(std::size_t index, const FieldValue & value)
     values_[index] = value;
 }
 
-std::int64_t Entity::get_id() const
+std::size_t Entity::get_id() const
 {
     return id_;
 }

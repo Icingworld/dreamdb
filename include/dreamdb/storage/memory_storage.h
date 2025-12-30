@@ -36,7 +36,7 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    MutationResult remove_by_id(std::int64_t id) override;
+    MutationResult remove_by_id(std::size_t id) override;
 
     /**
      * @brief 按内部 ID 更新实体
@@ -45,14 +45,14 @@ public:
      * @return 操作结果
      * @note 如果 ID 不存在，操作失败
      */
-    MutationResult update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields) override;
+    MutationResult update_by_id(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields) override;
 
     /**
      * @brief 按内部 ID 获取实体
      * @param id 内部 ID
      * @return 实体指针，如果不存在返回 nullptr
      */
-    std::unique_ptr<Entity> get_by_id(std::int64_t id) const override;
+    std::unique_ptr<Entity> get_by_id(std::size_t id) const override;
 
     /**
      * @brief 执行查询
@@ -79,7 +79,7 @@ public:
      * @param id 内部 ID
      * @return 如果存在返回 true
      */
-    bool contains(std::int64_t id) const override;
+    bool contains(std::size_t id) const override;
 
     /**
      * @brief 清空所有数据
@@ -88,7 +88,7 @@ public:
     MutationResult clear() override;
 
 private:
-    std::unordered_map<std::int64_t, Entity> entity_map_;   // 实体映射
+    std::unordered_map<std::size_t, Entity> entity_map_;   // 实体映射
 };
 
 } // namespace dreamdb

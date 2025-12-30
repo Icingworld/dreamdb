@@ -72,6 +72,18 @@ public:
      */
     const std::string & get_object_name() const noexcept;
 
+    /**
+     * @brief 设置集合名称（用于 INDEX 和 VINDEX）
+     * @param collection_name 集合名称
+     */
+    void set_collection_name(const std::string & collection_name);
+
+    /**
+     * @brief 获取集合名称（用于 INDEX 和 VINDEX）
+     * @return 集合名称，如果未设置返回空字符串
+     */
+    const std::string & get_collection_name() const noexcept;
+
 public:
     /**
      * @brief 调试字符串
@@ -82,6 +94,7 @@ public:
 private:
     DropType drop_type_;            // 删除类型
     std::string object_name_;       // 对象名称
+    std::string collection_name_;   // 集合名称（用于 INDEX 和 VINDEX）
 };
 
 } // namespace dreamdb

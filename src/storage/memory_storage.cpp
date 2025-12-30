@@ -127,7 +127,7 @@ MutationResult MemoryStorage::insert(const Entity & entity)
     return MutationResult::make_success(1);
 }
 
-MutationResult MemoryStorage::remove_by_id(std::int64_t id)
+MutationResult MemoryStorage::remove_by_id(std::size_t id)
 {
     // 查找是否有该 id 的实体
     auto it = entity_map_.find(id);
@@ -139,7 +139,7 @@ MutationResult MemoryStorage::remove_by_id(std::int64_t id)
     return MutationResult::make_success(1);
 }
 
-MutationResult MemoryStorage::update_by_id(std::int64_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
+MutationResult MemoryStorage::update_by_id(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields)
 {
     auto it = entity_map_.find(id);
     if (it == entity_map_.end()) {
@@ -153,7 +153,7 @@ MutationResult MemoryStorage::update_by_id(std::int64_t id, std::vector<std::pai
     return MutationResult::make_success(1);
 }
 
-std::unique_ptr<Entity> MemoryStorage::get_by_id(std::int64_t id) const
+std::unique_ptr<Entity> MemoryStorage::get_by_id(std::size_t id) const
 {
     auto it = entity_map_.find(id);
     if (it == entity_map_.end()) {
@@ -228,7 +228,7 @@ bool MemoryStorage::empty() const
     return entity_map_.empty();
 }
 
-bool MemoryStorage::contains(std::int64_t id) const
+bool MemoryStorage::contains(std::size_t id) const
 {
     return entity_map_.find(id) != entity_map_.end();
 }

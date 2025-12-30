@@ -418,62 +418,74 @@ EvaluateResult Evaluator::evaluate_binary(
 
 EvaluateResult Evaluator::evaluate_unary(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("Unary operator not yet supported");
 }
 
 EvaluateResult Evaluator::evaluate_like(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("Like operator not yet supported");
 }
 
 EvaluateResult Evaluator::evaluate_in(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("In operator not yet supported");
 }
 
 EvaluateResult Evaluator::evaluate_between(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("Between operator not yet supported");
 }
 
 EvaluateResult Evaluator::evaluate_null(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("Null operator not yet supported");
 }
 
 EvaluateResult Evaluator::evaluate_function_call(
     const AstNode * expr,
-    const EvaluatorContext & context
+    const EvaluatorContext &
 ) const
 {
     if (expr == nullptr) {
         return EvaluateResult::make_error("Expression is null");
     }
+
+    return EvaluateResult::make_error("Function call not yet supported");
 }
 
 bool Evaluator::field_value_to_bool(const FieldValue & value) const

@@ -796,14 +796,30 @@ std::unique_ptr<DropStmt> Parser::parse_drop_stmt()
 
     // 解析对象名称
     if (!check(TokenType::DB_IDENTIFIER)) {
-        error("Expected object_name after DROP" + DropStmt::drop_type_to_string(drop_type));
+        error("Expected object_name after DROP " + DropStmt::drop_type_to_string(drop_type));
         return nullptr;
     }
     std::string object_name = current_token_.get_value();
     // 消耗 object_name
     advance();
 
-    stmt->set_object_name(object_name);    
+    stmt->set_object_name(object_name);
+
+    // 如果是 INDEX 或 VINDEX，需要解析 ON <collection_name>
+    if (drop_type == DropStmt::DropType::INDEX || drop_type == DropStmt::DropType::VINDEX) {
+        // 期望 'ON' 关键字
+        consume(TokenType::DB_ON, "Expected ON after " + DropStmt::drop_type_to_string(drop_type) + " name");
+
+        // 解析集合名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected collection name after ON");
+            return nullptr;
+        }
+        std::string collection_name = current_token_.get_value();
+        stmt->set_collection_name(collection_name);
+        // 消耗 collection_name
+        advance();
+    }
 
     // DROP 语句解析完成
     return stmt;
