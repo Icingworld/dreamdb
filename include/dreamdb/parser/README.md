@@ -434,12 +434,13 @@ Error: Index 'index_name' already exists
 **语法**
 
 ```sql
-DROP INDEX <index_name>;
+DROP INDEX <index_name> ON <collection_name>;
 ```
 
 **参数说明**
 
 - `index_name`：要删除的索引名称
+- `collection_name`：要删除的集合名称
 
 **可能的响应**
 
@@ -537,12 +538,13 @@ Error: Vindex 'vindex_name' already exists
 **语法**
 
 ```sql
-DROP VINDEX <vindex_name>;
+DROP VINDEX <vindex_name> ON <collection_name>;
 ```
 
 **参数说明**
 
 - `vindex_name`：要删除的向量索引名称
+- `collection_name`：要删除的集合名称
 
 **可能的响应**
 

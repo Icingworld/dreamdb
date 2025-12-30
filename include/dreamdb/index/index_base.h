@@ -10,10 +10,19 @@ namespace dreamdb
 {
 
 /**
+ * @brief 索引基类
+ */
+class IndexBase
+{
+public:
+    virtual ~IndexBase() = default;
+};
+
+/**
  * @brief 可比较的索引基类
  * @details 用于 B-tree 等需要排序的索引
  */
-class ComparableIndexBase
+class ComparableIndexBase : public IndexBase
 {
 public:
     virtual ~ComparableIndexBase() = default;
@@ -96,7 +105,7 @@ public:
  * @brief 可哈希的索引基类
  * @details 用于 Hash 索引
  */
-class HashableIndexBase
+class HashableIndexBase : public IndexBase
 {
 public:
     virtual ~HashableIndexBase() = default;

@@ -1125,11 +1125,57 @@ ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stm
     return result;
 }
 
-ExecutorResult Executor::execute_create_index(const CreateStmt &)
+ExecutorResult Executor::execute_create_index(const CreateStmt & create_stmt)
 {
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_create_index not implemented");
+
+    // 获取索引名称、集合名称、索引名称和索引类型
+    const std::string & index_name = create_stmt.get_object_name();
+    const std::string & collection_name = create_stmt.get_collection_name().value();
+    const IndexType & index_type = create_stmt.get_index_type().value();
+    const std::vector<std::string> & column_names = create_stmt.get_column_names().value();
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 创建索引元数据
+    IndexMeta index_meta;
+    index_meta.set_index_name(index_name);
+    index_meta.set_index_type(index_type);
+    for (const std::string & column_name : column_names) {
+        std::optional<std::size_t> field_index = collection->get_field_index(column_name);
+        if (field_index.has_value()) {
+            index_meta.add_field_index(field_index.value());
+        } else {
+            result.set_is_success(false);
+            result.set_message("Unknown column: '" + column_name + "'");
+            return result;
+        }
+    }
+    // TODO: 暂不支持 UNIQUE 索引
+    index_meta.set_is_unique(false);
+
+    // 创建索引
+    if (collection->create_index(index_meta)) {
+        result.set_is_success(true);
+        result.set_message("Index created");
+    } else {
+        result.set_is_success(false);
+        result.set_message("Unknown index: '" + index_name + "'");
+    }
     return result;
 }
 
@@ -1144,7 +1190,7 @@ ExecutorResult Executor::execute_create_vindex(const CreateStmt &)
 ExecutorResult Executor::execute_drop_database(const DropStmt & drop_stmt)
 {
     // 获取数据库名称
-    std::string database_name = drop_stmt.get_object_name();
+    const std::string & database_name = drop_stmt.get_object_name();
 
     // 检查是否为当前数据库
     Database * database = get_current_database();
@@ -1170,7 +1216,7 @@ ExecutorResult Executor::execute_drop_database(const DropStmt & drop_stmt)
 ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
 {
     // 获取集合名称
-    std::string collection_name = drop_stmt.get_object_name();
+    const std::string & collection_name = drop_stmt.get_object_name();
 
     ExecutorResult result;
 
@@ -1194,11 +1240,39 @@ ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
     return result;
 }
 
-ExecutorResult Executor::execute_drop_index(const DropStmt &)
+ExecutorResult Executor::execute_drop_index(const DropStmt & drop_stmt)
 {
+    // 获取索引名称和集合名称
+    const std::string & index_name = drop_stmt.get_object_name();
+    const std::string & collection_name = drop_stmt.get_collection_name();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_drop_index not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 删除索引
+    if (collection->remove_index(index_name)) {
+        result.set_is_success(true);
+        result.set_message("Index dropped");
+    } else {
+        result.set_is_success(false);
+        result.set_message("Unknown index: '" + index_name + "'");
+    }
+
     return result;
 }
 
@@ -1243,11 +1317,44 @@ ExecutorResult Executor::execute_show_collections()
     return result;
 }
 
-ExecutorResult Executor::execute_show_indexes(const ShowStmt &)
+ExecutorResult Executor::execute_show_indexes(const ShowStmt & show_stmt)
 {
+    // 获取集合名称
+    const std::string & collection_name = show_stmt.get_collection_name();
+
     ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_show_indexes not implemented");
+
+    // 获取当前数据库
+    Database * database = get_current_database();
+    if (database == nullptr) {
+        result.set_is_success(false);
+        result.set_message("No database selected");
+        return result;
+    }
+
+    // 获取集合
+    Collection * collection = database->get_collection(collection_name);
+    if (collection == nullptr) {
+        result.set_is_success(false);
+        result.set_message("Unknown collection: '" + collection_name + "'");
+        return result;
+    }
+
+    // 获取所有索引元数据
+    std::vector<const IndexMeta*> all_indexes = collection->get_all_index_metadata();
+
+    // 构建返回消息
+    result.set_is_success(true);
+    std::string message = "Indexes:\n";
+    for (const IndexMeta * index_meta : all_indexes) {
+        if (index_meta == nullptr) {
+            continue;
+        }
+        std::string index_name = index_meta->get_index_name();
+        message += index_name + "\n";
+    }
+    result.set_message(message);
+
     return result;
 }
 
