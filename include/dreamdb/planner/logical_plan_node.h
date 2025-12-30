@@ -18,6 +18,7 @@ enum class LogicalPlanNodeType : std::uint8_t
     AGGREGATE,              // 聚合（聚合函数，如 COUNT、SUM、AVG 等）
     SORT,                   // 排序（ORDER BY 子句）
     LIMIT,                  // 限制（LIMIT 子句）
+    OFFSET                  // 偏移（OFFSET 子句）
 };
 
 /**
