@@ -4,10 +4,10 @@ namespace dreamdb
 {
 
 BinaryExpression::BinaryExpression(BinaryOperatorType operator_type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
-    : Expression(ExpressionType::EXPRESSION_BINARY),
-      operator_type_(operator_type),
-      left_(std::move(left)),
-      right_(std::move(right))
+    : Expression(ExpressionType::EXPRESSION_BINARY)
+    , operator_type_(operator_type)
+    , left_(std::move(left))
+    , right_(std::move(right))
 {
 }
 

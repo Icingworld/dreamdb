@@ -4,8 +4,8 @@ namespace dreamdb
 {
 
 ColumnReferenceExpression::ColumnReferenceExpression(std::size_t field_index) noexcept
-    : Expression(ExpressionType::EXPRESSION_COLUMN_REFERENCE),
-      field_index_(field_index)
+    : Expression(ExpressionType::EXPRESSION_COLUMN_REFERENCE)
+    , field_index_(field_index)
 {
 }
 

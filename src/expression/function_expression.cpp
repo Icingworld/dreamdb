@@ -4,9 +4,9 @@ namespace dreamdb
 {
 
 FunctionExpression::FunctionExpression(const std::string & function_name, std::vector<std::unique_ptr<Expression>> arguments)
-    : Expression(ExpressionType::EXPRESSION_FUNCTION),
-      function_name_(function_name),
-      arguments_(std::move(arguments))
+    : Expression(ExpressionType::EXPRESSION_FUNCTION)
+    , function_name_(function_name)
+    , arguments_(std::move(arguments))
 {
 }
 

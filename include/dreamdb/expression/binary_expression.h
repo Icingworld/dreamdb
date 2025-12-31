@@ -42,9 +42,9 @@ public:
 
     BinaryExpression(BinaryExpression &&) noexcept = default;
 
-    BinaryExpression &operator=(const BinaryExpression &) noexcept = delete;
+    BinaryExpression & operator=(const BinaryExpression &) noexcept = delete;
 
-    BinaryExpression &operator=(BinaryExpression &&) noexcept = default;
+    BinaryExpression & operator=(BinaryExpression &&) noexcept = default;
 
     ~BinaryExpression() noexcept = default;
 

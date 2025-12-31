@@ -17,9 +17,9 @@ public:
 
     ColumnReferenceExpression(ColumnReferenceExpression &&) noexcept = default;
 
-    ColumnReferenceExpression &operator=(const ColumnReferenceExpression &) noexcept = default;
+    ColumnReferenceExpression & operator=(const ColumnReferenceExpression &) noexcept = default;
 
-    ColumnReferenceExpression &operator=(ColumnReferenceExpression &&) noexcept = default;
+    ColumnReferenceExpression & operator=(ColumnReferenceExpression &&) noexcept = default;
 
     ~ColumnReferenceExpression() noexcept = default;
 

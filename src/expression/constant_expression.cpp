@@ -4,8 +4,8 @@ namespace dreamdb
 {
 
 ConstantExpression::ConstantExpression(const FieldValue & field_value)
-    : Expression(ExpressionType::EXPRESSION_CONSTANT),
-      field_value_(field_value)
+    : Expression(ExpressionType::EXPRESSION_CONSTANT)
+    , field_value_(field_value)
 {
 }
 

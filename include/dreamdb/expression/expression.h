@@ -15,10 +15,10 @@ enum class ExpressionType : std::uint8_t
     EXPRESSION_BINARY,                        // 二元运算符
     EXPRESSION_UNARY,                         // 一元运算符
     EXPRESSION_FUNCTION,                      // 函数
-    EXPRESSION_INLIST,                        // IN 列表
-    EXPRESSION_LIKE,                          // LIKE 运算符
-    EXPRESSION_BETWEEN,                       // BETWEEN 运算符
-    EXPRESSION_NULL_CHECK                     // NULL 检查
+    EXPRESSION_IN,                            // IN 表达式
+    EXPRESSION_LIKE,                          // LIKE 表达式
+    EXPRESSION_BETWEEN,                       // BETWEEN 表达式
+    EXPRESSION_NULL                           // NULL 表达式
 };
 
 /**

@@ -4,9 +4,9 @@ namespace dreamdb
 {
 
 UnaryExpression::UnaryExpression(UnaryOperatorType operator_type, std::unique_ptr<Expression> operand)
-    : Expression(ExpressionType::EXPRESSION_UNARY),
-      operator_type_(operator_type),
-      operand_(std::move(operand))
+    : Expression(ExpressionType::EXPRESSION_UNARY)
+    , operator_type_(operator_type)
+    , operand_(std::move(operand))
 {
 }
 

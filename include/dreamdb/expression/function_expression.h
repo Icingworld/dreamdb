@@ -21,9 +21,9 @@ public:
 
     FunctionExpression(FunctionExpression &&) noexcept = default;
 
-    FunctionExpression &operator=(const FunctionExpression &) noexcept = delete;
+    FunctionExpression & operator=(const FunctionExpression &) noexcept = delete;
 
-    FunctionExpression &operator=(FunctionExpression &&) noexcept = default;
+    FunctionExpression & operator=(FunctionExpression &&) noexcept = default;
 
     ~FunctionExpression() noexcept = default;
 

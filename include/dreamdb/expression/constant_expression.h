@@ -18,9 +18,9 @@ public:
 
     ConstantExpression(ConstantExpression &&) noexcept = default;
 
-    ConstantExpression &operator=(const ConstantExpression &) noexcept = default;
+    ConstantExpression & operator=(const ConstantExpression &) noexcept = default;
 
-    ConstantExpression &operator=(ConstantExpression &&) noexcept = default;
+    ConstantExpression & operator=(ConstantExpression &&) noexcept = default;
 
     ~ConstantExpression() noexcept = default;
 

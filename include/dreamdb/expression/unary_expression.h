@@ -30,9 +30,9 @@ public:
 
     UnaryExpression(UnaryExpression &&) noexcept = default;
 
-    UnaryExpression &operator=(const UnaryExpression &) noexcept = delete;
+    UnaryExpression & operator=(const UnaryExpression &) noexcept = delete;
 
-    UnaryExpression &operator=(UnaryExpression &&) noexcept = default;
+    UnaryExpression & operator=(UnaryExpression &&) noexcept = default;
 
     ~UnaryExpression() noexcept = default;
 
