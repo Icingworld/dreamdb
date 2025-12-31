@@ -38,6 +38,18 @@ public:
      */
     LogicalPlanNodeType get_type() const noexcept;
 
+    /**
+     * @brief 获取子节点列表
+     * @return 子节点列表
+     */
+    const std::vector<std::unique_ptr<LogicalPlanNode>> & get_children() const noexcept;
+
+    /**
+     * @brief 获取可变子节点列表
+     * @return 子节点列表
+     */
+    std::vector<std::unique_ptr<LogicalPlanNode>> & get_mutable_children() noexcept;
+
 protected:
     LogicalPlanNodeType type_;   // 节点类型
     std::vector<std::unique_ptr<LogicalPlanNode>> children_;   // 子节点

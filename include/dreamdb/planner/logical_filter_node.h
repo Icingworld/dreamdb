@@ -33,6 +33,12 @@ public:
      */
     const Expression & get_predicate() const noexcept;
 
+    /**
+     * @brief 获取可变谓词
+     * @return 谓词
+     */
+    Expression & get_mutable_predicate() noexcept;
+
 private:
     std::unique_ptr<Expression> predicate_;   // 谓词
 };

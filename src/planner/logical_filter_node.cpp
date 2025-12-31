@@ -14,4 +14,9 @@ const Expression & LogicalFilterNode::get_predicate() const noexcept
     return *predicate_;
 }
 
+Expression & LogicalFilterNode::get_mutable_predicate() noexcept
+{
+    return *predicate_;
+}
+
 } // namespace dreamdb
