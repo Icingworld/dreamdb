@@ -11,7 +11,6 @@ namespace dreamdb
 
 /**
  * @brief USE 语句节点
- * @details 表示 USE <database_name> 语句，用于切换当前数据库
  */
 class AstUseStatementNode : public AstStatementNode
 {
