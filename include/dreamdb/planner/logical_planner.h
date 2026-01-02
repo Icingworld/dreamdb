@@ -12,25 +12,25 @@ namespace dreamdb
 {
 
 /**
- * @brief 计划器
- * @details 计划器能够将解析器生成的抽象语法树转换为逻辑计划树
- * Planner 的职责是对需要访问数据的查询语句进行计划，如 SELECT、DELETE、UPDATE 等语句
- * 而数据库定义、表结构等元数据相关的操作则不经过 Planner
+ * @brief 逻辑计划器
+ * @details LogicalPlanner 能够将解析器生成的抽象语法树转换为 LogicalPlan
+ * LogicalPlanner 的职责是对需要访问数据的查询语句进行计划，如 SELECT、DELETE、UPDATE 等语句
+ * 而数据库定义、表结构等元数据相关的操作则不经过 LogicalPlanner
  */
-class Planner
+class LogicalPlanner
 {
 public:
-    Planner() = default;
+    LogicalPlanner();
 
-    Planner(const Planner &) noexcept = delete;
+    LogicalPlanner(const LogicalPlanner &) noexcept = delete;
 
-    Planner(Planner &&) noexcept = default;
+    LogicalPlanner(LogicalPlanner &&) noexcept = delete;
 
-    Planner & operator=(const Planner &) noexcept = delete;
+    LogicalPlanner & operator=(const LogicalPlanner &) noexcept = delete;
 
-    Planner & operator=(Planner &&) noexcept = default;
+    LogicalPlanner & operator=(LogicalPlanner &&) noexcept = delete;
 
-    ~Planner() noexcept = default;
+    ~LogicalPlanner() noexcept = default;
 
 public:
     /**
