@@ -117,25 +117,25 @@ public:
      * @brief 获取添加字段操作
      * @return 添加字段操作
      */
-    const AstAlterAddColumn & get_add_column() const noexcept;
+    const AstAlterAddColumn & get_add_column() const;
 
     /**
      * @brief 获取删除字段操作
      * @return 删除字段操作
      */
-    const AstAlterDropColumn & get_drop_column() const noexcept;
+    const AstAlterDropColumn & get_drop_column() const;
 
     /**
      * @brief 获取修改字段操作
      * @return 修改字段操作
      */
-    const AstAlterModifyColumn & get_modify_column() const noexcept;
+    const AstAlterModifyColumn & get_modify_column() const;
 
     /**
      * @brief 获取重命名字段操作
      * @return 重命名字段操作
      */
-    const AstAlterRenameColumn & get_rename_column() const noexcept;
+    const AstAlterRenameColumn & get_rename_column() const;
 
     /**
      * @brief 是否存在集合名称

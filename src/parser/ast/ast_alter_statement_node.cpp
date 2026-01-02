@@ -55,22 +55,22 @@ AstAlterType AstAlterStatementNode::get_alter_type() const noexcept
     return alter_type_;
 }
 
-const AstAlterAddColumn & AstAlterStatementNode::get_add_column() const noexcept
+const AstAlterAddColumn & AstAlterStatementNode::get_add_column() const
 {
     return std::get<AstAlterAddColumn>(alter_operation_);
 }
 
-const AstAlterDropColumn & AstAlterStatementNode::get_drop_column() const noexcept
+const AstAlterDropColumn & AstAlterStatementNode::get_drop_column() const
 {
     return std::get<AstAlterDropColumn>(alter_operation_);
 }
 
-const AstAlterModifyColumn & AstAlterStatementNode::get_modify_column() const noexcept
+const AstAlterModifyColumn & AstAlterStatementNode::get_modify_column() const
 {
     return std::get<AstAlterModifyColumn>(alter_operation_);
 }
 
-const AstAlterRenameColumn & AstAlterStatementNode::get_rename_column() const noexcept
+const AstAlterRenameColumn & AstAlterStatementNode::get_rename_column() const
 {
     return std::get<AstAlterRenameColumn>(alter_operation_);
 }

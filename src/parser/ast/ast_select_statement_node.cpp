@@ -64,6 +64,7 @@ AstSelectStatementNode::AstSelectStatementNode(std::size_t line, std::size_t col
     , having_clause_(nullptr)
     , order_by_items_()
     , limit_(std::nullopt)
+    , offset_(std::nullopt)
 {
 }
 
