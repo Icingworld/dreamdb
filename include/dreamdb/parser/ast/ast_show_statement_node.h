@@ -42,8 +42,8 @@ public:
 
 public:
     /**
-     * @brief 设置显示类型
-     * @param show_type 显示类型
+     * @brief 设置 SHOW 类型
+     * @param show_type SHOW 类型
      */
     void set_show_type(AstShowType show_type) noexcept;
 
@@ -54,8 +54,8 @@ public:
     void set_collection_name(const std::string & collection_name);
 
     /**
-     * @brief 获取显示类型
-     * @return 显示类型
+     * @brief 获取 SHOW 类型
+     * @return SHOW 类型
      */
     AstShowType get_show_type() const noexcept;
 
@@ -72,7 +72,7 @@ public:
     bool has_collection_name() const noexcept;
 
 private:
-    AstShowType show_type_;                        // 显示类型
+    AstShowType show_type_;                        // SHOW 类型
     std::optional<std::string> collection_name_;   // 集合名称
 };
 

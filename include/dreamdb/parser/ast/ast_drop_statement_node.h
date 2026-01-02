@@ -90,7 +90,7 @@ public:
     bool has_collection_name() const noexcept;
 
 private:
-    AstDropType drop_type_;                        // 删除类型
+    AstDropType drop_type_;                        // DROP 类型
     std::optional<std::string> object_name_;       // 对象名称
     std::optional<std::string> collection_name_;   // 集合名称，用于索引和向量索引
 };
