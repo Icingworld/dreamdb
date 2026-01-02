@@ -11,7 +11,7 @@ namespace dreamdb
 {
 
 /**
- * @brief 显示类型枚举
+ * @brief SHOW 类型枚举
  */
 enum class AstShowType : std::uint8_t
 {
