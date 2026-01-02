@@ -82,14 +82,14 @@ public:
     const std::vector<OrderByItem> & get_order_by_items() const noexcept;
 
     /**
-     * @brief 获取限制数量
-     * @return 限制数量
+     * @brief 获取 LIMIT 子句
+     * @return LIMIT 子句
      */
     std::size_t get_limit() const noexcept;
 
     /**
-     * @brief 获取偏移量
-     * @return 偏移量
+     * @brief 获取 OFFSET 子句
+     * @return OFFSET 子句
      */
     std::size_t get_offset() const noexcept;
 
