@@ -34,7 +34,7 @@ public:
      * @brief 获取列名
      * @return 列名
      */
-    const std::string & get_column_name() const noexcept;
+    const std::string & get_column_name() const;
 
     /**
      * @brief 获取值表达式
@@ -118,7 +118,7 @@ public:
      * @brief 获取集合名
      * @return 集合名
      */
-    const std::string & get_collection_name() const noexcept;
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 获取赋值列表
@@ -178,13 +178,13 @@ public:
      * @brief 是否存在 LIMIT 子句
      * @return 是否存在 LIMIT 子句
      */
-    bool has_limit() const noexcept;
+    bool has_limit() const;
 
     /**
      * @brief 是否存在 OFFSET 子句
      * @return 是否存在 OFFSET 子句
      */
-    bool has_offset() const noexcept;
+    bool has_offset() const;
 
 private:
     std::optional<std::string> collection_name_;            // 集合名

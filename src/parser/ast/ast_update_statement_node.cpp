@@ -1,22 +1,19 @@
 #include "dreamdb/parser/ast/ast_update_statement_node.h"
 
+#include "dreamdb/parser/ast/ast_expression_node.h"
+
 namespace dreamdb
 {
 
 UpdateAssignment::UpdateAssignment(const std::string & column_name, std::unique_ptr<AstExpressionNode> value)
-    : column_name_(std::nullopt)
+    : column_name_(column_name.empty() ? std::nullopt : std::make_optional(column_name))
     , value_(std::move(value))
 {
-    if (column_name.empty()) {
-        column_name_ = std::nullopt;
-    } else {
-        column_name_ = column_name;
-    }
 }
 
 UpdateAssignment::~UpdateAssignment() noexcept = default;
 
-const std::string & UpdateAssignment::get_column_name() const noexcept
+const std::string & UpdateAssignment::get_column_name() const
 {
     return column_name_.value();
 }
@@ -83,7 +80,7 @@ void AstUpdateStatementNode::set_offset(std::size_t offset) noexcept
     offset_ = offset;
 }
 
-const std::string & AstUpdateStatementNode::get_collection_name() const noexcept
+const std::string & AstUpdateStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }
@@ -133,12 +130,12 @@ bool AstUpdateStatementNode::has_order_by_items() const noexcept
     return !order_by_items_.empty();
 }
 
-bool AstUpdateStatementNode::has_limit() const noexcept
+bool AstUpdateStatementNode::has_limit() const
 {
     return limit_.has_value();
 }
 
-bool AstUpdateStatementNode::has_offset() const noexcept
+bool AstUpdateStatementNode::has_offset() const
 {
     return offset_.has_value();
 }

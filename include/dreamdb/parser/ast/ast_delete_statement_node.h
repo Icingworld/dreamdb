@@ -67,13 +67,13 @@ public:
      * @brief 获取集合名
      * @return 集合名
      */
-    const std::string & get_collection_name() const noexcept;
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 获取 WHERE 子句
      * @return WHERE 子句
      */
-    const AstExpressionNode & get_where_clause() const noexcept;
+    const AstExpressionNode & get_where_clause() const;
 
     /**
      * @brief 获取 ORDER BY 子句
@@ -85,13 +85,13 @@ public:
      * @brief 获取 LIMIT 子句
      * @return LIMIT 子句
      */
-    std::size_t get_limit() const noexcept;
+    std::size_t get_limit() const;
 
     /**
      * @brief 获取 OFFSET 子句
      * @return OFFSET 子句
      */
-    std::size_t get_offset() const noexcept;
+    std::size_t get_offset() const;
 
     /**
      * @brief 是否存在集合名

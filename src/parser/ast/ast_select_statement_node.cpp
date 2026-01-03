@@ -1,5 +1,7 @@
 #include "dreamdb/parser/ast/ast_select_statement_node.h"
 
+#include "dreamdb/parser/ast/ast_expression_node.h"
+
 namespace dreamdb
 {
 
@@ -114,7 +116,7 @@ void AstSelectStatementNode::set_offset(std::size_t offset) noexcept
     offset_ = offset;
 }
 
-const std::string & AstSelectStatementNode::get_collection_name() const noexcept
+const std::string & AstSelectStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }
@@ -124,7 +126,7 @@ const std::vector<SelectItem> & AstSelectStatementNode::get_select_items() const
     return select_items_;
 }
 
-const AstExpressionNode & AstSelectStatementNode::get_where_clause() const noexcept
+const AstExpressionNode & AstSelectStatementNode::get_where_clause() const
 {
     return *where_clause_;
 }
@@ -134,7 +136,7 @@ const std::vector<std::unique_ptr<AstExpressionNode>> & AstSelectStatementNode::
     return group_by_clauses_;
 }
 
-const AstExpressionNode & AstSelectStatementNode::get_having_clause() const noexcept
+const AstExpressionNode & AstSelectStatementNode::get_having_clause() const
 {
     return *having_clause_;
 }
@@ -144,12 +146,12 @@ const std::vector<OrderByItem> & AstSelectStatementNode::get_order_by_items() co
     return order_by_items_;
 }
 
-std::size_t AstSelectStatementNode::get_limit() const noexcept
+std::size_t AstSelectStatementNode::get_limit() const
 {
     return limit_.value();
 }
 
-std::size_t AstSelectStatementNode::get_offset() const noexcept
+std::size_t AstSelectStatementNode::get_offset() const
 {
     return offset_.value();
 }

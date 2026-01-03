@@ -54,11 +54,10 @@ public:
      * @brief 获取集合名
      * @return 集合名
      */
-    const std::string & get_collection_name() const noexcept;
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 获取列名列表
-     * @details 如果未添加列名，则返回空列表，表示按照表结构顺序插入
      * @return 列名列表
      */
     const std::vector<std::string> & get_column_names() const noexcept;
@@ -78,6 +77,7 @@ public:
     /**
      * @brief 是否存在列名列表
      * @return 是否存在列名列表
+     * @details 如果未添加列名，则表示按照表结构顺序插入
      */
     bool has_column_names() const noexcept;
 

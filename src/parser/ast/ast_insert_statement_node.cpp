@@ -1,5 +1,7 @@
 #include "dreamdb/parser/ast/ast_insert_statement_node.h"
 
+#include "dreamdb/parser/ast/ast_expression_node.h"
+
 namespace dreamdb
 {
 
@@ -32,7 +34,7 @@ void AstInsertStatementNode::add_value(std::unique_ptr<AstExpressionNode> value)
     values_.emplace_back(std::move(value));
 }
 
-const std::string & AstInsertStatementNode::get_collection_name() const noexcept
+const std::string & AstInsertStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }

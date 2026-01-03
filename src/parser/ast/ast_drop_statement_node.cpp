@@ -3,11 +3,62 @@
 namespace dreamdb
 {
 
+AstDropDatabase::AstDropDatabase(const std::string & database_name)
+    : database_name_(database_name)
+{
+}
+
+const std::string & AstDropDatabase::get_database_name() const noexcept
+{
+    return database_name_;
+}
+
+AstDropCollection::AstDropCollection(const std::string & collection_name)
+    : collection_name_(collection_name)
+{
+}
+
+const std::string & AstDropCollection::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
+AstDropIndex::AstDropIndex(const std::string & index_name, const std::string & collection_name)
+    : index_name_(index_name)
+    , collection_name_(collection_name)
+{
+}
+
+const std::string & AstDropIndex::get_index_name() const noexcept
+{
+    return index_name_;
+}
+
+const std::string & AstDropIndex::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
+AstDropVIndex::AstDropVIndex(const std::string & vindex_name, const std::string & collection_name)
+    : vindex_name_(vindex_name)
+    , collection_name_(collection_name)
+{
+}
+
+const std::string & AstDropVIndex::get_vindex_name() const noexcept
+{
+    return vindex_name_;
+}
+
+const std::string & AstDropVIndex::get_collection_name() const noexcept
+{
+    return collection_name_;
+}
+
 AstDropStatementNode::AstDropStatementNode(std::size_t line, std::size_t column)
     : AstStatementNode(AstStatementNodeType::AST_STATEMENT_DROP, line, column)
     , drop_type_(AstDropType::AST_DROP_UNKNOWN)
-    , object_name_(std::nullopt)
-    , collection_name_(std::nullopt)
+    , drop_operation_(std::monostate())
 {
 }
 
@@ -16,22 +67,24 @@ void AstDropStatementNode::set_drop_type(AstDropType drop_type) noexcept
     drop_type_ = drop_type;
 }
 
-void AstDropStatementNode::set_object_name(const std::string & object_name)
+void AstDropStatementNode::set_drop_database(AstDropDatabase && op)
 {
-    if (object_name.empty()) {
-        object_name_ = std::nullopt;
-    } else {
-        object_name_ = object_name;
-    }
+    drop_operation_ = std::move(op);
 }
 
-void AstDropStatementNode::set_collection_name(const std::string & collection_name)
+void AstDropStatementNode::set_drop_collection(AstDropCollection && op)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    drop_operation_ = std::move(op);
+}
+
+void AstDropStatementNode::set_drop_index(AstDropIndex && op)
+{
+    drop_operation_ = std::move(op);
+}
+
+void AstDropStatementNode::set_drop_vindex(AstDropVIndex && op)
+{
+    drop_operation_ = std::move(op);
 }
 
 AstDropType AstDropStatementNode::get_drop_type() const noexcept
@@ -39,24 +92,49 @@ AstDropType AstDropStatementNode::get_drop_type() const noexcept
     return drop_type_;
 }
 
-const std::string & AstDropStatementNode::get_object_name() const
+const AstDropDatabase & AstDropStatementNode::get_drop_database() const
 {
-    return object_name_.value();
+    return std::get<AstDropDatabase>(drop_operation_);
 }
 
-const std::string & AstDropStatementNode::get_collection_name() const
+const AstDropCollection & AstDropStatementNode::get_drop_collection() const
 {
-    return collection_name_.value();
+    return std::get<AstDropCollection>(drop_operation_);
 }
 
-bool AstDropStatementNode::has_object_name() const noexcept
+const AstDropIndex & AstDropStatementNode::get_drop_index() const
 {
-    return object_name_.has_value();
+    return std::get<AstDropIndex>(drop_operation_);
 }
 
-bool AstDropStatementNode::has_collection_name() const noexcept
+const AstDropVIndex & AstDropStatementNode::get_drop_vindex() const
 {
-    return collection_name_.has_value();
+    return std::get<AstDropVIndex>(drop_operation_);
+}
+
+bool AstDropStatementNode::has_drop_operation() const noexcept
+{
+    return !std::holds_alternative<std::monostate>(drop_operation_);
+}
+
+bool AstDropStatementNode::has_drop_database() const noexcept
+{
+    return std::holds_alternative<AstDropDatabase>(drop_operation_);
+}
+
+bool AstDropStatementNode::has_drop_collection() const noexcept
+{
+    return std::holds_alternative<AstDropCollection>(drop_operation_);
+}
+
+bool AstDropStatementNode::has_drop_index() const noexcept
+{
+    return std::holds_alternative<AstDropIndex>(drop_operation_);
+}
+
+bool AstDropStatementNode::has_drop_vindex() const noexcept
+{
+    return std::holds_alternative<AstDropVIndex>(drop_operation_);
 }
 
 } // namespace dreamdb

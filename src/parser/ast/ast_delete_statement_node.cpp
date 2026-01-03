@@ -46,12 +46,12 @@ void AstDeleteStatementNode::set_offset(std::size_t offset) noexcept
     offset_ = offset;
 }
 
-const std::string & AstDeleteStatementNode::get_collection_name() const noexcept
+const std::string & AstDeleteStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }
 
-const AstExpressionNode & AstDeleteStatementNode::get_where_clause() const noexcept
+const AstExpressionNode & AstDeleteStatementNode::get_where_clause() const
 {
     return *where_clause_;
 }
@@ -61,12 +61,12 @@ const std::vector<OrderByItem> & AstDeleteStatementNode::get_order_by_items() co
     return order_by_items_;
 }
 
-std::size_t AstDeleteStatementNode::get_limit() const noexcept
+std::size_t AstDeleteStatementNode::get_limit() const
 {
     return limit_.value();
 }
 
-std::size_t AstDeleteStatementNode::get_offset() const noexcept
+std::size_t AstDeleteStatementNode::get_offset() const
 {
     return offset_.value();
 }
