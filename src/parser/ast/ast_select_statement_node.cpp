@@ -57,6 +57,29 @@ bool SelectItem::has_select_item_alias() const noexcept
     return select_item_alias_.has_value();
 }
 
+OrderByItem::OrderByItem(std::unique_ptr<AstExpressionNode> expression, Direction order_type)
+    : expression_(std::move(expression))
+    , order_type_(order_type)
+{
+}
+
+OrderByItem::~OrderByItem() noexcept = default;
+
+const AstExpressionNode & OrderByItem::get_expression() const noexcept
+{
+    return *expression_;
+}
+
+Direction OrderByItem::get_order_type() const noexcept
+{
+    return order_type_;
+}
+
+bool OrderByItem::has_expression() const noexcept
+{
+    return expression_ != nullptr;
+}
+
 AstSelectStatementNode::AstSelectStatementNode(std::size_t line, std::size_t column)
     : AstStatementNode(AstStatementNodeType::AST_STATEMENT_SELECT, line, column)
     , collection_name_(std::nullopt)
@@ -65,8 +88,8 @@ AstSelectStatementNode::AstSelectStatementNode(std::size_t line, std::size_t col
     , group_by_clauses_()
     , having_clause_(nullptr)
     , order_by_items_()
-    , limit_(std::nullopt)
-    , offset_(std::nullopt)
+    , limit_(nullptr)
+    , offset_(nullptr)
 {
 }
 
@@ -106,14 +129,14 @@ void AstSelectStatementNode::add_order_by_item(OrderByItem && item) noexcept
     order_by_items_.push_back(std::move(item));
 }
 
-void AstSelectStatementNode::set_limit(std::size_t limit) noexcept
+void AstSelectStatementNode::set_limit(std::unique_ptr<AstExpressionNode> limit) noexcept
 {
-    limit_ = limit;
+    limit_ = std::move(limit);
 }
 
-void AstSelectStatementNode::set_offset(std::size_t offset) noexcept
+void AstSelectStatementNode::set_offset(std::unique_ptr<AstExpressionNode> offset) noexcept
 {
-    offset_ = offset;
+    offset_ = std::move(offset);
 }
 
 const std::string & AstSelectStatementNode::get_collection_name() const
@@ -146,14 +169,14 @@ const std::vector<OrderByItem> & AstSelectStatementNode::get_order_by_items() co
     return order_by_items_;
 }
 
-std::size_t AstSelectStatementNode::get_limit() const
+const AstExpressionNode & AstSelectStatementNode::get_limit() const
 {
-    return limit_.value();
+    return *limit_;
 }
 
-std::size_t AstSelectStatementNode::get_offset() const
+const AstExpressionNode & AstSelectStatementNode::get_offset() const
 {
-    return offset_.value();
+    return *offset_;
 }
 
 bool AstSelectStatementNode::has_collection_name() const noexcept
@@ -188,12 +211,12 @@ bool AstSelectStatementNode::has_order_by_items() const noexcept
 
 bool AstSelectStatementNode::has_limit() const noexcept
 {
-    return limit_.has_value();
+    return limit_ != nullptr;
 }
 
 bool AstSelectStatementNode::has_offset() const noexcept
 {
-    return offset_.has_value();
+    return offset_ != nullptr;
 }
 
 } // namespace dreamdb

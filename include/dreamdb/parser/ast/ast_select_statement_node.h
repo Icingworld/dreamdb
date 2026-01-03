@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
-#include "dreamdb/parser/ast/order_by_item.h"
+#include "dreamdb/common/type.h"
 
 namespace dreamdb
 {
@@ -96,6 +96,48 @@ private:
 };
 
 /**
+ * @brief ORDER BY 子句的排序项
+ */
+class OrderByItem
+{
+public:
+    OrderByItem(std::unique_ptr<AstExpressionNode> expression, Direction order_type = Direction::ASC);
+
+    OrderByItem(const OrderByItem &) = delete;
+
+    OrderByItem(OrderByItem &&) noexcept = default;
+
+    OrderByItem & operator=(const OrderByItem &) = delete;
+
+    OrderByItem & operator=(OrderByItem &&) noexcept = default;
+
+    ~OrderByItem() noexcept;
+
+public:
+    /**
+    * @brief 获取排序表达式
+    * @return 排序表达式
+    */
+    const AstExpressionNode & get_expression() const noexcept;
+
+    /**
+    * @brief 获取排序类型
+    * @return 排序类型
+    */
+    Direction get_order_type() const noexcept;
+
+    /**
+    * @brief 是否存在排序表达式
+    * @return 是否存在排序表达式
+    */
+    bool has_expression() const noexcept;
+
+private:
+    std::unique_ptr<AstExpressionNode> expression_;  // 排序表达式
+    Direction order_type_;                           // 排序类型
+};
+
+/**
  * @brief SELECT 语句节点
  */
 class AstSelectStatementNode : public AstStatementNode
@@ -154,13 +196,13 @@ public:
      * @brief 设置 LIMIT 子句
      * @param limit LIMIT 子句
      */
-    void set_limit(std::size_t limit) noexcept;
+    void set_limit(std::unique_ptr<AstExpressionNode> limit) noexcept;
 
     /**
      * @brief 设置 OFFSET 子句
      * @param offset OFFSET 子句
      */
-    void set_offset(std::size_t offset) noexcept;
+    void set_offset(std::unique_ptr<AstExpressionNode> offset) noexcept;
 
     /**
      * @brief 获取集合名
@@ -202,13 +244,13 @@ public:
      * @brief 获取 LIMIT 子句
      * @return LIMIT 子句
      */
-    std::size_t get_limit() const;
+    const AstExpressionNode & get_limit() const;
 
     /**
      * @brief 获取 OFFSET 子句
      * @return OFFSET 子句
      */
-    std::size_t get_offset() const;
+    const AstExpressionNode & get_offset() const;
 
     /**
      * @brief 是否存在集合名
@@ -265,8 +307,8 @@ private:
     std::vector<std::unique_ptr<AstExpressionNode>> group_by_clauses_;     // GROUP BY 子句列表
     std::unique_ptr<AstExpressionNode> having_clause_;                     // HAVING 子句
     std::vector<OrderByItem> order_by_items_;                              // ORDER BY 项列表
-    std::optional<std::size_t> limit_;                                     // LIMIT 子句
-    std::optional<std::size_t> offset_;                                    // OFFSET 子句
+    std::unique_ptr<AstExpressionNode> limit_;                             // LIMIT 子句
+    std::unique_ptr<AstExpressionNode> offset_;                            // OFFSET 子句
 };
 
 } // namespace dreamdb
