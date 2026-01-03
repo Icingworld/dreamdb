@@ -18,7 +18,7 @@ void AstDescribeStatementNode::set_collection_name(const std::string & collectio
     }
 }
 
-const std::string & AstDescribeStatementNode::get_collection_name() const noexcept
+const std::string & AstDescribeStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }

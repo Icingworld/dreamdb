@@ -29,7 +29,7 @@ AstShowType AstShowStatementNode::get_show_type() const noexcept
     return show_type_;
 }
 
-const std::string & AstShowStatementNode::get_collection_name() const noexcept
+const std::string & AstShowStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }

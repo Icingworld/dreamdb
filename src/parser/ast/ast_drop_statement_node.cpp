@@ -39,12 +39,12 @@ AstDropType AstDropStatementNode::get_drop_type() const noexcept
     return drop_type_;
 }
 
-const std::string & AstDropStatementNode::get_object_name() const noexcept
+const std::string & AstDropStatementNode::get_object_name() const
 {
     return object_name_.value();
 }
 
-const std::string & AstDropStatementNode::get_collection_name() const noexcept
+const std::string & AstDropStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }

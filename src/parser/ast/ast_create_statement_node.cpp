@@ -4,15 +4,55 @@ namespace dreamdb
 {
 
 VIndexWithClause::VIndexWithClause()
-    : nlist(1024)
-    , M(32)
-    , ef_construction(200)
-    , metric(MetricType::L2)
+    : nlist_(1024)
+    , M_(32)
+    , ef_construction_(200)
+    , metric_(MetricType::L2)
 {
     // IVF_FLAT: nlist 建议为数据量的平方根，默认 1024 适合中规模数据量
     // HNSW: M 参数，大多数场景下性能更好，常见范围 4 - 64
     // HNSW: ef_construction 参数，有较好的召回率，常见范围 50 - 500
     // 距离度量方式，L2 距离更常用
+}
+
+void VIndexWithClause::set_nlist(std::int32_t nlist) noexcept
+{
+    nlist_ = nlist;
+}
+
+void VIndexWithClause::set_M(std::int32_t M) noexcept
+{
+    M_ = M;
+}
+
+void VIndexWithClause::set_ef_construction(std::int32_t ef_construction) noexcept
+{
+    ef_construction_ = ef_construction;
+}
+
+void VIndexWithClause::set_metric(MetricType metric) noexcept
+{
+    metric_ = metric;
+}
+
+std::int32_t VIndexWithClause::get_nlist() const noexcept
+{
+    return nlist_;
+}
+
+std::int32_t VIndexWithClause::get_M() const noexcept
+{
+    return M_;
+}
+
+std::int32_t VIndexWithClause::get_ef_construction() const noexcept
+{
+    return ef_construction_;
+}
+
+MetricType VIndexWithClause::get_metric() const noexcept
+{
+    return metric_;
 }
 
 AstCreateStatementNode::AstCreateStatementNode(std::size_t line, std::size_t column)
@@ -29,50 +69,18 @@ AstCreateStatementNode::AstCreateStatementNode(std::size_t line, std::size_t col
 {
 }
 
-AstCreateStatementNode::~AstCreateStatementNode() noexcept = default;
-
 void AstCreateStatementNode::set_create_type(AstCreateType create_type) noexcept
 {
     create_type_ = create_type;
-
-    // 根据不同类型初始化 optional 成员
-    switch (create_type_) {
-        case AstCreateType::AST_CREATE_DATABASE:
-            column_definitions_.clear();
-            collection_name_ = std::nullopt;
-            column_names_.clear();
-            index_type_ = std::nullopt;
-            vindex_type_ = std::nullopt;
-            break;
-        case AstCreateType::AST_CREATE_COLLECTION:
-            column_definitions_.clear();
-            collection_name_ = std::nullopt;   // 该集合名仅在 INDEX 中使用，COLLECTION 使用的是 object_name_
-            column_names_.clear();
-            index_type_ = IndexType::BTREE;    // 默认使用 B-Tree 索引
-            vindex_type_ = std::nullopt;
-            break;
-        case AstCreateType::AST_CREATE_INDEX:
-            column_definitions_.clear();
-            collection_name_ = std::nullopt;   // 这里保持 nullopt，调用 setter 时设置
-            column_names_.clear();
-            index_type_ = IndexType::BTREE;    // 默认使用 B-Tree 索引
-            vindex_type_ = std::nullopt;
-            break;
-        case AstCreateType::AST_CREATE_VINDEX:
-            column_definitions_.clear();
-            collection_name_ = std::nullopt;
-            column_names_.clear();
-            index_type_ = std::nullopt;
-            vindex_type_ = VIndexType::FLAT;   // 默认使用线性扫描索引
-            break;
-        default:
-            break;
-    }
 }
 
-void AstCreateStatementNode::set_object_name(const std::string & name)
+void AstCreateStatementNode::set_object_name(const std::string & object_name)
 {
-    object_name_ = name;
+    if (object_name.empty()) {
+        object_name_ = std::nullopt;
+    } else {
+        object_name_ = object_name;
+    }
 }
 
 void AstCreateStatementNode::set_is_if_not_exists(bool is_if_not_exists) noexcept
@@ -87,7 +95,11 @@ void AstCreateStatementNode::add_column_definition(ColumnDefinition && column)
 
 void AstCreateStatementNode::set_collection_name(const std::string & collection_name)
 {
-    collection_name_ = collection_name;
+    if (collection_name.empty()) {
+        collection_name_ = std::nullopt;
+    } else {
+        collection_name_ = collection_name;
+    }
 }
 
 void AstCreateStatementNode::add_column_name(const std::string & column_name)
@@ -115,7 +127,7 @@ AstCreateType AstCreateStatementNode::get_create_type() const noexcept
     return create_type_;
 }
 
-const std::string & AstCreateStatementNode::get_object_name() const noexcept
+const std::string & AstCreateStatementNode::get_object_name() const
 {
     return object_name_.value();
 }
@@ -130,7 +142,7 @@ const std::vector<ColumnDefinition> & AstCreateStatementNode::get_column_definit
     return column_definitions_;
 }
 
-const std::string & AstCreateStatementNode::get_collection_name() const noexcept
+const std::string & AstCreateStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }

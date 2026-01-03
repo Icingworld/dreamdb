@@ -18,7 +18,7 @@ void AstUseStatementNode::set_database_name(const std::string & database_name)
     }
 }
 
-const std::string & AstUseStatementNode::get_database_name() const noexcept
+const std::string & AstUseStatementNode::get_database_name() const
 {
     return database_name_.value();
 }

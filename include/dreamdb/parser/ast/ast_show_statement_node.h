@@ -63,7 +63,7 @@ public:
      * @brief 获取集合名称
      * @return 集合名称
      */
-    const std::string & get_collection_name() const noexcept;
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 是否存在集合名称

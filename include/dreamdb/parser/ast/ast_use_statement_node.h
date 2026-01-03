@@ -38,7 +38,7 @@ public:
      * @brief 获取数据库名称
      * @return 数据库名称
      */
-    const std::string & get_database_name() const noexcept;
+    const std::string & get_database_name() const;
 
     /**
      * @brief 是否存在数据库名称
