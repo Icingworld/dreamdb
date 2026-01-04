@@ -1,114 +1,59 @@
 #include "dreamdb/parser/ast/binary_expr.h"
 
-#include <sstream>
-
 namespace dreamdb
 {
 
-BinaryExpr::BinaryExpr(std::size_t line, std::size_t column)
-    : AstNode(AstNodeType::BINARY_EXPR, line, column)
-    , operator_type_(OperatorType::DB_PLUS)
+AstBinaryExpressionNode::AstBinaryExpressionNode(std::size_t line, std::size_t column)
+    : AstExpressionNode(AstExpressionNodeType::AST_EXPRESSION_BINARY, line, column)
+    , operator_type_(AstBinaryOperatorType::AST_BINARY_OPERATOR_UNKNOWN)
     , left_(nullptr)
     , right_(nullptr)
 {
 }
 
-void BinaryExpr::set_operator_type(OperatorType operator_type) noexcept
+void AstBinaryExpressionNode::set_operator_type(AstBinaryOperatorType operator_type) noexcept
 {
     operator_type_ = operator_type;
 }
 
-void BinaryExpr::set_left(std::unique_ptr<AstNode> left) noexcept
+void AstBinaryExpressionNode::set_left(std::unique_ptr<AstExpressionNode> left) noexcept
 {
     left_ = std::move(left);
 }
 
-void BinaryExpr::set_right(std::unique_ptr<AstNode> right) noexcept
+void AstBinaryExpressionNode::set_right(std::unique_ptr<AstExpressionNode> right) noexcept
 {
     right_ = std::move(right);
 }
 
-BinaryExpr::OperatorType BinaryExpr::get_operator_type() const noexcept
+AstBinaryOperatorType AstBinaryExpressionNode::get_operator_type() const noexcept
 {
     return operator_type_;
 }
 
-const AstNode * BinaryExpr::get_left() const noexcept
+const AstExpressionNode & AstBinaryExpressionNode::get_left() const
 {
-    return left_.get();
+    return *left_;
 }
 
-const AstNode * BinaryExpr::get_right() const noexcept
+const AstExpressionNode & AstBinaryExpressionNode::get_right() const
 {
-    return right_.get();
+    return *right_;
 }
 
-std::string BinaryExpr::debug_string() const
+bool AstBinaryExpressionNode::has_operator_type() const noexcept
 {
-    std::ostringstream oss;
-    oss << "BinaryExpr(op=";
-    
-    switch (operator_type_) {
-        case OperatorType::DB_PLUS:
-            oss << "PLUS";
-            break;
-        case OperatorType::DB_MINUS:
-            oss << "MINUS";
-            break;
-        case OperatorType::DB_MULTIPLY:
-            oss << "MULTIPLY";
-            break;
-        case OperatorType::DB_DIVIDE:
-            oss << "DIVIDE";
-            break;
-        case OperatorType::DB_MODULO:
-            oss << "MODULO";
-            break;
-        case OperatorType::DB_EQUAL:
-            oss << "EQUAL";
-            break;
-        case OperatorType::DB_NOT_EQUAL:
-            oss << "NOT_EQUAL";
-            break;
-        case OperatorType::DB_LESS_THAN:
-            oss << "LESS_THAN";
-            break;
-        case OperatorType::DB_GREATER_THAN:
-            oss << "GREATER_THAN";
-            break;
-        case OperatorType::DB_LESS_EQUAL:
-            oss << "LESS_EQUAL";
-            break;
-        case OperatorType::DB_GREATER_EQUAL:
-            oss << "GREATER_EQUAL";
-            break;
-        case OperatorType::DB_AND:
-            oss << "AND";
-            break;
-        case OperatorType::DB_OR:
-            oss << "OR";
-            break;
-        default:
-            oss << "UNKNOWN";
-            break;
-    }
-    
-    oss << ", left=";
-    if (left_) {
-        oss << left_->debug_string();
-    } else {
-        oss << "<null>";
-    }
-    
-    oss << ", right=";
-    if (right_) {
-        oss << right_->debug_string();
-    } else {
-        oss << "<null>";
-    }
-    
-    oss << ")";
-    return oss.str();
+    return operator_type_ != AstBinaryOperatorType::AST_BINARY_OPERATOR_UNKNOWN;
+}
+
+bool AstBinaryExpressionNode::has_left() const noexcept
+{
+    return left_ != nullptr;
+}
+
+bool AstBinaryExpressionNode::has_right() const noexcept
+{
+    return right_ != nullptr;
 }
 
 } // namespace dreamdb
