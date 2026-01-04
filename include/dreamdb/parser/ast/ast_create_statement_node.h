@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
-#include "dreamdb/parser/ast/column_definition.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
 #include "dreamdb/common/type.h"
 
 
@@ -136,7 +136,7 @@ private:
 class AstCreateCollection
 {
 public:
-    AstCreateCollection(const std::string & collection_name, std::vector<ColumnDefinition> && column_definitions);
+    AstCreateCollection(const std::string & collection_name, std::vector<AstColumnDefinition> && column_definitions);
 
     AstCreateCollection(const AstCreateCollection &) = delete;
 
@@ -159,11 +159,11 @@ public:
      * @brief 获取所有列定义
      * @return 列定义列表
      */
-    const std::vector<ColumnDefinition> & get_column_definitions() const noexcept;
+    const std::vector<AstColumnDefinition> & get_column_definitions() const noexcept;
 
 private:
     std::string collection_name_;                       // 集合名称
-    std::vector<ColumnDefinition> column_definitions_;  // 列定义列表
+    std::vector<AstColumnDefinition> column_definitions_;  // 列定义列表
 };
 
 /**

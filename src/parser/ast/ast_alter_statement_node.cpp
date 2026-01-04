@@ -3,12 +3,12 @@
 namespace dreamdb
 {
 
-AstAlterAddColumn::AstAlterAddColumn(ColumnDefinition && column)
+AstAlterAddColumn::AstAlterAddColumn(AstColumnDefinition && column)
     : column_(std::move(column))
 {
 }
 
-const ColumnDefinition & AstAlterAddColumn::get_column() const noexcept
+const AstColumnDefinition & AstAlterAddColumn::get_column() const noexcept
 {
     return column_;
 }
@@ -23,7 +23,7 @@ const std::string & AstAlterDropColumn::get_column_name() const noexcept
     return column_name_;
 }
 
-AstAlterModifyColumn::AstAlterModifyColumn(const std::string & column_name, ColumnDefinition && new_definition)
+AstAlterModifyColumn::AstAlterModifyColumn(const std::string & column_name, AstColumnDefinition && new_definition)
     : column_name_(column_name)
     , new_definition_(std::move(new_definition))
 {
@@ -34,7 +34,7 @@ const std::string & AstAlterModifyColumn::get_column_name() const noexcept
     return column_name_;
 }
 
-const ColumnDefinition & AstAlterModifyColumn::get_new_definition() const noexcept
+const AstColumnDefinition & AstAlterModifyColumn::get_new_definition() const noexcept
 {
     return new_definition_;
 }

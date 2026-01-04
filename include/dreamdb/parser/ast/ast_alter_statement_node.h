@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
-#include "dreamdb/parser/ast/column_definition.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
 
 namespace dreamdb
 {
@@ -30,7 +30,7 @@ enum class AstAlterType : std::uint8_t
 class AstAlterAddColumn
 {
 public:
-    AstAlterAddColumn(ColumnDefinition && column);
+    AstAlterAddColumn(AstColumnDefinition && column);
 
     AstAlterAddColumn(const AstAlterAddColumn &) = delete;
 
@@ -47,10 +47,10 @@ public:
      * @brief 获取列定义
      * @return 列定义
      */
-    const ColumnDefinition & get_column() const noexcept;
+    const AstColumnDefinition & get_column() const noexcept;
 
 private:
-    ColumnDefinition column_;  // 列定义
+    AstColumnDefinition column_;  // 列定义
 };
 
 /**
@@ -88,7 +88,7 @@ private:
 class AstAlterModifyColumn
 {
 public:
-    AstAlterModifyColumn(const std::string & column_name, ColumnDefinition && new_definition);
+    AstAlterModifyColumn(const std::string & column_name, AstColumnDefinition && new_definition);
 
     AstAlterModifyColumn(const AstAlterModifyColumn &) = delete;
 
@@ -111,11 +111,11 @@ public:
      * @brief 获取新的列定义
      * @return 新的列定义
      */
-    const ColumnDefinition & get_new_definition() const noexcept;
+    const AstColumnDefinition & get_new_definition() const noexcept;
 
 private:
     std::string column_name_;      // 列名
-    ColumnDefinition new_definition_;  // 新的列定义
+    AstColumnDefinition new_definition_;  // 新的列定义
 };
 
 /**

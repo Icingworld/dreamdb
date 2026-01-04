@@ -65,7 +65,7 @@ const std::string & AstCreateDatabase::get_database_name() const noexcept
     return database_name_;
 }
 
-AstCreateCollection::AstCreateCollection(const std::string & collection_name, std::vector<ColumnDefinition> && column_definitions)
+AstCreateCollection::AstCreateCollection(const std::string & collection_name, std::vector<AstColumnDefinition> && column_definitions)
     : collection_name_(collection_name)
     , column_definitions_(std::move(column_definitions))
 {
@@ -76,7 +76,7 @@ const std::string & AstCreateCollection::get_collection_name() const noexcept
     return collection_name_;
 }
 
-const std::vector<ColumnDefinition> & AstCreateCollection::get_column_definitions() const noexcept
+const std::vector<AstColumnDefinition> & AstCreateCollection::get_column_definitions() const noexcept
 {
     return column_definitions_;
 }
