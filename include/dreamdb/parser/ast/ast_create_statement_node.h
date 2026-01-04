@@ -4,10 +4,11 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include <optional>
+#include <variant>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
-#include "dreamdb/parser/ast/column_definition.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
+#include "dreamdb/common/type.h"
 
 
 namespace dreamdb
@@ -34,21 +35,253 @@ class VIndexWithClause
 public:
     VIndexWithClause();
 
-    VIndexWithClause(const VIndexWithClause &) = delete;
+    VIndexWithClause(const VIndexWithClause &) = default;
 
     VIndexWithClause(VIndexWithClause &&) noexcept = default;
 
-    VIndexWithClause & operator=(const VIndexWithClause &) = delete;
+    VIndexWithClause & operator=(const VIndexWithClause &) = default;
 
     VIndexWithClause & operator=(VIndexWithClause &&) noexcept = default;
 
-    ~VIndexWithClause() = default;
+    ~VIndexWithClause() noexcept = default;
 
 public:
-    std::optional<std::int32_t> nlist;              // IVF_FLAT 参数
-    std::optional<std::int32_t> M;                  // HNSW 参数
-    std::optional<std::int32_t> ef_construction;    // HNSW 参数
-    std::optional<MetricType> metric;               // 距离度量方式
+    /**
+     * @brief 设置 nlist - 聚类中心数量
+     * @param nlist 聚类中心数量，控制向量分簇数
+     */
+    void set_nlist(std::int32_t nlist) noexcept;
+
+    /**
+     * @brief 设置 M - 节点在图中连接的最大邻居数
+     * @param M 节点在图中连接的最大邻居数，控制图的连接密度
+     */
+    void set_M(std::int32_t M) noexcept;
+
+    /**
+     * @brief 设置 ef_construction - 每个新节点需要连接的候选邻居数量
+     * @param ef_construction 每个新节点需要连接的候选邻居数量，控制索引构建的精度
+     */
+    void set_ef_construction(std::int32_t ef_construction) noexcept;
+
+    /**
+     * @brief 设置距离度量方式
+     * @param metric 距离度量方式
+     */
+    void set_metric(MetricType metric) noexcept;
+
+    /**
+     * @brief 获取 nlist
+     * @return nlist
+     */
+    std::int32_t get_nlist() const noexcept;
+
+    /**
+     * @brief 获取 M
+     * @return M
+     */
+    std::int32_t get_M() const noexcept;
+
+    /**
+     * @brief 获取 ef_construction
+     * @return ef_construction
+     */
+    std::int32_t get_ef_construction() const noexcept;
+
+    /**
+     * @brief 获取距离度量方式
+     * @return 距离度量方式
+     */
+    MetricType get_metric() const noexcept;
+
+private:
+    std::int32_t nlist_;              //  聚类中心数量，IVF_FLAT 参数
+    std::int32_t M_;                  //  节点在图中连接的最大邻居数，HNSW 参数
+    std::int32_t ef_construction_;    //  每个新节点需要连接的候选邻居数量，HNSW 参数
+    MetricType metric_;               //  距离度量方式
+};
+
+/**
+ * @brief 创建数据库操作
+ */
+class AstCreateDatabase
+{
+public:
+    AstCreateDatabase(const std::string & database_name);
+
+    AstCreateDatabase(const AstCreateDatabase &) = delete;
+
+    AstCreateDatabase(AstCreateDatabase &&) noexcept = default;
+
+    AstCreateDatabase & operator=(const AstCreateDatabase &) = delete;
+
+    AstCreateDatabase & operator=(AstCreateDatabase &&) noexcept = default;
+
+    ~AstCreateDatabase() noexcept = default;
+
+public:
+    /**
+     * @brief 获取数据库名称
+     * @return 数据库名称
+     */
+    const std::string & get_database_name() const noexcept;
+
+private:
+    std::string database_name_;  // 数据库名称
+};
+
+/**
+ * @brief 创建集合操作
+ */
+class AstCreateCollection
+{
+public:
+    AstCreateCollection(const std::string & collection_name, std::vector<AstColumnDefinition> && column_definitions);
+
+    AstCreateCollection(const AstCreateCollection &) = delete;
+
+    AstCreateCollection(AstCreateCollection &&) noexcept = default;
+
+    AstCreateCollection & operator=(const AstCreateCollection &) = delete;
+
+    AstCreateCollection & operator=(AstCreateCollection &&) noexcept = default;
+
+    ~AstCreateCollection() noexcept = default;
+
+public:
+    /**
+     * @brief 获取集合名称
+     * @return 集合名称
+     */
+    const std::string & get_collection_name() const noexcept;
+
+    /**
+     * @brief 获取所有列定义
+     * @return 列定义列表
+     */
+    const std::vector<AstColumnDefinition> & get_column_definitions() const noexcept;
+
+private:
+    std::string collection_name_;                       // 集合名称
+    std::vector<AstColumnDefinition> column_definitions_;  // 列定义列表
+};
+
+/**
+ * @brief 创建索引操作
+ */
+class AstCreateIndex
+{
+public:
+    AstCreateIndex(
+        const std::string & index_name,
+        const std::string & collection_name,
+        const std::vector<std::string> & column_names,
+        IndexType index_type
+    );
+
+    AstCreateIndex(const AstCreateIndex &) = delete;
+
+    AstCreateIndex(AstCreateIndex &&) noexcept = default;
+
+    AstCreateIndex & operator=(const AstCreateIndex &) = delete;
+
+    AstCreateIndex & operator=(AstCreateIndex &&) noexcept = default;
+
+    ~AstCreateIndex() noexcept = default;
+
+public:
+    /**
+     * @brief 获取索引名称
+     * @return 索引名称
+     */
+    const std::string & get_index_name() const noexcept;
+
+    /**
+     * @brief 获取集合名称
+     * @return 集合名称
+     */
+    const std::string & get_collection_name() const noexcept;
+
+    /**
+     * @brief 获取列名列表
+     * @return 列名列表
+     */
+    const std::vector<std::string> & get_column_names() const noexcept;
+
+    /**
+     * @brief 获取索引类型
+     * @return 索引类型
+     */
+    IndexType get_index_type() const noexcept;
+
+private:
+    std::string index_name_;                    // 索引名称
+    std::string collection_name_;               // 集合名称
+    std::vector<std::string> column_names_;     // 列名列表
+    IndexType index_type_;                      // 索引类型
+};
+
+/**
+ * @brief 创建向量索引操作
+ */
+class AstCreateVIndex
+{
+public:
+    AstCreateVIndex(
+        const std::string & vindex_name,
+        const std::string & collection_name,
+        const std::vector<std::string> & column_names,
+        VIndexType vindex_type,
+        const VIndexWithClause & with_clause
+    );
+
+    AstCreateVIndex(const AstCreateVIndex &) = delete;
+
+    AstCreateVIndex(AstCreateVIndex &&) noexcept = default;
+
+    AstCreateVIndex & operator=(const AstCreateVIndex &) = delete;
+
+    AstCreateVIndex & operator=(AstCreateVIndex &&) noexcept = default;
+
+    ~AstCreateVIndex() noexcept = default;
+
+public:
+    /**
+     * @brief 获取向量索引名称
+     * @return 向量索引名称
+     */
+    const std::string & get_vindex_name() const noexcept;
+
+    /**
+     * @brief 获取集合名称
+     * @return 集合名称
+     */
+    const std::string & get_collection_name() const noexcept;
+
+    /**
+     * @brief 获取列名列表
+     * @return 列名列表
+     */
+    const std::vector<std::string> & get_column_names() const noexcept;
+
+    /**
+     * @brief 获取向量索引类型
+     * @return 向量索引类型
+     */
+    VIndexType get_vindex_type() const noexcept;
+
+    /**
+     * @brief 获取向量索引 WITH 子句
+     * @return 向量索引 WITH 子句
+     */
+    const VIndexWithClause & get_vindex_with_clause() const noexcept;
+
+private:
+    std::string vindex_name_;                   // 向量索引名称
+    std::string collection_name_;               // 集合名称
+    std::vector<std::string> column_names_;     // 列名列表
+    VIndexType vindex_type_;                    // 向量索引类型
+    VIndexWithClause vindex_with_clause_;       // 向量索引 WITH 子句
 };
 
 /**
@@ -67,7 +300,7 @@ public:
 
     AstCreateStatementNode & operator=(AstCreateStatementNode &&) noexcept = default;
 
-    ~AstCreateStatementNode() noexcept override;
+    ~AstCreateStatementNode() noexcept override = default;
 
 public:
     /**
@@ -77,52 +310,34 @@ public:
     void set_create_type(AstCreateType create_type) noexcept;
 
     /**
-     * @brief 设置对象名称
-     * @param name 对象名称
-     */
-    void set_object_name(const std::string & name);
-
-    /**
      * @brief 设置是否跳过存在性检查
      * @param is_if_not_exists 是否跳过存在性检查
      */
     void set_is_if_not_exists(bool is_if_not_exists) noexcept;
 
     /**
-     * @brief 添加列定义
-     * @param column 列定义
+     * @brief 设置创建数据库操作
+     * @param op 创建数据库操作
      */
-    void add_column_definition(ColumnDefinition && column);
+    void set_create_database(AstCreateDatabase && op);
 
     /**
-     * @brief 设置集合名称
-     * @param collection_name 集合名称
+     * @brief 设置创建集合操作
+     * @param op 创建集合操作
      */
-    void set_collection_name(const std::string & collection_name);
+    void set_create_collection(AstCreateCollection && op);
 
     /**
-     * @brief 设置列名
-     * @param column_name 列名
+     * @brief 设置创建索引操作
+     * @param op 创建索引操作
      */
-    void add_column_name(const std::string & column_name);
+    void set_create_index(AstCreateIndex && op);
 
     /**
-     * @brief 设置标量索引类型
-     * @param index_type 标量索引类型
+     * @brief 设置创建向量索引操作
+     * @param op 创建向量索引操作
      */
-    void set_index_type(IndexType index_type) noexcept;
-
-    /**
-     * @brief 设置向量索引类型
-     * @param vindex_type 向量索引类型
-     */
-    void set_vindex_type(VIndexType vindex_type) noexcept;
-
-    /**
-     * @brief 设置向量索引 WITH 子句
-     * @param with_clause 向量索引 WITH 子句
-     */
-    void set_vindex_with_clause(VIndexWithClause && with_clause);
+    void set_create_vindex(AstCreateVIndex && op);
 
     /**
      * @brief 获取对象类型
@@ -131,105 +346,81 @@ public:
     AstCreateType get_create_type() const noexcept;
 
     /**
-     * @brief 获取对象名称
-     * @return 对象名称
-     */
-    const std::string & get_object_name() const noexcept;
-
-    /**
      * @brief 获取是否跳过存在性检查
      * @return 是否跳过存在性检查
      */
     bool get_is_if_not_exists() const noexcept;
 
     /**
-     * @brief 获取所有列定义
-     * @return 列定义列表
+     * @brief 获取创建数据库操作
+     * @return 创建数据库操作
      */
-    const std::vector<ColumnDefinition> & get_column_definitions() const noexcept;
+    const AstCreateDatabase & get_create_database() const;
 
     /**
-     * @brief 获取集合名称
-     * @return 集合名称
+     * @brief 获取创建集合操作
+     * @return 创建集合操作
      */
-    const std::string & get_collection_name() const noexcept;
+    const AstCreateCollection & get_create_collection() const;
 
     /**
-     * @brief 获取列名列表
-     * @return 列名列表
+     * @brief 获取创建索引操作
+     * @return 创建索引操作
      */
-    const std::vector<std::string> & get_column_names() const noexcept;
+    const AstCreateIndex & get_create_index() const;
 
     /**
-     * @brief 获取标量索引类型
-     * @return 标量索引类型
+     * @brief 获取创建向量索引操作
+     * @return 创建向量索引操作
      */
-    IndexType get_index_type() const noexcept;
+    const AstCreateVIndex & get_create_vindex() const;
 
     /**
-     * @brief 获取向量索引类型
-     * @return 向量索引类型
+     * @brief 是否设置 CREATE 类型
+     * @return 是否设置 CREATE 类型
      */
-    VIndexType get_vindex_type() const noexcept;
+    bool has_create_type() const noexcept;
 
     /**
-     * @brief 获取向量索引 WITH 子句
-     * @return 向量索引 WITH 子句
+     * @brief 是否存在创建操作
+     * @return 是否存在创建操作
      */
-    const VIndexWithClause & get_vindex_with_clause() const noexcept;
+    bool has_create_operation() const noexcept;
 
     /**
-     * @brief 是否存在对象名称
-     * @return 是否存在对象名称
+     * @brief 是否存在创建数据库操作
+     * @return 是否存在创建数据库操作
      */
-    bool has_object_name() const noexcept;
+    bool has_create_database() const noexcept;
 
     /**
-     * @brief 是否存在列定义列表
-     * @return 是否存在列定义列表
+     * @brief 是否存在创建集合操作
+     * @return 是否存在创建集合操作
      */
-    bool has_column_definitions() const noexcept;
+    bool has_create_collection() const noexcept;
 
     /**
-     * @brief 是否存在集合名称
-     * @return 是否存在集合名称
+     * @brief 是否存在创建索引操作
+     * @return 是否存在创建索引操作
      */
-    bool has_collection_name() const noexcept;
+    bool has_create_index() const noexcept;
 
     /**
-     * @brief 是否存在列名列表
-     * @return 是否存在列名列表
+     * @brief 是否存在创建向量索引操作
+     * @return 是否存在创建向量索引操作
      */
-    bool has_column_names() const noexcept;
-
-    /**
-     * @brief 是否存在标量索引类型
-     * @return 是否存在标量索引类型
-     */
-    bool has_index_type() const noexcept;
-
-    /**
-     * @brief 是否存在向量索引类型
-     * @return 是否存在向量索引类型
-     */
-    bool has_vindex_type() const noexcept;
-
-    /**
-     * @brief 是否存在向量索引 WITH 子句
-     * @return 是否存在向量索引 WITH 子句
-     */
-    bool has_vindex_with_clause() const noexcept;
+    bool has_create_vindex() const noexcept;
 
 private:
     AstCreateType create_type_;                                           // 创建类型
-    std::optional<std::string> object_name_;                              // 对象名称
     bool is_if_not_exists_;                                               // 是否跳过存在性检查
-    std::vector<ColumnDefinition> column_definitions_;                    // 列定义列表，用于 COLLECTION
-    std::optional<std::string> collection_name_;                          // 集合名称，用于索引
-    std::vector<std::string> column_names_;                               // 列名列表，用于索引
-    std::optional<IndexType> index_type_;                                 // 标量索引类型，用于索引
-    std::optional<VIndexType> vindex_type_;                               // 向量索引类型，用于向量索引
-    std::optional<VIndexWithClause> vindex_with_clause_;                  // 向量索引 WITH 子句，用于向量索引
+    std::variant<
+        std::monostate,
+        AstCreateDatabase,
+        AstCreateCollection,
+        AstCreateIndex,
+        AstCreateVIndex
+    > create_operation_;                                                  // 创建操作
 };
 
 } // namespace dreamdb

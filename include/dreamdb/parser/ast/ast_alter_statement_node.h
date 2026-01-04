@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
-#include "dreamdb/parser/ast/column_definition.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
 
 namespace dreamdb
 {
@@ -24,26 +24,134 @@ enum class AstAlterType : std::uint8_t
     AST_ALTER_RENAME_COLUMN     // 重命名字段
 };
 
-struct AstAlterAddColumn
+/**
+ * @brief 添加字段操作
+ */
+class AstAlterAddColumn
 {
-    ColumnDefinition column;
+public:
+    AstAlterAddColumn(AstColumnDefinition && column);
+
+    AstAlterAddColumn(const AstAlterAddColumn &) = delete;
+
+    AstAlterAddColumn(AstAlterAddColumn &&) noexcept = default;
+
+    AstAlterAddColumn & operator=(const AstAlterAddColumn &) = delete;
+
+    AstAlterAddColumn & operator=(AstAlterAddColumn &&) noexcept = default;
+
+    ~AstAlterAddColumn() noexcept = default;
+
+public:
+    /**
+     * @brief 获取列定义
+     * @return 列定义
+     */
+    const AstColumnDefinition & get_column() const noexcept;
+
+private:
+    AstColumnDefinition column_;  // 列定义
 };
 
-struct AstAlterDropColumn
+/**
+ * @brief 删除字段操作
+ */
+class AstAlterDropColumn
 {
-    std::string column_name;
+public:
+    AstAlterDropColumn(const std::string & column_name);
+
+    AstAlterDropColumn(const AstAlterDropColumn &) = delete;
+
+    AstAlterDropColumn(AstAlterDropColumn &&) noexcept = default;
+
+    AstAlterDropColumn & operator=(const AstAlterDropColumn &) = delete;
+
+    AstAlterDropColumn & operator=(AstAlterDropColumn &&) noexcept = default;
+
+    ~AstAlterDropColumn() noexcept = default;
+
+public:
+    /**
+     * @brief 获取列名
+     * @return 列名
+     */
+    const std::string & get_column_name() const noexcept;
+
+private:
+    std::string column_name_;  // 列名
 };
 
-struct AstAlterModifyColumn
+/**
+ * @brief 修改字段操作
+ */
+class AstAlterModifyColumn
 {
-    std::string column_name;
-    ColumnDefinition new_definition;
+public:
+    AstAlterModifyColumn(const std::string & column_name, AstColumnDefinition && new_definition);
+
+    AstAlterModifyColumn(const AstAlterModifyColumn &) = delete;
+
+    AstAlterModifyColumn(AstAlterModifyColumn &&) noexcept = default;
+
+    AstAlterModifyColumn & operator=(const AstAlterModifyColumn &) = delete;
+
+    AstAlterModifyColumn & operator=(AstAlterModifyColumn &&) noexcept = default;
+
+    ~AstAlterModifyColumn() noexcept = default;
+
+public:
+    /**
+     * @brief 获取列名
+     * @return 列名
+     */
+    const std::string & get_column_name() const noexcept;
+
+    /**
+     * @brief 获取新的列定义
+     * @return 新的列定义
+     */
+    const AstColumnDefinition & get_new_definition() const noexcept;
+
+private:
+    std::string column_name_;      // 列名
+    AstColumnDefinition new_definition_;  // 新的列定义
 };
 
-struct AstAlterRenameColumn
+/**
+ * @brief 重命名字段操作
+ */
+class AstAlterRenameColumn
 {
-    std::string old_name;
-    std::string new_name;
+public:
+    AstAlterRenameColumn(const std::string & old_name, const std::string & new_name);
+
+    AstAlterRenameColumn(const AstAlterRenameColumn &) = delete;
+
+    AstAlterRenameColumn(AstAlterRenameColumn &&) noexcept = default;
+
+    AstAlterRenameColumn & operator=(const AstAlterRenameColumn &) = delete;
+
+    AstAlterRenameColumn & operator=(AstAlterRenameColumn &&) noexcept = default;
+
+    ~AstAlterRenameColumn() noexcept = default;
+
+public:
+    /**
+     * @brief 获取旧列名
+     * @return 旧列名
+     */
+    const std::string & get_old_name() const noexcept;
+
+    /**
+     * @brief 获取新列名
+     * @return 新列名
+     */
+    const std::string & get_new_name() const noexcept;
+
+private:
+    std::string old_name_;  // 旧列名
+    std::string new_name_;  // 新列名
 };
 
 /**
@@ -66,52 +174,52 @@ public:
 
 public:
     /**
-     * @brief 设置集合名称
-     * @param collection_name 集合名称
-     */
-    void set_collection_name(const std::string & collection_name);
-
-    /**
      * @brief 设置 ALTER 类型
      * @param alter_type ALTER 类型
      */
     void set_alter_type(AstAlterType alter_type) noexcept;
 
     /**
+     * @brief 设置集合名称
+     * @param collection_name 集合名称
+     */
+    void set_collection_name(const std::string & collection_name);
+
+    /**
      * @brief 设置添加字段操作
      * @param op 添加字段操作
      */
-    void set_add_column(AstAlterAddColumn && op) noexcept;
+    void set_add_column(AstAlterAddColumn && op);
 
     /**
      * @brief 设置删除字段操作
      * @param op 删除字段操作
      */
-    void set_drop_column(AstAlterDropColumn && op) noexcept;
+    void set_drop_column(AstAlterDropColumn && op);
 
     /**
      * @brief 设置修改字段操作
      * @param op 修改字段操作
      */
-    void set_modify_column(AstAlterModifyColumn && op) noexcept;
+    void set_modify_column(AstAlterModifyColumn && op);
 
     /**
      * @brief 设置重命名字段操作
      * @param op 重命名字段操作
      */
-    void set_rename_column(AstAlterRenameColumn && op) noexcept;
-
-    /**
-     * @brief 获取集合名称
-     * @return 集合名称
-     */
-    const std::string & get_collection_name() const noexcept;
+    void set_rename_column(AstAlterRenameColumn && op);
 
     /**
      * @brief 获取 ALTER 类型
      * @return ALTER 类型
      */
     AstAlterType get_alter_type() const noexcept;
+
+    /**
+     * @brief 获取集合名称
+     * @return 集合名称
+     */
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 获取添加字段操作
@@ -138,6 +246,12 @@ public:
     const AstAlterRenameColumn & get_rename_column() const;
 
     /**
+     * @brief 是否设置 ALTER 类型
+     * @return 是否设置 ALTER 类型
+     */
+    bool has_alter_type() const noexcept;
+
+    /**
      * @brief 是否存在集合名称
      * @return 是否存在集合名称
      */
@@ -149,9 +263,33 @@ public:
      */
     bool has_alter_operation() const noexcept;
 
+    /**
+     * @brief 是否存在添加字段操作
+     * @return 是否存在添加字段操作
+     */
+    bool has_add_column() const noexcept;
+
+    /**
+     * @brief 是否存在删除字段操作
+     * @return 是否存在删除字段操作
+     */
+    bool has_drop_column() const noexcept;
+
+    /**
+     * @brief 是否存在修改字段操作
+     * @return 是否存在修改字段操作
+     */
+    bool has_modify_column() const noexcept;
+
+    /**
+     * @brief 是否存在重命名字段操作
+     * @return 是否存在重命名字段操作
+     */
+    bool has_rename_column() const noexcept;
+
 private:
-    std::optional<std::string> collection_name_;               // 集合名称
     AstAlterType alter_type_;                                  // ALTER 类型
+    std::optional<std::string> collection_name_;               // 集合名称
     std::variant<
         std::monostate,
         AstAlterAddColumn,

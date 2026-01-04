@@ -11,14 +11,10 @@ AstDescribeStatementNode::AstDescribeStatementNode(std::size_t line, std::size_t
 
 void AstDescribeStatementNode::set_collection_name(const std::string & collection_name)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    collection_name_ = collection_name;
 }
 
-const std::string & AstDescribeStatementNode::get_collection_name() const noexcept
+const std::string & AstDescribeStatementNode::get_collection_name() const
 {
     return collection_name_.value();
 }
