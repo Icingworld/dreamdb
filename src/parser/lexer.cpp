@@ -2,17 +2,52 @@
 
 #include <cctype>
 #include <stdexcept>
+#include <algorithm>
 
 namespace dreamdb
 {
+
+namespace // anonymous namespace
+{
+
+// 预初始化关键字表
+const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
+    {"SELECT", TokenType::DB_SELECT},
+    {"INSERT", TokenType::DB_INSERT},
+    {"DELETE", TokenType::DB_DELETE},
+    {"UPDATE", TokenType::DB_UPDATE},
+    {"CREATE", TokenType::DB_CREATE},
+    {"DROP", TokenType::DB_DROP},
+    {"USE", TokenType::DB_USE},
+    {"ALTER", TokenType::DB_ALTER},
+    {"SHOW", TokenType::DB_SHOW},
+    {"DESCRIBE", TokenType::DB_DESCRIBE},
+    {"DESC", TokenType::DB_DESC},
+    {"FROM", TokenType::DB_FROM},
+    {"WHERE", TokenType::DB_WHERE},
+    {"INTO", TokenType::DB_INTO},
+    {"VALUES", TokenType::DB_VALUES},
+    {"SET", TokenType::DB_SET},
+    {"AND", TokenType::DB_AND},
+    {"OR", TokenType::DB_OR},
+    {"NOT", TokenType::DB_NOT},
+    {"AS", TokenType::DB_AS},
+    {"ON", TokenType::DB_ON},
+    {"IF", TokenType::DB_IF},
+    {"EXISTS", TokenType::DB_EXISTS},
+    {"NULL", TokenType::DB_NULL},
+    {"TRUE", TokenType::DB_TRUE},
+    {"FALSE", TokenType::DB_FALSE},
+};
+
+} // anonymous namespace
 
 Lexer::Lexer(const std::string & input)
     : input_(input)
     , position_(0)
     , line_(1)
     , column_(1)
-    , peeked_token_(TokenType::DB_EOF_TOKEN, "", 0, 0)
-    , has_peeked_(false)
+    , peeked_token_(std::nullopt)
 {
 }
 
@@ -33,18 +68,38 @@ std::size_t Lexer::get_column() const noexcept
 
 Token Lexer::next_token()
 {
-    // 如果已经预读，直接返回预读的 Token
-    if (has_peeked_) {
-        has_peeked_ = false;
-        return peeked_token_;
+    // 如果已经预读，直接返回预读的 Token 并清空预读
+    if (peeked_token_.has_value()) {
+        Token token = peeked_token_.value();
+        peeked_token_ = std::nullopt;
+        return token;
     }
 
+    return next_token_internal();
+}
+
+const Token & Lexer::peek_token()
+{
+    if (!peeked_token_.has_value()) {
+        peeked_token_ = next_token_internal();
+    }
+
+    return peeked_token_.value();
+}
+
+bool Lexer::has_more() const noexcept
+{
+    return position_ < input_.length();
+}
+
+Token Lexer::next_token_internal()
+{
     // 跳过空白字符
     skip_whitespace();
 
     // 检查是否到达末尾
     if (position_ >= input_.length()) {
-        return Token(TokenType::DB_EOF_TOKEN, "", line_, column_);
+        return Token(TokenType::DB_EOF, std::nullopt, line_, column_);
     }
 
     char current = peek();
@@ -74,13 +129,19 @@ Token Lexer::next_token()
         case '!':
             advance();
             if (match('=')) {
+                // !=
                 return Token(TokenType::DB_NOT_EQUAL, "!=", start_line, start_column);
             }
             return Token(TokenType::DB_NOT, "!", start_line, start_column);
         case '<':
             advance();
             if (match('=')) {
+                // <=
                 return Token(TokenType::DB_LESS_EQUAL, "<=", start_line, start_column);
+            }
+            if (match('>')) {
+                // <>
+                return Token(TokenType::DB_NOT_EQUAL, "<>", start_line, start_column);
             }
             return Token(TokenType::DB_LESS_THAN, "<", start_line, start_column);
         case '>':
@@ -97,10 +158,10 @@ Token Lexer::next_token()
             return Token(TokenType::DB_MINUS, "-", start_line, start_column);
         case '*':
             advance();
-            return Token(TokenType::DB_MULTIPLY, "*", start_line, start_column);
+            return Token(TokenType::DB_STAR, "*", start_line, start_column);
         case '/':
             advance();
-            return Token(TokenType::DB_DIVIDE, "/", start_line, start_column);
+            return Token(TokenType::DB_SLASH, "/", start_line, start_column);
         case '%':
             advance();
             return Token(TokenType::DB_MODULO, "%", start_line, start_column);
@@ -125,36 +186,11 @@ Token Lexer::next_token()
         case ']':
             advance();
             return Token(TokenType::DB_RIGHT_BRACKET, "]", start_line, start_column);
-        case '{':
-            advance();
-            return Token(TokenType::DB_LEFT_BRACE, "{", start_line, start_column);
-        case '}':
-            advance();
-            return Token(TokenType::DB_RIGHT_BRACE, "}", start_line, start_column);
         default:
             // 未知字符
             char unknown = advance();
-            throw std::runtime_error(
-                "Unexpected character '" + std::string(1, unknown) + 
-                "' at line " + std::to_string(start_line) + 
-                ", column " + std::to_string(start_column)
-            );
+            return Token(TokenType::DB_ERROR, std::string(1, unknown), start_line, start_column);
     }
-}
-
-Token Lexer::peek_token()
-{
-    if (!has_peeked_) {
-        peeked_token_ = next_token();
-        has_peeked_ = true;
-    }
-
-    return peeked_token_;
-}
-
-bool Lexer::has_more() const noexcept
-{
-    return position_ < input_.length();
 }
 
 void Lexer::skip_whitespace()
@@ -230,6 +266,33 @@ Token Lexer::read_number()
         }
     }
 
+    // 支持科学计数法（可选）
+    if (position_ < input_.length() && (peek() == 'e' || peek() == 'E')) {
+        std::size_t save_pos = position_;
+        std::size_t save_column = column_;
+        
+        advance(); // 跳过 e 或 E
+        ++column_;
+        
+        // 可选的符号
+        if (peek() == '+' || peek() == '-') {
+            advance();
+            ++column_;
+        }
+        
+        // 必须有数字
+        if (is_digit(peek())) {
+            while (position_ < input_.length() && is_digit(peek())) {
+                advance();
+                ++column_;
+            }
+        } else {
+            // 不是科学计数法，回退
+            position_ = save_pos;
+            column_ = save_column;
+        }
+    }
+
     std::string text = input_.substr(start, position_ - start);
     return Token(TokenType::DB_NUMBER_LITERAL, text, start_line, start_column);
 }
@@ -250,37 +313,53 @@ Token Lexer::read_string()
         if (escaped) {
             // 处理转义字符
             switch (c) {
-                case 'n': value += '\n';
+                case 'n':
+                    value += '\n'; // 换行
                     break;
-                case 't': value += '\t';
+                case 't':
+                    value += '\t'; // 制表符
                     break;
-                case 'r': value += '\r';
+                case 'r':
+                    value += '\r'; // 回车
                     break;
-                case '\\': value += '\\';
+                case 'b':
+                    value += '\b'; // 退格
                     break;
-                case '\'': value += '\'';
+                case 'f':
+                    value += '\f'; // 换页
                     break;
-                case '"': value += '"';
+                case 'v':
+                    value += '\v'; // 垂直制表符
                     break;
-                default: value += c;
+                case '0':
+                    value += '\0'; // 空字符
+                    break;
+                case '\\':
+                    value += '\\'; // 反斜杠
+                    break;
+                case '\'':
+                    value += '\''; // 单引号
+                    break;
+                case '"':
+                    value += '"';  // 双引号
+                    break;
+                default:
+                    value += c;    // 其他字符
                     break;
             }
             escaped = false;
             advance();
-            ++column_;
+            ++column_;  // 转义序列占两个字符位置（\ 和转义字符），但 \ 的列号已在之前更新
         } else if (c == '\\') {
             escaped = true;
             advance();
-            ++column_;
+            ++column_;  // \ 字符的列号
         } else if (c == quote) {
             advance(); // 跳过结束引号
             ++column_;
             return Token(TokenType::DB_STRING_LITERAL, value, start_line, start_column);
-        } else if (c == '\n') {
-            throw std::runtime_error(
-                "Unterminated string literal at line " + std::to_string(start_line) + 
-                ", column " + std::to_string(start_column)
-            );
+        } else if (c == '\n' || c == '\r') {
+            return Token(TokenType::DB_ERROR, "Unterminated string literal", start_line, start_column);
         } else {
             value += c;
             advance();
@@ -288,10 +367,7 @@ Token Lexer::read_string()
         }
     }
 
-    throw std::runtime_error(
-        "Unterminated string literal at line " + std::to_string(start_line) + 
-        ", column " + std::to_string(start_column)
-    );
+    return Token(TokenType::DB_ERROR, "Unterminated string literal", start_line, start_column);
 }
 
 bool Lexer::is_alpha(char c) const noexcept
@@ -337,200 +413,18 @@ bool Lexer::match(char expected)
 
 TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
 {
-    // 将关键字字符串转换为 TokenType
-    std::string upper_keyword = keyword;
-    for (char & c : upper_keyword) {
-        c = std::toupper(static_cast<unsigned char>(c));
-    }
+    std::string upper_keyword;
+    upper_keyword.reserve(keyword.size());  // 预分配空间
+    
+    std::transform(keyword.begin(), keyword.end(),  std::back_inserter(upper_keyword), 
+        [](unsigned char c) {
+            return static_cast<char>(std::toupper(c));
+        }
+    );
 
-    if (upper_keyword == "SELECT") {
-        return TokenType::DB_SELECT;
-    }
-    if (upper_keyword == "INSERT") {
-        return TokenType::DB_INSERT;
-    }
-    if (upper_keyword == "DELETE") {
-        return TokenType::DB_DELETE;
-    }
-    if (upper_keyword == "UPDATE") {
-        return TokenType::DB_UPDATE;
-    }
-    if (upper_keyword == "CREATE") {
-        return TokenType::DB_CREATE;
-    }
-    if (upper_keyword == "DROP") {
-        return TokenType::DB_DROP;
-    }
-    if (upper_keyword == "USE") {
-        return TokenType::DB_USE;
-    }
-    if (upper_keyword == "ALTER") {
-        return TokenType::DB_ALTER;
-    }
-    if (upper_keyword == "SHOW") {
-        return TokenType::DB_SHOW;
-    }
-    if (upper_keyword == "DESCRIBE") {
-        return TokenType::DB_DESCRIBE;
-    }
-    if (upper_keyword == "ADD") {
-        return TokenType::DB_ADD;
-    }
-    if (upper_keyword == "MODIFY") {
-        return TokenType::DB_MODIFY;
-    }
-    if (upper_keyword == "RENAME") {
-        return TokenType::DB_RENAME;
-    }
-    if (upper_keyword == "COLUMN") {
-        return TokenType::DB_COLUMN;
-    }
-    if (upper_keyword == "FROM") {
-        return TokenType::DB_FROM;
-    }
-    if (upper_keyword == "WHERE") {
-        return TokenType::DB_WHERE;
-    }
-    if (upper_keyword == "INTO") {
-        return TokenType::DB_INTO;
-    }
-    if (upper_keyword == "VALUES") {
-        return TokenType::DB_VALUES;
-    }
-    if (upper_keyword == "SET") {
-        return TokenType::DB_SET;
-    }
-    if (upper_keyword == "AND") {
-        return TokenType::DB_AND;
-    }
-    if (upper_keyword == "OR") {
-        return TokenType::DB_OR;
-    }
-    if (upper_keyword == "NOT") {
-        return TokenType::DB_NOT;
-    }
-    if (upper_keyword == "AS") {
-        return TokenType::DB_AS;
-    }
-    if (upper_keyword == "ON") {
-        return TokenType::DB_ON;
-    }
-    if (upper_keyword == "TO") {
-        return TokenType::DB_TO;
-    }
-    if (upper_keyword == "OFFSET") {
-        return TokenType::DB_OFFSET;
-    }
-    if (upper_keyword == "DATABASE") {
-        return TokenType::DB_DATABASE;
-    }
-    if (upper_keyword == "COLLECTION") {
-        return TokenType::DB_COLLECTION;
-    }
-    if (upper_keyword == "INDEX") {
-        return TokenType::DB_INDEX;
-    }
-    if (upper_keyword == "VINDEX") {
-        return TokenType::DB_VINDEX;
-    }
-    if (upper_keyword == "DATABASES") {
-        return TokenType::DB_DATABASES;
-    }
-    if (upper_keyword == "COLLECTIONS") {
-        return TokenType::DB_COLLECTIONS;
-    }
-    if (upper_keyword == "INDEXES") {
-        return TokenType::DB_INDEXES;
-    }
-    if (upper_keyword == "VINDEXES") {
-        return TokenType::DB_VINDEXES;
-    }
-    if (upper_keyword == "LIMIT") {
-        return TokenType::DB_LIMIT;
-    }
-    if (upper_keyword == "PRIMARY") {
-        return TokenType::DB_PRIMARY;
-    }
-    if (upper_keyword == "KEY") {
-        return TokenType::DB_KEY;
-    }
-    if (upper_keyword == "AUTO_INCREMENT") {
-        return TokenType::DB_AUTO_INCREMENT;
-    }
-    if (upper_keyword == "DEFAULT") {
-        return TokenType::DB_DEFAULT;
-    }
-    if (upper_keyword == "UNIQUE") {
-        return TokenType::DB_UNIQUE;
-    }
-    if (upper_keyword == "IF") {
-        return TokenType::DB_IF;
-    }
-    if (upper_keyword == "EXISTS") {
-        return TokenType::DB_EXISTS;
-    }
-    if (upper_keyword == "ORDER") {
-        return TokenType::DB_ORDER;
-    }
-    if (upper_keyword == "BY") {
-        return TokenType::DB_BY;
-    }
-    if (upper_keyword == "ASC") {
-        return TokenType::DB_ASC;
-    }
-    if (upper_keyword == "DESC") {
-        return TokenType::DB_DESC;
-    }
-    if (upper_keyword == "GROUP") {
-        return TokenType::DB_GROUP;
-    }
-    if (upper_keyword == "HAVING") {
-        return TokenType::DB_HAVING;
-    }
-    if (upper_keyword == "BETWEEN") {
-        return TokenType::DB_BETWEEN;
-    }
-    if (upper_keyword == "IN") {
-        return TokenType::DB_IN;
-    }
-    if (upper_keyword == "LIKE") {
-        return TokenType::DB_LIKE;
-    }
-    if (upper_keyword == "IS") {
-        return TokenType::DB_IS;
-    }
-    if (upper_keyword == "SEARCH") {
-        return TokenType::DB_SEARCH;
-    }
-    if (upper_keyword == "USING") {
-        return TokenType::DB_USING;
-    }
-    if (upper_keyword == "WITH") {
-        return TokenType::DB_WITH;
-    }
-    if (upper_keyword == "TRUE") {
-        return TokenType::DB_TRUE;
-    }
-    if (upper_keyword == "FALSE") {
-        return TokenType::DB_FALSE;
-    }
-    if (upper_keyword == "NULL") {
-        return TokenType::DB_NULL;
-    }
-    if (upper_keyword == "BTREE") {
-        return TokenType::DB_BTREE;
-    }
-    if (upper_keyword == "HASH") {
-        return TokenType::DB_HASH;
-    }
-    if (upper_keyword == "FLAT") {
-        return TokenType::DB_FLAT;
-    }
-    if (upper_keyword == "IVF_FLAT") {
-        return TokenType::DB_IVF_FLAT;
-    }
-    if (upper_keyword == "HNSW") {
-        return TokenType::DB_HNSW;
+    auto it = KEYWORD_MAP.find(upper_keyword);
+    if (it != KEYWORD_MAP.end()) {
+        return it->second;
     }
 
     return TokenType::DB_IDENTIFIER;

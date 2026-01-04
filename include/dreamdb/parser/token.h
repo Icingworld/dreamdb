@@ -71,6 +71,9 @@ enum class TokenType : std::uint8_t
     DB_RIGHT_PAREN,        // )
     DB_LEFT_BRACKET,       // [
     DB_RIGHT_BRACKET,      // ]
+
+    // 错误
+    DB_ERROR               // 错误
 };
 
 /**
