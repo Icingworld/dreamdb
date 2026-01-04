@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
-#include <variant>
 #include <string>
-#include <vector>
 
 #include "dreamdb/parser/ast/ast_expression_node.h"
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <variant>
 
@@ -9,18 +8,6 @@
 
 namespace dreamdb
 {
-
-/**
- * @brief DROP 类型枚举
- */
-enum class AstDropType : std::uint8_t
-{
-    AST_DROP_UNKNOWN,     // 未知
-    AST_DROP_DATABASE,    // 数据库
-    AST_DROP_COLLECTION,  // 集合
-    AST_DROP_INDEX,       // 索引
-    AST_DROP_VINDEX,      // 向量索引
-};
 
 /**
  * @brief 删除数据库操作
@@ -172,10 +159,10 @@ public:
 
 public:
     /**
-     * @brief 设置 DROP 类型
-     * @param drop_type DROP 类型
+     * @brief 设置是否存在性检查
+     * @param if_exists 是否存在性检查
      */
-    void set_drop_type(AstDropType drop_type) noexcept;
+    void set_if_exists(bool if_exists) noexcept;
 
     /**
      * @brief 设置删除数据库操作
@@ -202,10 +189,10 @@ public:
     void set_drop_vindex(AstDropVIndex && op);
 
     /**
-     * @brief 获取 DROP 类型
-     * @return DROP 类型
+     * @brief 获取是否存在性检查
+     * @return 是否存在性检查
      */
-    AstDropType get_drop_type() const noexcept;
+    bool get_if_exists() const noexcept;
 
     /**
      * @brief 获取删除数据库操作
@@ -230,12 +217,6 @@ public:
      * @return 删除向量索引操作
      */
     const AstDropVIndex & get_drop_vindex() const;
-
-    /**
-     * @brief 是否设置 DROP 类型
-     * @return 是否设置 DROP 类型
-     */
-    bool has_drop_type() const noexcept;
 
     /**
      * @brief 是否存在删除操作
@@ -268,7 +249,7 @@ public:
     bool has_drop_vindex() const noexcept;
 
 private:
-    AstDropType drop_type_;                                           // DROP 类型
+    bool if_exists_;                                                  // 是否存在性检查
     std::variant<
         std::monostate,
         AstDropDatabase,

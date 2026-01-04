@@ -29,6 +29,15 @@ enum class TokenType : std::uint8_t
     DB_DESCRIBE,           // DESCRIBE
     DB_DESC,               // DESC
 
+    DB_DATABASE,           // DATABASE
+    DB_COLLECTION,         // COLLECTION
+    DB_INDEX,              // INDEX
+    DB_VINDEX,             // VINDEX
+    DB_DATABASES,          // DATABASES
+    DB_COLLECTIONS,        // COLLECTIONS
+    DB_INDEXES,            // INDEXES
+    DB_VINDEXES,           // VINDEXES
+
     DB_FROM,               // FROM
     DB_WHERE,              // WHERE
     DB_INTO,               // INTO
@@ -93,7 +102,7 @@ public:
 
     Token & operator=(Token &&) noexcept = default;
 
-    ~Token() = default;
+    ~Token() noexcept = default;
 
 public:
     /**

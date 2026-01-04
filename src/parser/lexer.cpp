@@ -1,7 +1,8 @@
 #include "dreamdb/parser/lexer.h"
 
 #include <cctype>
-#include <stdexcept>
+#include <unordered_map>
+#include <iterator>
 #include <algorithm>
 
 namespace dreamdb
@@ -23,6 +24,14 @@ const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
     {"SHOW", TokenType::DB_SHOW},
     {"DESCRIBE", TokenType::DB_DESCRIBE},
     {"DESC", TokenType::DB_DESC},
+    {"DATABASE", TokenType::DB_DATABASE},
+    {"COLLECTION", TokenType::DB_COLLECTION},
+    {"INDEX", TokenType::DB_INDEX},
+    {"VINDEX", TokenType::DB_VINDEX},
+    {"DATABASES", TokenType::DB_DATABASES},
+    {"COLLECTIONS", TokenType::DB_COLLECTIONS},
+    {"INDEXES", TokenType::DB_INDEXES},
+    {"VINDEXES", TokenType::DB_VINDEXES},
     {"FROM", TokenType::DB_FROM},
     {"WHERE", TokenType::DB_WHERE},
     {"INTO", TokenType::DB_INTO},

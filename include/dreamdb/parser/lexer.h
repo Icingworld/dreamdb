@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <string>
-#include <unordered_map>
 #include <optional>
 
 #include "dreamdb/parser/token.h"
@@ -27,7 +26,7 @@ public:
 
     Lexer & operator=(Lexer &&) = default;
 
-    ~Lexer() = default;
+    ~Lexer() noexcept = default;
 
 public:
     /**
