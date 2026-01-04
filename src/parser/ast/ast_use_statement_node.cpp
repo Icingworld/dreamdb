@@ -11,11 +11,7 @@ AstUseStatementNode::AstUseStatementNode(std::size_t line, std::size_t column)
 
 void AstUseStatementNode::set_database_name(const std::string & database_name)
 {
-    if (database_name.empty()) {
-        database_name_ = std::nullopt;
-    } else {
-        database_name_ = database_name;
-    }
+    database_name_ = database_name;
 }
 
 const std::string & AstUseStatementNode::get_database_name() const

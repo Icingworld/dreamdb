@@ -24,11 +24,7 @@ SelectItem SelectItem::create_expression_item(std::unique_ptr<AstExpressionNode>
     SelectItem item;
     item.select_item_type_ = SelectItemType::SELECT_ITEM_EXPRESSION;
     item.select_item_expression_ = std::move(expression);
-    if (alias.empty()) {
-        item.select_item_alias_ = std::nullopt;
-    } else {
-        item.select_item_alias_ = alias;
-    }
+    item.select_item_alias_ = alias;
     return item;
 }
 
@@ -97,11 +93,7 @@ AstSelectStatementNode::~AstSelectStatementNode() noexcept = default;
 
 void AstSelectStatementNode::set_collection_name(const std::string & collection_name)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    collection_name_ = collection_name;
 }
 
 void AstSelectStatementNode::add_select_item(SelectItem && item)

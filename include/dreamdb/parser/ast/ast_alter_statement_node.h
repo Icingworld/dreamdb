@@ -174,16 +174,16 @@ public:
 
 public:
     /**
+     * @brief 设置 ALTER 类型
+     * @param alter_type ALTER 类型
+     */
+    void set_alter_type(AstAlterType alter_type) noexcept;
+
+    /**
      * @brief 设置集合名称
      * @param collection_name 集合名称
      */
     void set_collection_name(const std::string & collection_name);
-
-    /**
-     * @brief 设置 ALTER 类型
-     * @param alter_type ALTER 类型
-     */
-    void set_alter_type(AstAlterType alter_type);
 
     /**
      * @brief 设置添加字段操作
@@ -210,16 +210,16 @@ public:
     void set_rename_column(AstAlterRenameColumn && op);
 
     /**
-     * @brief 获取集合名称
-     * @return 集合名称
-     */
-    const std::string & get_collection_name() const;
-
-    /**
      * @brief 获取 ALTER 类型
      * @return ALTER 类型
      */
     AstAlterType get_alter_type() const noexcept;
+
+    /**
+     * @brief 获取集合名称
+     * @return 集合名称
+     */
+    const std::string & get_collection_name() const;
 
     /**
      * @brief 获取添加字段操作
@@ -244,6 +244,12 @@ public:
      * @return 重命名字段操作
      */
     const AstAlterRenameColumn & get_rename_column() const;
+
+    /**
+     * @brief 是否设置 ALTER 类型
+     * @return 是否设置 ALTER 类型
+     */
+    bool has_alter_type() const noexcept;
 
     /**
      * @brief 是否存在集合名称
@@ -282,8 +288,8 @@ public:
     bool has_rename_column() const noexcept;
 
 private:
-    std::optional<std::string> collection_name_;               // 集合名称
     AstAlterType alter_type_;                                  // ALTER 类型
+    std::optional<std::string> collection_name_;               // 集合名称
     std::variant<
         std::monostate,
         AstAlterAddColumn,

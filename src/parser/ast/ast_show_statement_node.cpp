@@ -80,6 +80,11 @@ const AstShowVIndexes & AstShowStatementNode::get_show_vindexes() const
     return std::get<AstShowVIndexes>(show_operation_);
 }
 
+bool AstShowStatementNode::has_show_type() const noexcept
+{
+    return show_type_ != AstShowType::AST_SHOW_UNKNOWN;
+}
+
 bool AstShowStatementNode::has_show_operation() const noexcept
 {
     return !std::holds_alternative<std::monostate>(show_operation_);

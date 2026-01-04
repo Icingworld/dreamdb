@@ -6,7 +6,7 @@ namespace dreamdb
 {
 
 UpdateAssignment::UpdateAssignment(const std::string & column_name, std::unique_ptr<AstExpressionNode> value)
-    : column_name_(column_name.empty() ? std::nullopt : std::make_optional(column_name))
+    : column_name_(column_name)
     , value_(std::move(value))
 {
 }
@@ -45,11 +45,7 @@ AstUpdateStatementNode::~AstUpdateStatementNode() noexcept = default;
 
 void AstUpdateStatementNode::set_collection_name(const std::string & collection_name)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    collection_name_ = collection_name;
 }
 
 void AstUpdateStatementNode::add_assignment(UpdateAssignment && assignment)

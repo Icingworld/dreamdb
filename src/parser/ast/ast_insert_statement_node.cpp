@@ -17,11 +17,7 @@ AstInsertStatementNode::~AstInsertStatementNode() noexcept = default;
 
 void AstInsertStatementNode::set_collection_name(const std::string & collection_name)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    collection_name_ = collection_name;
 }
 
 void AstInsertStatementNode::add_column_name(const std::string & column)

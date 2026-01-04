@@ -112,6 +112,11 @@ const AstDropVIndex & AstDropStatementNode::get_drop_vindex() const
     return std::get<AstDropVIndex>(drop_operation_);
 }
 
+bool AstDropStatementNode::has_drop_type() const noexcept
+{
+    return drop_type_ != AstDropType::AST_DROP_UNKNOWN;
+}
+
 bool AstDropStatementNode::has_drop_operation() const noexcept
 {
     return !std::holds_alternative<std::monostate>(drop_operation_);

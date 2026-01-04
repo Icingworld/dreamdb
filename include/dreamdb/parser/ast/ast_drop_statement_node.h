@@ -232,6 +232,12 @@ public:
     const AstDropVIndex & get_drop_vindex() const;
 
     /**
+     * @brief 是否设置 DROP 类型
+     * @return 是否设置 DROP 类型
+     */
+    bool has_drop_type() const noexcept;
+
+    /**
      * @brief 是否存在删除操作
      * @return 是否存在删除操作
      */

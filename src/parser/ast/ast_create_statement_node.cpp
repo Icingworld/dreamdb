@@ -211,6 +211,11 @@ const AstCreateVIndex & AstCreateStatementNode::get_create_vindex() const
     return std::get<AstCreateVIndex>(create_operation_);
 }
 
+bool AstCreateStatementNode::has_create_type() const noexcept
+{
+    return create_type_ != AstCreateType::AST_CREATE_UNKNOWN;
+}
+
 bool AstCreateStatementNode::has_create_operation() const noexcept
 {
     return !std::holds_alternative<std::monostate>(create_operation_);

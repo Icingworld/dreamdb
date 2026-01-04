@@ -198,6 +198,12 @@ public:
     const AstShowVIndexes & get_show_vindexes() const;
 
     /**
+     * @brief 是否设置 SHOW 类型
+     * @return 是否设置 SHOW 类型
+     */
+    bool has_show_type() const noexcept;
+
+    /**
      * @brief 是否存在显示操作
      * @return 是否存在显示操作
      */

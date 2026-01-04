@@ -16,11 +16,7 @@ AstDeleteStatementNode::~AstDeleteStatementNode() noexcept = default;
 
 void AstDeleteStatementNode::set_collection_name(const std::string & collection_name)
 {
-    if (collection_name.empty()) {
-        collection_name_ = std::nullopt;
-    } else {
-        collection_name_ = collection_name;
-    }
+    collection_name_ = collection_name;
 }
 
 void AstDeleteStatementNode::set_where_clause(std::unique_ptr<AstExpressionNode> where_clause) noexcept

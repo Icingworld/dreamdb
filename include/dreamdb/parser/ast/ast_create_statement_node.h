@@ -376,6 +376,12 @@ public:
     const AstCreateVIndex & get_create_vindex() const;
 
     /**
+     * @brief 是否设置 CREATE 类型
+     * @return 是否设置 CREATE 类型
+     */
+    bool has_create_type() const noexcept;
+
+    /**
      * @brief 是否存在创建操作
      * @return 是否存在创建操作
      */
