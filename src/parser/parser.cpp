@@ -1,5 +1,6 @@
 #include "dreamdb/parser/parser.h"
 
+#include "dreamdb/parser/ast/ast_insert_statement_node.h"
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
 #include "dreamdb/parser/ast/ast_alter_statement_node.h"
@@ -100,6 +101,71 @@ std::unique_ptr<AstStatementNode> Parser::parse_statement()
             error("Unexpected token");
             return nullptr;
     }
+}
+
+std::unique_ptr<AstStatementNode> Parser::parse_insert_statement()
+{
+    // 获取 INSERT 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 Insert 语句节点
+    auto insert_statement = std::make_unique<AstInsertStatementNode>(line, column);
+
+    // 消耗 INSERT 关键字
+    advance();
+
+    // 期望 INTO 关键字
+    consume(TokenType::DB_INTO, "Expected INTO after INSERT");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after INTO");
+        return nullptr;
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    // 设置集合名称
+    insert_statement->set_collection_name(collection_name);
+
+    // 检查是否存在列名列表
+    if (match(TokenType::DB_LEFT_PAREN)) {
+        // 解析列名列表
+        do {
+            if (!check(TokenType::DB_IDENTIFIER)) {
+                error("Expected column_name after '('");
+                return nullptr;
+            }
+            std::string column_name = current_token_.get_value();
+            // 消耗标识符
+            advance();
+            // 添加列名
+            insert_statement->add_column_name(column_name);
+        } while (match(TokenType::DB_COMMA));
+
+        // 期望 )
+        consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after column_names");
+    }
+
+    // 期望 VALUES 关键字
+    consume(TokenType::DB_VALUES, "Expected VALUES after INTO");
+
+    // 期望 (
+    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after VALUES");
+
+    // 解析值列表
+    do {
+        auto value = parse_expression();
+        // 添加值
+        insert_statement->add_value(std::move(value));
+    } while (match(TokenType::DB_COMMA));
+
+    // 期望 )
+    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after values");
+
+    // INSERT 语句解析完成
+    return insert_statement;
 }
 
 std::unique_ptr<AstStatementNode> Parser::parse_create_statement()
