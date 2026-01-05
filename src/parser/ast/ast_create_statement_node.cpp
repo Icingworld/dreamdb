@@ -3,56 +3,25 @@
 namespace dreamdb
 {
 
-VIndexWithClause::VIndexWithClause()
-    : nlist_(1024)
-    , M_(32)
-    , ef_construction_(200)
-    , metric_(MetricType::L2)
+AstVIndexWithOption::AstVIndexWithOption(const std::string & key, std::unique_ptr<AstExpressionNode> value)
+    : key_(key)
+    , value_(std::move(value))
 {
-    // IVF_FLAT: nlist 建议为数据量的平方根，默认 1024 适合中规模数据量
-    // HNSW: M 参数，大多数场景下性能更好，常见范围 4 - 64
-    // HNSW: ef_construction 参数，有较好的召回率，常见范围 50 - 500
-    // 距离度量方式，L2 距离更常用
 }
 
-void VIndexWithClause::set_nlist(std::int32_t nlist) noexcept
+const std::string & AstVIndexWithOption::get_key() const noexcept
 {
-    nlist_ = nlist;
+    return key_;
 }
 
-void VIndexWithClause::set_M(std::int32_t M) noexcept
+const std::unique_ptr<AstExpressionNode> & AstVIndexWithOption::get_value() const noexcept
 {
-    M_ = M;
+    return value_;
 }
 
-void VIndexWithClause::set_ef_construction(std::int32_t ef_construction) noexcept
+bool AstVIndexWithOption::has_value() const noexcept
 {
-    ef_construction_ = ef_construction;
-}
-
-void VIndexWithClause::set_metric(MetricType metric) noexcept
-{
-    metric_ = metric;
-}
-
-std::int32_t VIndexWithClause::get_nlist() const noexcept
-{
-    return nlist_;
-}
-
-std::int32_t VIndexWithClause::get_M() const noexcept
-{
-    return M_;
-}
-
-std::int32_t VIndexWithClause::get_ef_construction() const noexcept
-{
-    return ef_construction_;
-}
-
-MetricType VIndexWithClause::get_metric() const noexcept
-{
-    return metric_;
+    return value_ != nullptr;
 }
 
 AstCreateDatabase::AstCreateDatabase(const std::string & database_name)
@@ -81,7 +50,7 @@ const std::vector<AstColumnDefinition> & AstCreateCollection::get_column_definit
     return column_definitions_;
 }
 
-AstCreateIndex::AstCreateIndex(const std::string & index_name, const std::string & collection_name, const std::vector<std::string> & column_names, IndexType index_type)
+AstCreateIndex::AstCreateIndex(const std::string & index_name, const std::string & collection_name, const std::vector<std::string> & column_names, const std::string & index_type)
     : index_name_(index_name)
     , collection_name_(collection_name)
     , column_names_(column_names)
@@ -104,17 +73,17 @@ const std::vector<std::string> & AstCreateIndex::get_column_names() const noexce
     return column_names_;
 }
 
-IndexType AstCreateIndex::get_index_type() const noexcept
+const std::string & AstCreateIndex::get_index_type() const noexcept
 {
     return index_type_;
 }
 
-AstCreateVIndex::AstCreateVIndex(const std::string & vindex_name, const std::string & collection_name, const std::vector<std::string> & column_names, VIndexType vindex_type, const VIndexWithClause & with_clause)
+AstCreateVIndex::AstCreateVIndex(const std::string & vindex_name, const std::string & collection_name, const std::string & column_name, const std::string & vindex_type, std::vector<AstVIndexWithOption> with_clauses)
     : vindex_name_(vindex_name)
     , collection_name_(collection_name)
-    , column_names_(column_names)
+    , column_name_(column_name)
     , vindex_type_(vindex_type)
-    , vindex_with_clause_(with_clause)
+    , with_clauses_(std::move(with_clauses))
 {
 }
 
@@ -128,37 +97,31 @@ const std::string & AstCreateVIndex::get_collection_name() const noexcept
     return collection_name_;
 }
 
-const std::vector<std::string> & AstCreateVIndex::get_column_names() const noexcept
+const std::string & AstCreateVIndex::get_column_name() const noexcept
 {
-    return column_names_;
+    return column_name_;
 }
 
-VIndexType AstCreateVIndex::get_vindex_type() const noexcept
+const std::string & AstCreateVIndex::get_vindex_type() const noexcept
 {
     return vindex_type_;
 }
 
-const VIndexWithClause & AstCreateVIndex::get_vindex_with_clause() const noexcept
+const std::vector<AstVIndexWithOption> & AstCreateVIndex::get_with_clauses() const noexcept
 {
-    return vindex_with_clause_;
+    return with_clauses_;
 }
 
 AstCreateStatementNode::AstCreateStatementNode(std::size_t line, std::size_t column)
     : AstStatementNode(AstStatementNodeType::AST_STATEMENT_CREATE, line, column)
-    , create_type_(AstCreateType::AST_CREATE_UNKNOWN)
-    , is_if_not_exists_(false)
+    , if_not_exists_(false)
     , create_operation_(std::monostate())
 {
 }
 
-void AstCreateStatementNode::set_create_type(AstCreateType create_type) noexcept
+void AstCreateStatementNode::set_if_not_exists(bool if_not_exists) noexcept
 {
-    create_type_ = create_type;
-}
-
-void AstCreateStatementNode::set_is_if_not_exists(bool is_if_not_exists) noexcept
-{
-    is_if_not_exists_ = is_if_not_exists;
+    if_not_exists_ = if_not_exists;
 }
 
 void AstCreateStatementNode::set_create_database(AstCreateDatabase && op)
@@ -181,14 +144,9 @@ void AstCreateStatementNode::set_create_vindex(AstCreateVIndex && op)
     create_operation_ = std::move(op);
 }
 
-AstCreateType AstCreateStatementNode::get_create_type() const noexcept
+bool AstCreateStatementNode::get_if_not_exists() const noexcept
 {
-    return create_type_;
-}
-
-bool AstCreateStatementNode::get_is_if_not_exists() const noexcept
-{
-    return is_if_not_exists_;
+    return if_not_exists_;
 }
 
 const AstCreateDatabase & AstCreateStatementNode::get_create_database() const
@@ -209,11 +167,6 @@ const AstCreateIndex & AstCreateStatementNode::get_create_index() const
 const AstCreateVIndex & AstCreateStatementNode::get_create_vindex() const
 {
     return std::get<AstCreateVIndex>(create_operation_);
-}
-
-bool AstCreateStatementNode::has_create_type() const noexcept
-{
-    return create_type_ != AstCreateType::AST_CREATE_UNKNOWN;
 }
 
 bool AstCreateStatementNode::has_create_operation() const noexcept

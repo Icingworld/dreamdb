@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <optional>
@@ -9,6 +10,18 @@
 
 namespace dreamdb
 {
+
+/**
+ * @brief 列修饰符
+ */
+enum class AstColumnModifier : std::uint8_t
+{
+    AST_COLUMN_MODIFIER_NOT_NULL,            // NOT NULL          
+    AST_COLUMN_MODIFIER_UNIQUE,              // UNIQUE
+    AST_COLUMN_MODIFIER_PRIMARY_KEY,         // PRIMARY KEY
+    AST_COLUMN_MODIFIER_AUTO_INCREMENT,      // AUTO_INCREMENT
+    AST_COLUMN_MODIFIER_DEFAULT,             // DEFAULT
+};
 
 /**
  * @brief 列定义
@@ -42,46 +55,22 @@ public:
     void set_type_name(const std::string & type_name);
 
     /**
-     * @brief 设置长度
-     * @param length 长度
+     * @brief 添加参数
+     * @param argument 参数
      */
-    void set_length(int length) noexcept;
+    void add_argument(std::unique_ptr<AstExpressionNode> argument) noexcept;
 
     /**
-     * @brief 设置精度
-     * @param precision 精度
+     * @brief 添加列修饰符
+     * @param modifier 列修饰符
      */
-    void set_precision(int precision) noexcept;
+    void add_modifier(AstColumnModifier modifier) noexcept;
 
     /**
-     * @brief 设置 ENUM 字段选项
-     * @param options ENUM 字段选项
-     */
-    void set_options(const std::vector<std::string> & options);
-
-    /**
-     * @brief 设置是否允许 NULL
-     * @param is_nullable 是否允许 NULL
-     */
-    void set_is_nullable(bool is_nullable) noexcept;
-
-    /**
-     * @brief 设置是否为主键
-     * @param is_primary 是否为主键
-     */
-    void set_is_primary(bool is_primary) noexcept;
-
-    /**
-     * @brief 设置是否自动递增
-     * @param is_auto_increment 是否自动递增
-     */
-    void set_is_auto_increment(bool is_auto_increment) noexcept;
-
-    /**
-     * @brief 设置默认值表达式
+     * @brief 添加默认值表达式
      * @param default_value 默认值表达式
      */
-    void set_default_value(std::unique_ptr<AstExpressionNode> default_value) noexcept;
+    void add_default_value(std::unique_ptr<AstExpressionNode> default_value) noexcept;
 
     /**
      * @brief 设置字段注释
@@ -102,46 +91,22 @@ public:
     const std::string & get_type_name() const;
 
     /**
-     * @brief 获取长度
-     * @return 长度
+     * @brief 获取参数列表
+     * @return 参数列表
      */
-    int get_length() const;
+    const std::vector<std::unique_ptr<AstExpressionNode>> & get_arguments() const;
 
     /**
-     * @brief 获取精度
-     * @return 精度
+     * @brief 获取列修饰符列表
+     * @return 列修饰符列表
      */
-    int get_precision() const;
+    const std::vector<AstColumnModifier> & get_modifiers() const;
 
     /**
-     * @brief 获取 ENUM 字段选项
-     * @return ENUM 字段选项
+     * @brief 获取默认值表达式列表
+     * @return 默认值表达式列表
      */
-    const std::vector<std::string> & get_options() const;
-
-    /**
-     * @brief 获取是否允许 NULL
-     * @return 是否允许 NULL
-     */
-    bool get_is_nullable() const noexcept;
-
-    /**
-     * @brief 获取是否为主键
-     * @return 是否为主键
-     */
-    bool get_is_primary() const noexcept;
-
-    /**
-     * @brief 获取是否自动递增
-     * @return 是否自动递增
-     */
-    bool get_is_auto_increment() const noexcept;
-
-    /**
-     * @brief 获取默认值表达式
-     * @return 默认值表达式
-     */
-    const AstExpressionNode & get_default_value() const;
+    const std::vector<std::unique_ptr<AstExpressionNode>> & get_default_values() const;
 
     /**
      * @brief 获取字段注释
@@ -162,28 +127,22 @@ public:
     bool has_type_name() const noexcept;
 
     /**
-     * @brief 是否存在长度
-     * @return 是否存在长度
+     * @brief 是否存在参数列表
+     * @return 是否存在参数列表
      */
-    bool has_length() const noexcept;
+    bool has_arguments() const noexcept;
 
     /**
-     * @brief 是否存在精度
-     * @return 是否存在精度
+     * @brief 是否存在列修饰符
+     * @return 是否存在列修饰符
      */
-    bool has_precision() const noexcept;
+    bool has_modifiers() const noexcept;
 
     /**
-     * @brief 是否存在 ENUM 字段选项
-     * @return 是否存在 ENUM 字段选项
+     * @brief 是否存在默认值表达式列表
+     * @return 是否存在默认值表达式列表
      */
-    bool has_options() const noexcept;
-
-    /**
-     * @brief 是否存在默认值表达式
-     * @return 是否存在默认值表达式
-     */
-    bool has_default_value() const noexcept;
+    bool has_default_values() const noexcept;
 
     /**
      * @brief 是否存在字段注释
@@ -194,15 +153,10 @@ public:
 private:
     std::optional<std::string> name_;                  // 列名
     std::optional<std::string> type_name_;             // 字段类型
-    std::optional<int> length_;                        // 长度
-    std::optional<int> precision_;                     // 精度
-    std::optional<std::vector<std::string>> options_;  // ENUM 字段选项
-    bool is_nullable_;                                 // 是否允许 NULL
-    bool is_primary_;                                  // 是否为主键
-    bool is_auto_increment_;                           // 是否自动递增
-    std::unique_ptr<AstExpressionNode> default_value_; // 默认值表达式
+    std::vector<std::unique_ptr<AstExpressionNode>> arguments_;         // 参数列表
+    std::vector<AstColumnModifier> modifiers_;         // 列修饰符列表
+    std::vector<std::unique_ptr<AstExpressionNode>> default_values_;    // 默认值表达式列表
     std::optional<std::string> comment_;               // 字段注释
 };
- 
 
 } // namespace dreamdb
