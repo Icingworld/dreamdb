@@ -172,7 +172,31 @@ private:
      */
     std::unique_ptr<AstExpressionNode> parse_comparison_expression();
 
-    // 辅助方法
+    /**
+     * @brief 解析加法表达式
+     * @return 加法表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_additive_expression();
+
+    /**
+     * @brief 解析乘法表达式
+     * @return 乘法表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_multiplicative_expression();
+
+    /**
+     * @brief 解析一元表达式
+     * @return 一元表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_unary_expression();
+
+    /**
+     * @brief 解析主表达式
+     * @return 主表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_primary_expression();
+
+    /** ========== 表达式解析辅助方法 ========== */
 
     /**
      * @brief 解析单个列定义
@@ -180,7 +204,31 @@ private:
      */
     AstColumnDefinition parse_column_definition();
 
-    // ========== 辅助方法 ==========
+    /**
+     * @brief 解析 IN 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT IN
+     * @return IN 表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_in_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+
+    /**
+     * @brief 解析 BETWEEN 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT BETWEEN
+     * @return BETWEEN 表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_between_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+
+    /**
+     * @brief 解析 LIKE 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT LIKE
+     * @return LIKE 表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_like_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+
+    // ========== 语法分析辅助方法 ==========
 
     /**
      * @brief 获取下一个 Token
@@ -203,11 +251,6 @@ private:
      * @param message 错误消息
      */
     void consume(TokenType type, const std::string & message);
-
-    /**
-     * @brief 检查是否为表达式结束符
-     */
-    bool is_expression_terminator() const;
 
     /**
      * @brief 跳过分号（如果存在）

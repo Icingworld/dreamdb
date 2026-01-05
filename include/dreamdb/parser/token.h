@@ -44,6 +44,9 @@ enum class TokenType : std::uint8_t
     DB_ASC,                // ASC
     DB_LIMIT,              // LIMIT
     DB_OFFSET,             // OFFSET
+    DB_IN,                 // IN
+    DB_BETWEEN,            // BETWEEN
+    DB_LIKE,               // LIKE
 
     DB_ADD,                // ADD
     DB_MODIFY,             // MODIFY
@@ -77,7 +80,8 @@ enum class TokenType : std::uint8_t
     // 标识符
     DB_IDENTIFIER,         // 表名、字段名、数据类型等
     DB_STRING_LITERAL,     // 字符串字面量
-    DB_NUMBER_LITERAL,     // 数字字面量
+    DB_INTEGER_LITERAL,    // 整数字面量
+    DB_FLOAT_LITERAL,      // 浮点数字面量
 
     // 运算符
     DB_EQUAL,              // =

@@ -11,6 +11,14 @@
 #include "dreamdb/parser/ast/ast_show_statement_node.h"
 #include "dreamdb/parser/ast/ast_describe_statement_node.h"
 #include "dreamdb/parser/ast/ast_binary_expression_node.h"
+#include "dreamdb/parser/ast/ast_unary_expression_node.h"
+#include "dreamdb/parser/ast/ast_in_expression_node.h"
+#include "dreamdb/parser/ast/ast_between_expression_node.h"
+#include "dreamdb/parser/ast/ast_like_expression_node.h"
+#include "dreamdb/parser/ast/ast_literal_expression_node.h"
+#include "dreamdb/parser/ast/ast_vector_expression_node.h"
+#include "dreamdb/parser/ast/ast_column_reference_expression_node.h"
+#include "dreamdb/parser/ast/ast_function_call_expression_node.h"
 
 namespace dreamdb
 {
@@ -1037,7 +1045,8 @@ std::unique_ptr<AstExpressionNode> Parser::parse_expression()
     // 能够进入递归下降解析表达式的 Token 类型
     switch (current_token_.get_type()) {
         // 字面量：数字、字符串、布尔值、NULL
-        case TokenType::DB_NUMBER_LITERAL:
+        case TokenType::DB_INTEGER_LITERAL:
+        case TokenType::DB_FLOAT_LITERAL:
         case TokenType::DB_STRING_LITERAL:
         case TokenType::DB_TRUE:
         case TokenType::DB_FALSE:
@@ -1151,7 +1160,446 @@ std::unique_ptr<AstExpressionNode> Parser::parse_and_expression()
 
 std::unique_ptr<AstExpressionNode> Parser::parse_comparison_expression()
 {
-    
+    // 递归下降解析左侧的加法表达式
+    auto left = parse_additive_expression();
+    if (left == nullptr) {
+        error("Expected expression before comparison");
+        return nullptr;
+    }
+
+    // 判断是否有 NOT 关键字
+    // NOT IN, NOT BETWEEN, NOT LIKE 会使用该变量
+    bool is_not = match(TokenType::DB_NOT);
+
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 根据当前 Token 类型进行不同的比较表达式解析
+    switch (current_token_.get_type()) {
+        case TokenType::DB_EQUAL:
+        case TokenType::DB_NOT_EQUAL:
+        case TokenType::DB_LESS_THAN:
+        case TokenType::DB_GREATER_THAN:
+        case TokenType::DB_LESS_EQUAL:
+        case TokenType::DB_GREATER_EQUAL: {
+            if (is_not) {
+                error("Unexpected NOT before comparison");
+                return nullptr;
+            }
+
+            AstBinaryOperatorType operator_type;
+            switch (current_token_.get_type()) {
+                case TokenType::DB_EQUAL:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_EQUAL;
+                    break;
+                case TokenType::DB_NOT_EQUAL:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_NOT_EQUAL;
+                    break;
+                case TokenType::DB_LESS_THAN:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_LESS_THAN;
+                    break;
+                case TokenType::DB_GREATER_THAN:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_GREATER_THAN;
+                    break;
+                case TokenType::DB_LESS_EQUAL:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_LESS_EQUAL;
+                    break;
+                case TokenType::DB_GREATER_EQUAL:
+                    operator_type = AstBinaryOperatorType::AST_BINARY_OPERATOR_GREATER_EQUAL;
+                    break;
+                default:
+                    break;
+            }
+
+            // 消耗比较运算符
+            advance();
+
+            // 递归解析右侧的加法表达式
+            auto right = parse_additive_expression();
+            if (right == nullptr) {
+                error("Expected expression after comparison");
+                return nullptr;
+            }
+            
+            // 创建二元表达式节点
+            auto binary_expression = std::make_unique<AstBinaryExpressionNode>(line, column);
+            binary_expression->set_operator_type(operator_type);
+            binary_expression->set_left(std::move(left));
+            binary_expression->set_right(std::move(right));
+            return binary_expression;
+        }
+        case TokenType::DB_IN:
+            return parse_in_expression(std::move(left), is_not);
+        case TokenType::DB_BETWEEN:
+            return parse_between_expression(std::move(left), is_not);
+        case TokenType::DB_LIKE:
+            return parse_like_expression(std::move(left), is_not);
+        default:
+            // 如果前面有 NOT，但后面不是特殊运算符，包成 UnaryExpression
+            if (is_not) {
+                auto unary_expression = std::make_unique<AstUnaryExpressionNode>(line, column);
+                unary_expression->set_operator_type(AstUnaryOperatorType::AST_UNARY_OPERATOR_NOT);
+                unary_expression->set_operand(std::move(left));
+                return unary_expression;
+            } else {
+                return left;
+            }
+    }
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_additive_expression()
+{
+    // 递归下降解析左侧的乘法表达式
+    auto left = parse_multiplicative_expression();
+    if (left == nullptr) {
+        error("Expected expression before additive");
+        return nullptr;
+    }
+
+    // 左结合循环处理多个加法运算符
+    // 例如: a + b + c 解析为 ((a + b) + c)
+    while (check(TokenType::DB_PLUS) || check(TokenType::DB_MINUS)) {
+        // 保存加号或减号 Token 的位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+        // 获取加号或减号 Token 类型
+        TokenType operator_type = current_token_.get_type();
+
+        // 消耗加号或减号关键字
+        advance();
+
+        // 创建二元表达式节点
+        auto binary_expression = std::make_unique<AstBinaryExpressionNode>(line, column);
+        // 设置运算符类型为加号或减号
+        if (operator_type == TokenType::DB_PLUS) {
+            binary_expression->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_PLUS);
+        } else if (operator_type == TokenType::DB_MINUS) {
+            binary_expression->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_MINUS);
+        } else {
+            error("Unexpected operator in additive expression");
+            return nullptr;
+        }
+
+        // 设置左操作数为之前解析的结果
+        binary_expression->set_left(std::move(left));
+
+        // 递归解析右侧的乘法表达式
+        auto right = parse_multiplicative_expression();
+        if (right == nullptr) {
+            error("Expected expression after additive");
+            return nullptr;
+        }
+        // 设置右操作数为右侧解析的结果
+        binary_expression->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(binary_expression);
+    }
+
+    // 加法表达式解析完成
+    return left;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_multiplicative_expression()
+{
+    // 递归下降解析左侧的一元表达式
+    auto left = parse_unary_expression();
+    if (left == nullptr) {
+        error("Expected expression before multiplicative");
+        return nullptr;
+    }
+
+    // 左结合循环处理多个乘法运算符
+    // 例如: a * b * c 解析为 ((a * b) * c)
+    // 注：Token 类型命名为 STAR 和 SLASH 是为了描述 * 和 / 的形态，而不是数学语义
+    // 而 AstBinaryOperatorType 中使用 MULTIPLY 和 DIVIDE 是为了描述 * 和 / 的数学含义
+    while (check(TokenType::DB_STAR) || check(TokenType::DB_SLASH) || check(TokenType::DB_MODULO)) {
+        // 保存乘号、除号或取模号 Token 的位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+        // 获取乘号、除号或取模号 Token 类型
+        TokenType operator_type = current_token_.get_type();
+
+        // 消耗乘号、除号或取模号关键字
+        advance();
+
+        // 创建二元表达式节点
+        auto binary_expression = std::make_unique<AstBinaryExpressionNode>(line, column);
+        // 设置运算符类型为乘号、除号或取模号
+        if (operator_type == TokenType::DB_STAR) {
+            binary_expression->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_MULTIPLY);
+        } else if (operator_type == TokenType::DB_SLASH) {
+            binary_expression->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_DIVIDE);
+        } else if (operator_type == TokenType::DB_MODULO) {
+            binary_expression->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_MODULO);
+        } else {
+            error("Unexpected operator in multiplicative expression");
+            return nullptr;
+        }
+
+        // 设置左操作数为之前解析的结果
+        binary_expression->set_left(std::move(left));
+
+        // 递归解析右侧的一元表达式
+        auto right = parse_unary_expression();
+        if (right == nullptr) {
+            error("Expected expression after multiplicative");
+            return nullptr;
+        }
+        // 设置右操作数为右侧解析的结果
+        binary_expression->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(binary_expression);
+    }
+
+    // 乘法表达式解析完成
+    return left;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_unary_expression()
+{
+    // 解析一元运算符
+    if (check(TokenType::DB_PLUS) || check(TokenType::DB_MINUS) || check(TokenType::DB_NOT)) {
+        // 保存一元运算符 Token 的位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+        // 获取一元运算符 Token 类型
+        TokenType operator_type = current_token_.get_type();
+
+        // 消耗一元运算符
+        advance();
+
+        // 创建一元表达式节点
+        auto unary_expression = std::make_unique<AstUnaryExpressionNode>(line, column);
+        // 设置运算符类型为一元运算符
+        if (operator_type == TokenType::DB_PLUS) {
+            unary_expression->set_operator_type(AstUnaryOperatorType::AST_UNARY_OPERATOR_PLUS);
+        } else if (operator_type == TokenType::DB_MINUS) {
+            unary_expression->set_operator_type(AstUnaryOperatorType::AST_UNARY_OPERATOR_MINUS);
+        } else if (operator_type == TokenType::DB_NOT) {
+            unary_expression->set_operator_type(AstUnaryOperatorType::AST_UNARY_OPERATOR_NOT);
+        } else {
+            error("Unexpected operator in unary expression");
+            return nullptr;
+        }
+
+        // 递归解析右侧的表达式
+        auto right = parse_unary_expression();
+        if (right == nullptr) {
+            error("Expected expression after unary");
+            return nullptr;
+        }
+        // 设置右操作数为右侧解析的结果
+        unary_expression->set_operand(std::move(right));
+
+        // 一元表达式解析完成
+        return unary_expression;
+    } else {
+        // 不是一元运算符，继续解析主表达式
+        return parse_primary_expression();
+    }
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_primary_expression()
+{
+    // 字面量解析
+    if (check(TokenType::DB_INTEGER_LITERAL)) {
+        // 获取整数字面量值
+        std::string value_str = current_token_.get_value();
+        
+        // 消耗整数字面量
+        advance();
+        
+        // 解析为整数
+        try {
+            std::int64_t int_value = std::stoll(value_str);
+            return AstLiteralExpressionNode::create_integer(int_value);
+        } catch (...) {
+            error("Invalid integer literal");
+            return nullptr;
+        }
+    }
+
+    if (check(TokenType::DB_FLOAT_LITERAL)) {
+        // 获取浮点数字面量值
+        std::string value_str = current_token_.get_value();
+        
+        // 消耗浮点数字面量
+        advance();
+        
+        // 解析为浮点数
+        try {
+            double float_value = std::stod(value_str);
+            return AstLiteralExpressionNode::create_float(float_value);
+        } catch (...) {
+            error("Invalid float literal");
+            return nullptr;
+        }
+    }
+
+    if (check(TokenType::DB_STRING_LITERAL)) {
+        // 获取字符串字面量位置信息
+        std::string value = current_token_.get_value();
+        
+        // 消耗字符串字面量
+        advance();
+        
+        return AstLiteralExpressionNode::create_string(value);
+    }
+
+    if (check(TokenType::DB_TRUE)) {
+        // 消耗 TRUE 关键字
+        advance();
+        return AstLiteralExpressionNode::create_boolean(true);
+    }
+
+    if (check(TokenType::DB_FALSE)) {
+        // 消耗 FALSE 关键字
+        advance();
+        return AstLiteralExpressionNode::create_boolean(false);
+    }
+
+    if (check(TokenType::DB_NULL)) {
+        // 消耗 NULL 关键字
+        advance();
+        return AstLiteralExpressionNode::create_null();
+    }
+
+    // 标识符解析，包括列引用和函数调用
+    if (check(TokenType::DB_IDENTIFIER)) {
+        // 获取标识符位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+
+        // 检查下一个 Token 是否为 (
+        // 注意 peek 不会移动 Token，检查完后当前 Token 仍然是标识符
+        if (lexer_->peek_token().get_type() == TokenType::DB_LEFT_PAREN) {
+            // 解析为函数调用
+            // 创建函数调用表达式节点
+            auto function_call_expression = std::make_unique<AstFunctionCallExpressionNode>(line, column);
+
+            // 获取函数名
+            std::string function_name = current_token_.get_value();
+            // 消耗标识符
+            advance();
+
+            // 设置函数名
+            function_call_expression->set_function_name(function_name);
+
+            // 期望 (
+            consume(TokenType::DB_LEFT_PAREN, "Expected '(' after function name");
+
+            // 解析函数参数
+            // 如果下一个 Token 是 )，则没有参数
+            if (!check(TokenType::DB_RIGHT_PAREN)) {
+                do {
+                    auto argument = parse_expression();
+                    if (argument == nullptr) {
+                        error("Expected expression in function arguments");
+                        return nullptr;
+                    }
+                    function_call_expression->add_argument(std::move(argument));
+                } while (match(TokenType::DB_COMMA));
+            }
+
+            // 期望 )
+            consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after function arguments");
+            
+            // 函数调用表达式解析完成
+            return function_call_expression;
+        }
+
+        // 不是函数调用，创建列引用表达式节点
+        auto column_ref = std::make_unique<AstColumnReferenceExpressionNode>(line, column);
+
+        // 解析可能的 database.collection.column 格式
+        std::string first_part = current_token_.get_value();
+        advance();
+
+        if (match(TokenType::DB_DOT)) {
+            // 有 . 符号，可能是 database.collection 或 collection.column
+            if (!check(TokenType::DB_IDENTIFIER)) {
+                error("Expected identifier after '.'");
+                return nullptr;
+            }
+            std::string second_part = current_token_.get_value();
+            advance();
+
+            if (match(TokenType::DB_DOT)) {
+                // 三个部分：database.collection.column
+                if (!check(TokenType::DB_IDENTIFIER)) {
+                    error("Expected identifier after second '.'");
+                    return nullptr;
+                }
+                column_ref->set_database_name(first_part);
+                column_ref->set_collection_name(second_part);
+                column_ref->set_column_name(current_token_.get_value());
+                advance();
+            } else {
+                // 两个部分：collection.column
+                column_ref->set_collection_name(first_part);
+                column_ref->set_column_name(second_part);
+            }
+        } else {
+            // 只有一个部分：column
+            column_ref->set_column_name(first_part);
+        }
+
+        return column_ref;
+    }
+
+    // 括号表达式解析
+    if (match(TokenType::DB_LEFT_PAREN)) {
+        // 解析括号中的表达式
+        auto expression = parse_expression();
+        if (expression == nullptr) {
+            error("Expected expression after '('");
+            return nullptr;
+        }
+
+        // 期望 )
+        consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after expression");
+        return expression;
+    }
+
+    // 向量解析
+    if (check(TokenType::DB_LEFT_BRACKET)) {
+        // 获取向量表达式位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+
+        // 消耗 [
+        advance();
+
+        // 创建向量表达式节点
+        auto vector_expression = std::make_unique<AstVectorExpressionNode>(line, column);
+
+        // 如果下一个 Token 是 ]，则向量值为空
+        if (match(TokenType::DB_RIGHT_BRACKET)) {
+            return vector_expression;
+        }
+
+        // 解析向量元素
+        do {
+            auto element = parse_expression();
+            if (element == nullptr) {
+                error("Expected expression in vector");
+                return nullptr;
+            }
+            vector_expression->add_element(std::move(element));
+        } while (match(TokenType::DB_COMMA));
+
+        // 期望 ]
+        consume(TokenType::DB_RIGHT_BRACKET, "Expected ']' after vector elements");
+
+        // 向量表达式解析完成
+        return vector_expression;
+    }
+
+    // 如果都不匹配，返回错误
+    error("Expected primary expression");
+    return nullptr;
 }
 
 AstColumnDefinition Parser::parse_column_definition()
@@ -1243,6 +1691,111 @@ AstColumnDefinition Parser::parse_column_definition()
     return column_definition;
 }
 
+std::unique_ptr<AstExpressionNode> Parser::parse_in_expression(std::unique_ptr<AstExpressionNode> left, bool is_not)
+{
+    // 获取 IN 关键字的位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 消耗 IN 关键字
+    advance();
+
+    // 创建 IN 表达式节点
+    auto in_expression = std::make_unique<AstInExpressionNode>(line, column);
+    in_expression->set_left(std::move(left));
+    in_expression->set_is_not(is_not);
+
+    // 期望 (
+    consume(TokenType::DB_LEFT_PAREN, "Expected '(' after IN");
+
+    // 解析 IN 表达式值列表
+    while (true) {
+        // 解析 IN 表达式值
+        auto value = parse_expression();
+        if (value == nullptr) {
+            error("Expected expression after IN");
+            return nullptr;
+        }
+        // 添加 IN 表达式值
+        in_expression->add_value(std::move(value));
+        if (!match(TokenType::DB_COMMA)) {
+            break;
+        }
+    }
+
+    // 期望 )
+    consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after IN");
+
+    // IN 表达式解析完成
+    return in_expression;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_between_expression(std::unique_ptr<AstExpressionNode> left, bool is_not)
+{
+    // 获取 BETWEEN 关键字的位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 消耗 BETWEEN 关键字
+    advance();
+
+    // 创建 BETWEEN 表达式节点
+    auto between_expression = std::make_unique<AstBetweenExpressionNode>(line, column);
+    between_expression->set_left(std::move(left));
+    between_expression->set_is_not(is_not);
+
+    // 解析 BETWEEN 表达式左值
+    auto left_value = parse_expression();
+    if (left_value == nullptr) {
+        error("Expected expression after BETWEEN");
+        return nullptr;
+    }
+    // 添加 BETWEEN 表达式左值
+    between_expression->set_start(std::move(left_value));
+
+    // 期望 AND
+    consume(TokenType::DB_AND, "Expected AND after BETWEEN");
+
+    // 解析 BETWEEN 表达式右值
+    auto right_value = parse_expression();
+    if (right_value == nullptr) {
+        error("Expected expression after AND");
+        return nullptr;
+    }
+    // 添加 BETWEEN 表达式右值
+    between_expression->set_end(std::move(right_value));
+
+    // BETWEEN 表达式解析完成
+    return between_expression;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_like_expression(std::unique_ptr<AstExpressionNode> left, bool is_not)
+{
+    // 获取 LIKE 关键字的位置
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 消耗 LIKE 关键字
+    advance();
+
+    // 创建 LIKE 表达式节点
+    auto like_expression = std::make_unique<AstLikeExpressionNode>(line, column);
+    like_expression->set_left(std::move(left));
+    like_expression->set_is_not(is_not);
+
+    // 解析 LIKE 表达式模式
+    auto pattern = parse_expression();
+    if (pattern == nullptr) {
+        error("Expected expression after LIKE");
+        return nullptr;
+    }
+    // 添加 LIKE 表达式模式
+    like_expression->set_pattern(std::move(pattern));
+
+    // LIKE 表达式解析完成
+    return like_expression;
+}
+
 Token Parser::advance()
 {
     current_token_ = lexer_->next_token();
@@ -1276,6 +1829,11 @@ void Parser::consume(TokenType type, const std::string & message)
 void Parser::skip_semicolon()
 {
     match(TokenType::DB_SEMICOLON);
+}
+
+void Parser::error(const std::string & message)
+{
+    throw ParseException(message, current_token_.get_line(), current_token_.get_column());
 }
 
 } // namespace dreamdb

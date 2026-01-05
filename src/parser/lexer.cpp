@@ -39,6 +39,9 @@ const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
     {"ASC", TokenType::DB_ASC},
     {"LIMIT", TokenType::DB_LIMIT},
     {"OFFSET", TokenType::DB_OFFSET},
+    {"IN", TokenType::DB_IN},
+    {"BETWEEN", TokenType::DB_BETWEEN},
+    {"LIKE", TokenType::DB_LIKE},
     {"ADD", TokenType::DB_ADD},
     {"MODIFY", TokenType::DB_MODIFY},
     {"RENAME", TokenType::DB_RENAME},
@@ -276,6 +279,8 @@ Token Lexer::read_number()
     std::size_t start = position_;
     std::size_t start_line = line_;
     std::size_t start_column = column_;
+    
+    bool is_float = false;
 
     // 读取整数部分
     while (position_ < input_.length() && is_digit(peek())) {
@@ -285,6 +290,7 @@ Token Lexer::read_number()
 
     // 检查是否有小数点（浮点数）
     if (peek() == '.' && position_ + 1 < input_.length() && is_digit(input_[position_ + 1])) {
+        is_float = true;
         advance(); // 跳过小数点
         ++column_;
         
@@ -311,6 +317,7 @@ Token Lexer::read_number()
         
         // 必须有数字
         if (is_digit(peek())) {
+            is_float = true; // 科学计数法总是浮点数
             while (position_ < input_.length() && is_digit(peek())) {
                 advance();
                 ++column_;
@@ -323,7 +330,8 @@ Token Lexer::read_number()
     }
 
     std::string text = input_.substr(start, position_ - start);
-    return Token(TokenType::DB_NUMBER_LITERAL, text, start_line, start_column);
+    TokenType type = is_float ? TokenType::DB_FLOAT_LITERAL : TokenType::DB_INTEGER_LITERAL;
+    return Token(type, text, start_line, start_column);
 }
 
 Token Lexer::read_string()
