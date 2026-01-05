@@ -1,5 +1,6 @@
 #include "dreamdb/parser/parser.h"
 
+#include "dreamdb/parser/ast/ast_select_statement_node.h"
 #include "dreamdb/parser/ast/ast_insert_statement_node.h"
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
@@ -101,6 +102,113 @@ std::unique_ptr<AstStatementNode> Parser::parse_statement()
             error("Unexpected token");
             return nullptr;
     }
+}
+
+std::unique_ptr<AstStatementNode> Parser::parse_select_statement()
+{
+    // 获取 SELECT 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 Select 语句节点
+    auto select_statement = std::make_unique<AstSelectStatementNode>(line, column);
+
+    // 消耗 SELECT 关键字
+    advance();
+
+    // 解析选择项列表
+    do {
+        if (match(TokenType::DB_STAR)) {
+            // 添加 * 列名
+            select_statement->add_select_item(SelectItem::create_star_item());
+        } else {
+            auto expr = parse_expression();
+            // 添加选择项
+            select_statement->add_select_item(SelectItem::create_expression_item(std::move(expr)));
+        }
+    } while (match(TokenType::DB_COMMA));
+
+    // 期望 FROM 关键字
+    consume(TokenType::DB_FROM, "Expected FROM after select items");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after FROM");
+        return nullptr;
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    // 设置集合名称
+    select_statement->set_collection_name(collection_name);
+
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::DB_WHERE)) {
+        auto where_clause = parse_expression();
+        // 设置 WHERE 子句
+        select_statement->set_where_clause(std::move(where_clause));
+    }
+
+    // 解析可选的 GROUP BY 子句
+    if (match(TokenType::DB_GROUP)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after GROUP");
+
+        // 解析 GROUP BY 子句
+        do {
+            auto group_by_clause = parse_expression();
+            // 添加 GROUP BY 子句
+            select_statement->add_group_by_clause(std::move(group_by_clause));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 解析可选的 HAVING 子句
+    if (match(TokenType::DB_HAVING)) {
+        auto having_clause = parse_expression();
+        // 设置 HAVING 子句
+        select_statement->set_having_clause(std::move(having_clause));
+    }
+
+    // 解析可选的 ORDER BY 子句
+    if (match(TokenType::DB_ORDER)) {
+        // 期望 BY 关键字
+        consume(TokenType::DB_BY, "Expected BY after ORDER");
+
+        // 解析 ORDER BY 子句
+        do {
+            auto order_by_clause = parse_expression();
+            
+            // 解析可选的方向
+            Direction order_type = Direction::ASC;
+            if (match(TokenType::DB_ASC)) {
+                order_type = Direction::ASC;
+            } else if (match(TokenType::DB_DESC)) {
+                order_type = Direction::DESC;
+            }
+
+            // 创建 OrderByItem 对象
+            OrderByItem order_by_item(std::move(order_by_clause), order_type);
+            // 添加 OrderByItem 对象
+            select_statement->add_order_by_item(std::move(order_by_item));
+        } while (match(TokenType::DB_COMMA));
+    }
+
+    // 解析可选的 LIMIT 子句
+    if (match(TokenType::DB_LIMIT)) {
+        auto limit_clause = parse_expression();
+        // 设置 LIMIT 子句
+        select_statement->set_limit(std::move(limit_clause));
+    }
+
+    // 解析可选的 OFFSET 子句
+    if (match(TokenType::DB_OFFSET)) {
+        auto offset_clause = parse_expression();
+        // 设置 OFFSET 子句
+        select_statement->set_offset(std::move(offset_clause));
+    }
+
+    // SELECT 语句解析完成
+    return select_statement;
 }
 
 std::unique_ptr<AstStatementNode> Parser::parse_insert_statement()

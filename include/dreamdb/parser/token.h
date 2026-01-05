@@ -37,6 +37,13 @@ enum class TokenType : std::uint8_t
     DB_COLLECTIONS,        // COLLECTIONS
     DB_INDEXES,            // INDEXES
     DB_VINDEXES,           // VINDEXES
+    DB_GROUP,              // GROUP
+    DB_BY,                 // BY
+    DB_HAVING,             // HAVING
+    DB_ORDER,              // ORDER
+    DB_ASC,                // ASC
+    DB_LIMIT,              // LIMIT
+    DB_OFFSET,             // OFFSET
 
     DB_ADD,                // ADD
     DB_MODIFY,             // MODIFY
