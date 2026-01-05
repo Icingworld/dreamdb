@@ -10,6 +10,7 @@
 #include "dreamdb/parser/ast/ast_use_statement_node.h"
 #include "dreamdb/parser/ast/ast_show_statement_node.h"
 #include "dreamdb/parser/ast/ast_describe_statement_node.h"
+#include "dreamdb/parser/ast/ast_binary_expression_node.h"
 
 namespace dreamdb
 {
@@ -1011,6 +1012,146 @@ std::unique_ptr<AstStatementNode> Parser::parse_describe_statement()
 
     // DESCRIBE 语句解析完成
     return describe_statement;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_expression()
+{
+    // 该接口是表达式解析入口，具体解析逻辑在各个解析函数中实现
+    // 递归下降解析器会自动处理所有优先级
+
+    // 完整解析流程：
+    // parse_expression()
+    //   └─> parse_or_expression()
+    //    ├─> 解析左侧: parse_and_expression()
+    //    │     ├─> 解析左侧: parse_comparison_expression()
+    //    │     │     ├─> 解析左侧: parse_additive_expression()
+    //    │     │     │     ├─> 解析左侧: parse_multiplicative_expression()
+    //    │     │     │     │     ├─> 解析左侧: parse_unary_expression()
+    //    │     │     │     │     │     └─> parse_primary_expression()  ← 基础表达式
+    //    │     │     │     │     └─> 解析右侧: parse_unary_expression()
+    //    │     │     │     └─> 解析右侧: parse_multiplicative_expression()
+    //    │     │     └─> 解析右侧: parse_additive_expression()
+    //    │     └─> 解析右侧: parse_comparison_expression()
+    //    └─> 解析右侧: parse_and_expression()
+
+    // 能够进入递归下降解析表达式的 Token 类型
+    switch (current_token_.get_type()) {
+        // 字面量：数字、字符串、布尔值、NULL
+        case TokenType::DB_NUMBER_LITERAL:
+        case TokenType::DB_STRING_LITERAL:
+        case TokenType::DB_TRUE:
+        case TokenType::DB_FALSE:
+        case TokenType::DB_NULL:
+        // 标识符：字段名、变量等
+        case TokenType::DB_IDENTIFIER:
+        // 一元运算符：+、-、NOT
+        case TokenType::DB_PLUS:
+        case TokenType::DB_MINUS:
+        case TokenType::DB_NOT:
+        // 括号表达式 '('
+        case TokenType::DB_LEFT_PAREN:
+        // 向量字面量 '['
+        case TokenType::DB_LEFT_BRACKET:
+            // 调用最低优先级解析函数
+            return parse_or_expression();
+        default: {
+            error("Expected expression");
+            return nullptr;
+        }
+    }
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_or_expression()
+{
+    // 递归下降解析左侧的 AND 表达式
+    auto left = parse_and_expression();
+    if (left == nullptr) {
+        error("Expected expression before OR");
+        return nullptr;
+    }
+
+    // 左结合循环处理多个 OR 运算符
+    // 例如: a OR b OR c 解析为 ((a OR b) OR c)
+    while (check(TokenType::DB_OR)) {
+        // 保存 OR token 的位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+
+        // 消耗 OR 关键字
+        advance();
+
+        // 创建二元表达式节点
+        auto expr = std::make_unique<AstBinaryExpressionNode>(line, column);
+
+        // 设置运算符类型为 OR
+        expr->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_OR);
+
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+
+        // 递归下降解析右侧的 AND 表达式
+        auto right = parse_and_expression();
+        if (right == nullptr) {
+            error("Expected expression after OR");
+            return nullptr;
+        }
+        expr->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+
+    // OR 表达式解析完成
+    return left;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_and_expression()
+{
+    // 递归下降解析左侧的比较表达式
+    auto left = parse_comparison_expression();
+    if (left == nullptr) {
+        error("Expected expression before AND");
+        return nullptr;
+    }
+
+    // 左结合循环处理多个 AND 运算符
+    // 例如: a AND b AND c 解析为 ((a AND b) AND c)
+    while (check(TokenType::DB_AND)) {
+        // 保存 AND token 的位置信息
+        std::size_t line = current_token_.get_line();
+        std::size_t column = current_token_.get_column();
+
+        // 消耗 AND 关键字
+        advance();
+
+        // 创建二元表达式节点
+        auto expr = std::make_unique<AstBinaryExpressionNode>(line, column);
+
+        // 设置运算符类型为 AND
+        expr->set_operator_type(AstBinaryOperatorType::AST_BINARY_OPERATOR_AND);
+
+        // 设置左操作数为之前解析的结果
+        expr->set_left(std::move(left));
+
+        // 递归下降解析右侧的比较表达式
+        auto right = parse_comparison_expression();
+        if (right == nullptr) {
+            error("Expected expression after AND");
+            return nullptr;
+        }
+        expr->set_right(std::move(right));
+
+        // 将当前表达式作为下一次的左操作数
+        left = std::move(expr);
+    }
+
+    // AND 表达式解析完成
+    return left;
+}
+
+std::unique_ptr<AstExpressionNode> Parser::parse_comparison_expression()
+{
+    
 }
 
 AstColumnDefinition Parser::parse_column_definition()

@@ -150,16 +150,27 @@ private:
 
     /**
      * @brief 解析表达式（顶层入口）
-     * 表达式优先级从低到高：
-     * - OR (最低优先级)
-     * - AND
-     * - 比较运算符 (=, !=, <, >, <=, >=)
-     * - 算术运算符 (+, -)
-     * - 乘除运算符 (*, /, %)
-     * - 一元运算符 (NOT, -, +)
-     * - 函数调用、标识符、字面量 (最高优先级)
+     * @return 表达式节点
      */
     std::unique_ptr<AstExpressionNode> parse_expression();
+
+    /**
+     * @brief 解析或表达式
+     * @return 或表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_or_expression();
+
+    /**
+     * @brief 解析与表达式
+     * @return 与表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_and_expression();
+
+    /**
+     * @brief 解析比较表达式
+     * @return 比较表达式节点
+     */
+    std::unique_ptr<AstExpressionNode> parse_comparison_expression();
 
     // 辅助方法
 
