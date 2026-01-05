@@ -2,6 +2,7 @@
 
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
+#include "dreamdb/parser/ast/ast_alter_statement_node.h"
 #include "dreamdb/parser/ast/ast_use_statement_node.h"
 #include "dreamdb/parser/ast/ast_show_statement_node.h"
 #include "dreamdb/parser/ast/ast_describe_statement_node.h"
@@ -157,89 +158,7 @@ std::unique_ptr<AstStatementNode> Parser::parse_create_statement()
         // 解析列定义列表
         std::vector<AstColumnDefinition> column_definitions;
         do {
-            AstColumnDefinition column_definition;
-
-            // 解析列名
-            if (!check(TokenType::DB_IDENTIFIER)) {
-                error("Expected column_name after '('");
-                return nullptr;
-            }
-            std::string column_name = current_token_.get_value();
-            // 消耗标识符
-            advance();
-            column_definition.set_name(column_name);
-
-            // 解析类型
-            if (!check(TokenType::DB_IDENTIFIER)) {
-                error("Expected type_name after column_name");
-                return nullptr;
-            }
-            std::string type_name = current_token_.get_value();
-            // 消耗标识符
-            advance();
-            // 设置类型名
-            column_definition.set_type_name(type_name);
-
-            // 查看是否有参数列表起始字符 (
-            if (match(TokenType::DB_LEFT_PAREN)) {
-                do {
-                    // 解析参数
-                    auto argument = parse_expression();
-                    // 添加参数
-                    column_definition.add_argument(std::move(argument));
-                } while (match(TokenType::DB_COMMA));
-
-                // 期望 )
-                consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after arguments");
-            }
-
-            // 解析列约束，列约束可以以任意顺序出现
-            while (true) {
-                if (match(TokenType::DB_NOT)) {
-                    // 解析 NOT NULL
-                    consume(TokenType::DB_NULL, "Expected NULL after NOT");
-                    // 添加 NOT NULL 修饰符
-                    column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_NOT_NULL);
-                } else if (match(TokenType::DB_PRIMARY)) {
-                    // 解析 PRIMARY KEY
-                    // 期望 KEY
-                    consume(TokenType::DB_KEY, "Expected KEY after PRIMARY");
-                    // 添加 PRIMARY KEY 修饰符
-                    column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_PRIMARY_KEY);
-                } else if (match(TokenType::DB_AUTO_INCREMENT)) {
-                    // 解析 AUTO_INCREMENT
-                    // 添加 AUTO_INCREMENT 修饰符
-                    column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_AUTO_INCREMENT);
-                } else if (match(TokenType::DB_UNIQUE)) {
-                    // 解析 UNIQUE
-                    // 添加 UNIQUE 修饰符
-                    column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_UNIQUE);
-                } else if (match(TokenType::DB_DEFAULT)) {
-                    // 解析默认值表达式
-                    auto default_value = parse_expression();
-                    // 添加 DEFAULT 修饰符
-                    column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_DEFAULT);
-                    // 添加默认值表达式
-                    column_definition.add_default_value(std::move(default_value));
-                } else {
-                    // 没有更多约束了
-                    break;
-                }
-            }
-
-            // 检查是否存在 COMMENT
-            if (match(TokenType::DB_COMMENT)) {
-                // 解析 COMMENT
-                if (!check(TokenType::DB_STRING_LITERAL)) {
-                    error("Expected string_literal after COMMENT");
-                    return nullptr;
-                }
-                std::string comment = current_token_.get_value();
-                // 消耗字符串
-                advance();
-                // 设置 COMMENT
-                column_definition.set_comment(comment);
-            }
+            auto column_definition = parse_column_definition();
 
             // 添加列定义
             column_definitions.push_back(std::move(column_definition));
@@ -575,6 +494,112 @@ std::unique_ptr<AstStatementNode> Parser::parse_use_statement()
     return use_statement;
 }
 
+std::unique_ptr<AstStatementNode> Parser::parse_alter_statement()
+{
+    // 获取 ALTER 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 Alter 语句节点
+    auto alter_statement = std::make_unique<AstAlterStatementNode>(line, column);
+
+    // 消耗 ALTER 关键字
+    advance();
+
+    // 期望 COLLECTION 关键字
+    consume(TokenType::DB_COLLECTION, "Expected COLLECTION after ALTER");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after COLLECTION");
+        return nullptr;
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+
+    // 解析对象类型
+    if (match(TokenType::DB_ADD)) {
+        // 期望 COLUMN 关键字
+        consume(TokenType::DB_COLUMN, "Expected COLUMN after ADD");
+
+        // 解析列定义
+        auto column_definition = parse_column_definition();
+
+        // 创建 AstAlterAddColumn 操作
+        AstAlterAddColumn add_column(std::move(column_definition));
+
+        // 设置 AstAlterAddColumn 操作
+        alter_statement->set_add_column(std::move(add_column));
+    } else if (match(TokenType::DB_DROP)) {
+        // 期望 COLUMN 关键字
+        consume(TokenType::DB_COLUMN, "Expected COLUMN after DROP");
+
+        // 解析字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after COLUMN");
+            return nullptr;
+        }
+        std::string column_name = current_token_.get_value();
+        // 消耗标识符
+        advance();
+
+        // 创建 AstAlterDropColumn 操作
+        AstAlterDropColumn drop_column(column_name);
+
+        // 设置 AstAlterDropColumn 操作
+        alter_statement->set_drop_column(std::move(drop_column));
+    } else if (match(TokenType::DB_MODIFY)) {
+        // 期望 COLUMN 关键字
+        consume(TokenType::DB_COLUMN, "Expected COLUMN after MODIFY");
+
+        // 解析列定义
+        auto column_definition = parse_column_definition();
+
+        // 创建 AstAlterModifyColumn 操作
+        AstAlterModifyColumn modify_column(std::move(column_definition));
+
+        // 设置 AstAlterModifyColumn 操作
+        alter_statement->set_modify_column(std::move(modify_column));
+    } else if (match(TokenType::DB_RENAME)) {
+        // 期望 COLUMN 关键字
+        consume(TokenType::DB_COLUMN, "Expected COLUMN after RENAME");
+
+        // 解析字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after COLUMN");
+            return nullptr;
+        }
+        std::string old_column_name = current_token_.get_value();
+        // 消耗标识符
+        advance();
+
+        // 期望 TO 关键字
+        consume(TokenType::DB_TO, "Expected TO after COLUMN");
+
+        // 解析新字段名称
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected new_column_name after TO");
+            return nullptr;
+        }
+        std::string new_column_name = current_token_.get_value();
+        // 消耗标识符
+        advance();
+
+        // 创建 AstAlterRenameColumn 操作
+        AstAlterRenameColumn rename_column(old_column_name, new_column_name);
+
+        // 设置 AstAlterRenameColumn 操作
+        alter_statement->set_rename_column(std::move(rename_column));
+    } else {
+        error("Expected ADD, DROP, MODIFY or RENAME after ALTER");
+        return nullptr;
+    }
+
+    // ALTER 语句解析完成
+    return alter_statement;
+}
+
 std::unique_ptr<AstStatementNode> Parser::parse_show_statement()
 {
     // 获取 SHOW 关键字的位置信息
@@ -714,6 +739,95 @@ std::unique_ptr<AstStatementNode> Parser::parse_describe_statement()
 
     // DESCRIBE 语句解析完成
     return describe_statement;
+}
+
+AstColumnDefinition Parser::parse_column_definition()
+{
+    AstColumnDefinition column_definition;
+
+    // 解析列名
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected column_name after '('");
+        return AstColumnDefinition();
+    }
+    std::string column_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    column_definition.set_name(column_name);
+
+    // 解析类型
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected type_name after column_name");
+        return AstColumnDefinition();
+    }
+    std::string type_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    // 设置类型名
+    column_definition.set_type_name(type_name);
+
+    // 查看是否有参数列表起始字符 (
+    if (match(TokenType::DB_LEFT_PAREN)) {
+        do {
+            // 解析参数
+            auto argument = parse_expression();
+            // 添加参数
+            column_definition.add_argument(std::move(argument));
+        } while (match(TokenType::DB_COMMA));
+
+        // 期望 )
+        consume(TokenType::DB_RIGHT_PAREN, "Expected ')' after arguments");
+    }
+
+    // 解析列约束，列约束可以以任意顺序出现
+    while (true) {
+        if (match(TokenType::DB_NOT)) {
+            // 解析 NOT NULL
+            consume(TokenType::DB_NULL, "Expected NULL after NOT");
+            // 添加 NOT NULL 修饰符
+            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_NOT_NULL);
+        } else if (match(TokenType::DB_PRIMARY)) {
+            // 解析 PRIMARY KEY
+            // 期望 KEY
+            consume(TokenType::DB_KEY, "Expected KEY after PRIMARY");
+            // 添加 PRIMARY KEY 修饰符
+            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_PRIMARY_KEY);
+        } else if (match(TokenType::DB_AUTO_INCREMENT)) {
+            // 解析 AUTO_INCREMENT
+            // 添加 AUTO_INCREMENT 修饰符
+            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_AUTO_INCREMENT);
+        } else if (match(TokenType::DB_UNIQUE)) {
+            // 解析 UNIQUE
+            // 添加 UNIQUE 修饰符
+            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_UNIQUE);
+        } else if (match(TokenType::DB_DEFAULT)) {
+            // 解析默认值表达式
+            auto default_value = parse_expression();
+            // 添加 DEFAULT 修饰符
+            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_DEFAULT);
+            // 添加默认值表达式
+            column_definition.add_default_value(std::move(default_value));
+        } else {
+            // 没有更多约束了
+            break;
+        }
+    }
+
+    // 检查是否存在 COMMENT
+    if (match(TokenType::DB_COMMENT)) {
+        // 解析 COMMENT
+        if (!check(TokenType::DB_STRING_LITERAL)) {
+            error("Expected string_literal after COMMENT");
+            return AstColumnDefinition();
+        }
+        std::string comment = current_token_.get_value();
+        // 消耗字符串
+        advance();
+        // 设置 COMMENT
+        column_definition.set_comment(comment);
+    }
+
+    return column_definition;
 }
 
 Token Parser::advance()

@@ -38,6 +38,11 @@ enum class TokenType : std::uint8_t
     DB_INDEXES,            // INDEXES
     DB_VINDEXES,           // VINDEXES
 
+    DB_ADD,                // ADD
+    DB_MODIFY,             // MODIFY
+    DB_RENAME,             // RENAME
+    DB_COLUMN,             // COLUMN
+    DB_TO,                 // TO
     DB_PRIMARY,            // PRIMARY
     DB_KEY,                // KEY
     DB_UNIQUE,             // UNIQUE

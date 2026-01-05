@@ -7,6 +7,7 @@
 
 #include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
 
 namespace dreamdb
 {
@@ -159,6 +160,14 @@ private:
      * - 函数调用、标识符、字面量 (最高优先级)
      */
     std::unique_ptr<AstExpressionNode> parse_expression();
+
+    // 辅助方法
+
+    /**
+     * @brief 解析单个列定义
+     * @return 列定义
+     */
+    AstColumnDefinition parse_column_definition();
 
     // ========== 辅助方法 ==========
 
