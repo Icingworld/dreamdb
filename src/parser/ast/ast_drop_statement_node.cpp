@@ -57,14 +57,14 @@ const std::string & AstDropVIndex::get_collection_name() const noexcept
 
 AstDropStatementNode::AstDropStatementNode(std::size_t line, std::size_t column)
     : AstStatementNode(AstStatementNodeType::AST_STATEMENT_DROP, line, column)
-    , drop_type_(AstDropType::AST_DROP_UNKNOWN)
+    , if_exists_(false)
     , drop_operation_(std::monostate())
 {
 }
 
-void AstDropStatementNode::set_drop_type(AstDropType drop_type) noexcept
+void AstDropStatementNode::set_if_exists(bool if_exists) noexcept
 {
-    drop_type_ = drop_type;
+    if_exists_ = if_exists;
 }
 
 void AstDropStatementNode::set_drop_database(AstDropDatabase && op)
@@ -87,9 +87,9 @@ void AstDropStatementNode::set_drop_vindex(AstDropVIndex && op)
     drop_operation_ = std::move(op);
 }
 
-AstDropType AstDropStatementNode::get_drop_type() const noexcept
+bool AstDropStatementNode::get_if_exists() const noexcept
 {
-    return drop_type_;
+    return if_exists_;
 }
 
 const AstDropDatabase & AstDropStatementNode::get_drop_database() const
@@ -110,11 +110,6 @@ const AstDropIndex & AstDropStatementNode::get_drop_index() const
 const AstDropVIndex & AstDropStatementNode::get_drop_vindex() const
 {
     return std::get<AstDropVIndex>(drop_operation_);
-}
-
-bool AstDropStatementNode::has_drop_type() const noexcept
-{
-    return drop_type_ != AstDropType::AST_DROP_UNKNOWN;
 }
 
 bool AstDropStatementNode::has_drop_operation() const noexcept

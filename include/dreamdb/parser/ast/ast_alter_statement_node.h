@@ -13,18 +13,6 @@ namespace dreamdb
 {
 
 /**
-* @brief ALTER 类型
-*/
-enum class AstAlterType : std::uint8_t
-{
-    AST_ALTER_UNKNOWN,          // 未知类型
-    AST_ALTER_ADD_COLUMN,       // 添加字段
-    AST_ALTER_DROP_COLUMN,      // 删除字段
-    AST_ALTER_MODIFY_COLUMN,    // 修改字段
-    AST_ALTER_RENAME_COLUMN     // 重命名字段
-};
-
-/**
  * @brief 添加字段操作
  */
 class AstAlterAddColumn
@@ -88,7 +76,7 @@ private:
 class AstAlterModifyColumn
 {
 public:
-    AstAlterModifyColumn(const std::string & column_name, AstColumnDefinition && new_definition);
+    AstAlterModifyColumn(AstColumnDefinition && new_definition);
 
     AstAlterModifyColumn(const AstAlterModifyColumn &) = delete;
 
@@ -102,19 +90,12 @@ public:
 
 public:
     /**
-     * @brief 获取列名
-     * @return 列名
-     */
-    const std::string & get_column_name() const noexcept;
-
-    /**
      * @brief 获取新的列定义
      * @return 新的列定义
      */
     const AstColumnDefinition & get_new_definition() const noexcept;
 
 private:
-    std::string column_name_;      // 列名
     AstColumnDefinition new_definition_;  // 新的列定义
 };
 
@@ -174,12 +155,6 @@ public:
 
 public:
     /**
-     * @brief 设置 ALTER 类型
-     * @param alter_type ALTER 类型
-     */
-    void set_alter_type(AstAlterType alter_type) noexcept;
-
-    /**
      * @brief 设置集合名称
      * @param collection_name 集合名称
      */
@@ -210,12 +185,6 @@ public:
     void set_rename_column(AstAlterRenameColumn && op);
 
     /**
-     * @brief 获取 ALTER 类型
-     * @return ALTER 类型
-     */
-    AstAlterType get_alter_type() const noexcept;
-
-    /**
      * @brief 获取集合名称
      * @return 集合名称
      */
@@ -244,12 +213,6 @@ public:
      * @return 重命名字段操作
      */
     const AstAlterRenameColumn & get_rename_column() const;
-
-    /**
-     * @brief 是否设置 ALTER 类型
-     * @return 是否设置 ALTER 类型
-     */
-    bool has_alter_type() const noexcept;
 
     /**
      * @brief 是否存在集合名称
@@ -288,7 +251,6 @@ public:
     bool has_rename_column() const noexcept;
 
 private:
-    AstAlterType alter_type_;                                  // ALTER 类型
     std::optional<std::string> collection_name_;               // 集合名称
     std::variant<
         std::monostate,

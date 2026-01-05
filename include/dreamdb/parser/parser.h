@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -8,36 +7,14 @@
 
 #include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
-#include "dreamdb/parser/ast/ast_node.h"
-#include "dreamdb/parser/ast/create_stmt.h"
+#include "dreamdb/parser/ast/ast_column_definition.h"
 
 namespace dreamdb
 {
 
-// 前向声明所有 AST 节点
-class SelectStmt;
-class InsertStmt;
-class UpdateStmt;
-class DeleteStmt;
-class CreateStmt;
-class DropStmt;
-class UseStmt;
-class AlterStmt;
-class ShowStmt;
-class DescribeStmt;
-class UnaryExpr;
-class BinaryExpr;
-class FunctionCallExpr;
-class InExpr;
-class LikeExpr;
-class BetweenExpr;
-class NullExpr;
-class IdentifierExpr;
-class LiteralExpr;
-class ColumnDefinition;
-
-// 前向声明类型
-enum class FieldType : std::uint8_t;
+// 前向声明 AST 语句节点和表达式节点
+class AstStatementNode;
+class AstExpressionNode;
 
 /**
  * @brief 语法分析异常
@@ -55,7 +32,7 @@ public:
 
     ParseException & operator=(ParseException &&) noexcept = default;
 
-    ~ParseException() noexcept = default;
+    ~ParseException() noexcept override = default;
 
 public:
     /**
@@ -88,16 +65,8 @@ private:
 class Parser
 {
 public:
-    /**
-     * @brief 构造函数
-     * @param input SQL 字符串
-     */
     explicit Parser(const std::string & input);
 
-    /**
-     * @brief 构造函数（从 Lexer 构建）
-     * @param lexer 词法分析器
-     */
     explicit Parser(std::unique_ptr<Lexer> lexer);
 
     Parser(const Parser &) = delete;
@@ -108,15 +77,15 @@ public:
 
     Parser & operator=(Parser &&) noexcept = default;
 
-    ~Parser() = default;
+    ~Parser() noexcept = default;
 
 public:
     /**
      * @brief 解析 SQL 语句
-     * @return AST 根节点
+     * @return AST 语句节点
      * @throws ParseException 如果解析失败
      */
-    std::unique_ptr<AstNode> parse();
+    std::unique_ptr<AstStatementNode> parse();
 
 private:
     // ========== 语句解析 ==========
@@ -125,196 +94,141 @@ private:
      * @brief 解析单个语句
      * @return 语句节点
      */
-    std::unique_ptr<AstNode> parse_statement();
+    std::unique_ptr<AstStatementNode> parse_statement();
 
     /**
      * @brief 解析 SELECT 语句
      */
-    std::unique_ptr<SelectStmt> parse_select_stmt();
+    std::unique_ptr<AstStatementNode> parse_select_statement();
 
     /**
      * @brief 解析 INSERT 语句
      */
-    std::unique_ptr<InsertStmt> parse_insert_stmt();
+    std::unique_ptr<AstStatementNode> parse_insert_statement();
 
     /**
      * @brief 解析 UPDATE 语句
      */
-    std::unique_ptr<UpdateStmt> parse_update_stmt();
+    std::unique_ptr<AstStatementNode> parse_update_statement();
 
     /**
      * @brief 解析 DELETE 语句
      */
-    std::unique_ptr<DeleteStmt> parse_delete_stmt();
+    std::unique_ptr<AstStatementNode> parse_delete_statement();
 
     /**
      * @brief 解析 CREATE 语句
      */
-    std::unique_ptr<CreateStmt> parse_create_stmt();
+    std::unique_ptr<AstStatementNode> parse_create_statement();
 
     /**
      * @brief 解析 DROP 语句
      */
-    std::unique_ptr<DropStmt> parse_drop_stmt();
+    std::unique_ptr<AstStatementNode> parse_drop_statement();
 
     /**
      * @brief 解析 USE 语句
      */
-    std::unique_ptr<UseStmt> parse_use_stmt();
+    std::unique_ptr<AstStatementNode> parse_use_statement();
 
     /**
      * @brief 解析 ALTER 语句
      */
-    std::unique_ptr<AlterStmt> parse_alter_stmt();
+    std::unique_ptr<AstStatementNode> parse_alter_statement();
 
     /**
      * @brief 解析 SHOW 语句
-     * SHOW TABLES/COLLECTIONS
      */
-    std::unique_ptr<ShowStmt> parse_show_stmt();
+    std::unique_ptr<AstStatementNode> parse_show_statement();
 
     /**
      * @brief 解析 DESCRIBE 语句
      */
-    std::unique_ptr<DescribeStmt> parse_describe_stmt();
+    std::unique_ptr<AstStatementNode> parse_describe_statement();
 
     // ========== 表达式解析 ==========
 
     /**
      * @brief 解析表达式（顶层入口）
-     * 表达式优先级从低到高：
-     * - OR (最低优先级)
-     * - AND
-     * - 比较运算符 (=, !=, <, >, <=, >=)
-     * - 算术运算符 (+, -)
-     * - 乘除运算符 (*, /, %)
-     * - 一元运算符 (NOT, -, +)
-     * - 函数调用、标识符、字面量 (最高优先级)
+     * @return 表达式节点
      */
-    std::unique_ptr<AstNode> parse_expression();
+    std::unique_ptr<AstExpressionNode> parse_expression();
 
     /**
-     * @brief 解析逻辑 OR 表达式
+     * @brief 解析或表达式
+     * @return 或表达式节点
      */
-    std::unique_ptr<AstNode> parse_or_expression();
+    std::unique_ptr<AstExpressionNode> parse_or_expression();
 
     /**
-     * @brief 解析逻辑 AND 表达式
+     * @brief 解析与表达式
+     * @return 与表达式节点
      */
-    std::unique_ptr<AstNode> parse_and_expression();
+    std::unique_ptr<AstExpressionNode> parse_and_expression();
 
     /**
      * @brief 解析比较表达式
+     * @return 比较表达式节点
      */
-    std::unique_ptr<AstNode> parse_comparison_expression();
+    std::unique_ptr<AstExpressionNode> parse_comparison_expression();
 
     /**
-     * @brief 解析 LIKE 表达式
+     * @brief 解析加法表达式
+     * @return 加法表达式节点
      */
-    std::unique_ptr<LikeExpr> parse_like_expression(std::unique_ptr<AstNode> left);
+    std::unique_ptr<AstExpressionNode> parse_additive_expression();
 
     /**
-     * @brief 解析 IN 表达式
+     * @brief 解析乘法表达式
+     * @return 乘法表达式节点
      */
-    std::unique_ptr<InExpr> parse_in_expression(std::unique_ptr<AstNode> left);
-
-    /**
-     * @brief 解析 BETWEEN 表达式
-     */
-    std::unique_ptr<BetweenExpr> parse_between_expression(std::unique_ptr<AstNode> left);
-
-    /**
-     * @brief 解析 NULL 表达式
-     */
-    std::unique_ptr<NullExpr> parse_null_expression(std::unique_ptr<AstNode> left);
-
-    /**
-     * @brief 解析算术加减表达式
-     */
-    std::unique_ptr<AstNode> parse_additive_expression();
-
-    /**
-     * @brief 解析算术乘除表达式
-     */
-    std::unique_ptr<AstNode> parse_multiplicative_expression();
+    std::unique_ptr<AstExpressionNode> parse_multiplicative_expression();
 
     /**
      * @brief 解析一元表达式
+     * @return 一元表达式节点
      */
-    std::unique_ptr<AstNode> parse_unary_expression();
+    std::unique_ptr<AstExpressionNode> parse_unary_expression();
 
     /**
-     * @brief 解析基础表达式（标识符、字面量、函数调用、括号表达式）
+     * @brief 解析主表达式
+     * @return 主表达式节点
      */
-    std::unique_ptr<AstNode> parse_primary_expression();
+    std::unique_ptr<AstExpressionNode> parse_primary_expression();
+
+    /** ========== 表达式解析辅助方法 ========== */
 
     /**
-     * @brief 解析函数调用
-     * function_name ( [arguments] )
+     * @brief 解析单个列定义
+     * @return 列定义
      */
-    std::unique_ptr<FunctionCallExpr> parse_function_call();
+    AstColumnDefinition parse_column_definition();
 
     /**
-     * @brief 解析标识符表达式
-     * identifier [. identifier] ...
+     * @brief 解析 IN 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT IN
+     * @return IN 表达式节点
      */
-    std::unique_ptr<IdentifierExpr> parse_identifier_expr();
+    std::unique_ptr<AstExpressionNode> parse_in_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
 
     /**
-     * @brief 解析字面量表达式
+     * @brief 解析 BETWEEN 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT BETWEEN
+     * @return BETWEEN 表达式节点
      */
-    std::unique_ptr<LiteralExpr> parse_literal_expr();
+    std::unique_ptr<AstExpressionNode> parse_between_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
 
     /**
-     * @brief 解析字符串字面量
+     * @brief 解析 LIKE 表达式
+     * @param left 左表达式
+     * @param is_not 是否为 NOT LIKE
+     * @return LIKE 表达式节点
      */
-    std::unique_ptr<LiteralExpr> parse_string_literal();
+    std::unique_ptr<AstExpressionNode> parse_like_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
 
-    /**
-     * @brief 解析数字字面量
-     */
-    std::unique_ptr<LiteralExpr> parse_number_literal();
-
-    /**
-     * @brief 解析布尔字面量
-     */
-    std::unique_ptr<LiteralExpr> parse_boolean_literal();
-
-    /**
-     * @brief 解析 NULL 字面量
-     */
-    std::unique_ptr<LiteralExpr> parse_null_literal();
-
-    /**
-     * @brief 解析向量字面量
-     */
-    std::unique_ptr<LiteralExpr> parse_vector_literal();
-
-    // ========== CREATE 语句辅助方法 ==========
-
-    /**
-     * @brief 解析列定义
-     * column_name type [parameters] [attributes]
-     */
-    ColumnDefinition parse_column_definition();
-
-    /**
-     * @brief 解析向量索引 WITH 子句
-     */
-    void parse_vindex_with_clause(VIndexWithClause & with_clause);
-
-    /**
-     * @brief 解析字段类型
-     * INT8 | INT16 | INT32 | INT64 | FLOAT | DOUBLE | CHAR | VARCHAR | BOOLEAN | TIMESTAMP | ENUM | FLOAT_VECTOR
-     */
-    FieldType parse_field_type();
-
-    // ========== 辅助方法 ==========
-
-    /**
-     * @brief 获取当前 Token（不消耗）
-     */
-    const Token & current() const;
+    // ========== 语法分析辅助方法 ==========
 
     /**
      * @brief 获取下一个 Token
@@ -339,11 +253,6 @@ private:
     void consume(TokenType type, const std::string & message);
 
     /**
-     * @brief 检查是否为表达式结束符
-     */
-    bool is_expression_terminator() const;
-
-    /**
      * @brief 跳过分号（如果存在）
      */
     void skip_semicolon();
@@ -356,7 +265,6 @@ private:
 private:
     std::unique_ptr<Lexer> lexer_;      // 词法分析器
     Token current_token_;               // 当前 Token
-    bool has_error_;                    // 是否有错误
 };
 
 } // namespace dreamdb

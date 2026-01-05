@@ -3,9 +3,35 @@
 namespace dreamdb
 {
 
+AstShowCollections::AstShowCollections()
+    : database_name_(std::nullopt)
+{
+}
+
+void AstShowCollections::set_database_name(const std::string & database_name)
+{
+    database_name_ = database_name;
+}
+
+const std::string & AstShowCollections::get_database_name() const
+{
+    return database_name_.value();
+}
+
+bool AstShowCollections::has_database_name() const noexcept
+{
+    return database_name_.has_value();
+}
+
 AstShowIndexes::AstShowIndexes(const std::string & collection_name)
     : collection_name_(collection_name)
+    , database_name_(std::nullopt)
 {
+}
+
+void AstShowIndexes::set_database_name(const std::string & database_name)
+{
+    database_name_ = database_name;
 }
 
 const std::string & AstShowIndexes::get_collection_name() const noexcept
@@ -13,9 +39,25 @@ const std::string & AstShowIndexes::get_collection_name() const noexcept
     return collection_name_;
 }
 
+const std::string & AstShowIndexes::get_database_name() const
+{
+    return database_name_.value();
+}
+
+bool AstShowIndexes::has_database_name() const noexcept
+{
+    return database_name_.has_value();
+}
+
 AstShowVIndexes::AstShowVIndexes(const std::string & collection_name)
     : collection_name_(collection_name)
+    , database_name_(std::nullopt)
 {
+}
+
+void AstShowVIndexes::set_database_name(const std::string & database_name)
+{
+    database_name_ = database_name;
 }
 
 const std::string & AstShowVIndexes::get_collection_name() const noexcept
@@ -23,16 +65,20 @@ const std::string & AstShowVIndexes::get_collection_name() const noexcept
     return collection_name_;
 }
 
-AstShowStatementNode::AstShowStatementNode(std::size_t line, std::size_t column)
-    : AstStatementNode(AstStatementNodeType::AST_STATEMENT_SHOW, line, column)
-    , show_type_(AstShowType::AST_SHOW_UNKNOWN)
-    , show_operation_(std::monostate())
+const std::string & AstShowVIndexes::get_database_name() const
 {
+    return database_name_.value();
 }
 
-void AstShowStatementNode::set_show_type(AstShowType show_type) noexcept
+bool AstShowVIndexes::has_database_name() const noexcept
 {
-    show_type_ = show_type;
+    return database_name_.has_value();
+}
+
+AstShowStatementNode::AstShowStatementNode(std::size_t line, std::size_t column)
+    : AstStatementNode(AstStatementNodeType::AST_STATEMENT_SHOW, line, column)
+    , show_operation_(std::monostate())
+{
 }
 
 void AstShowStatementNode::set_show_databases(AstShowDatabases && op)
@@ -55,11 +101,6 @@ void AstShowStatementNode::set_show_vindexes(AstShowVIndexes && op)
     show_operation_ = std::move(op);
 }
 
-AstShowType AstShowStatementNode::get_show_type() const noexcept
-{
-    return show_type_;
-}
-
 const AstShowDatabases & AstShowStatementNode::get_show_databases() const
 {
     return std::get<AstShowDatabases>(show_operation_);
@@ -78,11 +119,6 @@ const AstShowIndexes & AstShowStatementNode::get_show_indexes() const
 const AstShowVIndexes & AstShowStatementNode::get_show_vindexes() const
 {
     return std::get<AstShowVIndexes>(show_operation_);
-}
-
-bool AstShowStatementNode::has_show_type() const noexcept
-{
-    return show_type_ != AstShowType::AST_SHOW_UNKNOWN;
 }
 
 bool AstShowStatementNode::has_show_operation() const noexcept

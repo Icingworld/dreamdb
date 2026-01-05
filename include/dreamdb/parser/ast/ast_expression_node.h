@@ -18,7 +18,11 @@ enum class AstExpressionNodeType : std::uint8_t
     AST_EXPRESSION_UNARY,             // 一元表达式
     AST_EXPRESSION_BINARY,            // 二元表达式
     AST_EXPRESSION_FUNCTION_CALL,     // 函数调用表达式
-    AST_EXPRESSION_PARAMETER          // 参数表达式
+    AST_EXPRESSION_PARAMETER,         // 参数表达式
+    AST_EXPRESSION_IN,                // IN 表达式
+    AST_EXPRESSION_BETWEEN,           // BETWEEN 表达式
+    AST_EXPRESSION_LIKE,              // LIKE 表达式
+    AST_EXPRESSION_VECTOR,            // 向量表达式
     // 后续如需要，在这里可扩展：CAST | CASE WHEN | SUBQUERY 等表达式
 };
 

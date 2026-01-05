@@ -1,26 +1,14 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
 #include <string>
 #include <variant>
+#include <optional>
 
 #include "dreamdb/parser/ast/ast_statement_node.h"
 
 namespace dreamdb
 {
-
-/**
- * @brief SHOW 类型枚举
- */
-enum class AstShowType : std::uint8_t
-{
-    AST_SHOW_UNKNOWN,      // 未知
-    AST_SHOW_DATABASES,    // 数据库
-    AST_SHOW_COLLECTIONS,  // 集合
-    AST_SHOW_INDEXES,      // 标量索引
-    AST_SHOW_VINDEXES      // 向量索引
-};
 
 /**
  * @brief 显示数据库操作
@@ -47,7 +35,7 @@ public:
 class AstShowCollections
 {
 public:
-    AstShowCollections() = default;
+    AstShowCollections();
 
     AstShowCollections(const AstShowCollections &) = delete;
 
@@ -58,6 +46,28 @@ public:
     AstShowCollections & operator=(AstShowCollections &&) noexcept = default;
 
     ~AstShowCollections() noexcept = default;
+
+public:
+    /**
+     * @brief 设置数据库名称
+     * @param database_name 数据库名称
+     */
+    void set_database_name(const std::string & database_name);
+
+    /**
+     * @brief 获取数据库名称
+     * @return 数据库名称
+     */
+    const std::string & get_database_name() const;
+
+    /**
+     * @brief 是否存在数据库名称
+     * @return 是否存在数据库名称
+     */
+    bool has_database_name() const noexcept;
+
+private:
+    std::optional<std::string> database_name_;  // 数据库名称
 };
 
 /**
@@ -80,13 +90,32 @@ public:
 
 public:
     /**
+     * @brief 设置数据库名称
+     * @param database_name 数据库名称
+     */
+    void set_database_name(const std::string & database_name);
+
+    /**
      * @brief 获取集合名称
      * @return 集合名称
      */
     const std::string & get_collection_name() const noexcept;
 
+    /**
+     * @brief 获取数据库名称
+     * @return 数据库名称
+     */
+    const std::string & get_database_name() const;
+
+    /**
+     * @brief 是否存在数据库名称
+     * @return 是否存在数据库名称
+     */
+    bool has_database_name() const noexcept;
+
 private:
-    std::string collection_name_;  // 集合名称
+    std::string collection_name_;               // 集合名称
+    std::optional<std::string> database_name_;  // 数据库名称
 };
 
 /**
@@ -109,13 +138,32 @@ public:
 
 public:
     /**
+     * @brief 设置数据库名称
+     * @param database_name 数据库名称
+     */
+    void set_database_name(const std::string & database_name);
+
+    /**
      * @brief 获取集合名称
      * @return 集合名称
      */
     const std::string & get_collection_name() const noexcept;
 
+    /**
+     * @brief 获取数据库名称
+     * @return 数据库名称
+     */
+    const std::string & get_database_name() const;
+
+    /**
+     * @brief 是否存在数据库名称
+     * @return 是否存在数据库名称
+     */
+    bool has_database_name() const noexcept;
+
 private:
-    std::string collection_name_;  // 集合名称
+    std::string collection_name_;               // 集合名称
+    std::optional<std::string> database_name_;  // 数据库名称
 };
 
 /**
@@ -137,12 +185,6 @@ public:
     ~AstShowStatementNode() noexcept override = default;
 
 public:
-    /**
-     * @brief 设置 SHOW 类型
-     * @param show_type SHOW 类型
-     */
-    void set_show_type(AstShowType show_type) noexcept;
-
     /**
      * @brief 设置显示数据库操作
      * @param op 显示数据库操作
@@ -168,12 +210,6 @@ public:
     void set_show_vindexes(AstShowVIndexes && op);
 
     /**
-     * @brief 获取 SHOW 类型
-     * @return SHOW 类型
-     */
-    AstShowType get_show_type() const noexcept;
-
-    /**
      * @brief 获取显示数据库操作
      * @return 显示数据库操作
      */
@@ -196,12 +232,6 @@ public:
      * @return 显示向量索引操作
      */
     const AstShowVIndexes & get_show_vindexes() const;
-
-    /**
-     * @brief 是否设置 SHOW 类型
-     * @return 是否设置 SHOW 类型
-     */
-    bool has_show_type() const noexcept;
 
     /**
      * @brief 是否存在显示操作
@@ -234,7 +264,6 @@ public:
     bool has_show_vindexes() const noexcept;
 
 private:
-    AstShowType show_type_;                                           // SHOW 类型
     std::variant<
         std::monostate,
         AstShowDatabases,

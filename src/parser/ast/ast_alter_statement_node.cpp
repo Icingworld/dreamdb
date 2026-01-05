@@ -23,15 +23,9 @@ const std::string & AstAlterDropColumn::get_column_name() const noexcept
     return column_name_;
 }
 
-AstAlterModifyColumn::AstAlterModifyColumn(const std::string & column_name, AstColumnDefinition && new_definition)
-    : column_name_(column_name)
-    , new_definition_(std::move(new_definition))
+AstAlterModifyColumn::AstAlterModifyColumn(AstColumnDefinition && new_definition)
+    : new_definition_(std::move(new_definition))
 {
-}
-
-const std::string & AstAlterModifyColumn::get_column_name() const noexcept
-{
-    return column_name_;
 }
 
 const AstColumnDefinition & AstAlterModifyColumn::get_new_definition() const noexcept
@@ -57,15 +51,9 @@ const std::string & AstAlterRenameColumn::get_new_name() const noexcept
 
 AstAlterStatementNode::AstAlterStatementNode(std::size_t line, std::size_t column)
     : AstStatementNode(AstStatementNodeType::AST_STATEMENT_ALTER, line, column)
-    , alter_type_(AstAlterType::AST_ALTER_UNKNOWN)
     , collection_name_(std::nullopt)
     , alter_operation_(std::monostate())
 {
-}
-
-void AstAlterStatementNode::set_alter_type(AstAlterType alter_type) noexcept
-{
-    alter_type_ = alter_type;
 }
 
 void AstAlterStatementNode::set_collection_name(const std::string & collection_name)
@@ -93,11 +81,6 @@ void AstAlterStatementNode::set_rename_column(AstAlterRenameColumn && op)
     alter_operation_ = std::move(op);
 }
 
-AstAlterType AstAlterStatementNode::get_alter_type() const noexcept
-{
-    return alter_type_;
-}
-
 const std::string & AstAlterStatementNode::get_collection_name() const
 {
     return collection_name_.value();
@@ -121,11 +104,6 @@ const AstAlterModifyColumn & AstAlterStatementNode::get_modify_column() const
 const AstAlterRenameColumn & AstAlterStatementNode::get_rename_column() const
 {
     return std::get<AstAlterRenameColumn>(alter_operation_);
-}
-
-bool AstAlterStatementNode::has_alter_type() const noexcept
-{
-    return alter_type_ != AstAlterType::AST_ALTER_UNKNOWN;
 }
 
 bool AstAlterStatementNode::has_collection_name() const noexcept

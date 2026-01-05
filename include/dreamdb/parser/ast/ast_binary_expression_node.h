@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <string>
 #include <memory>
 
 #include "dreamdb/parser/ast/ast_expression_node.h"
