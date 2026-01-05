@@ -2,6 +2,8 @@
 
 #include "dreamdb/parser/ast/ast_select_statement_node.h"
 #include "dreamdb/parser/ast/ast_insert_statement_node.h"
+#include "dreamdb/parser/ast/ast_update_statement_node.h"
+#include "dreamdb/parser/ast/ast_delete_statement_node.h"
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
 #include "dreamdb/parser/ast/ast_alter_statement_node.h"
@@ -274,6 +276,70 @@ std::unique_ptr<AstStatementNode> Parser::parse_insert_statement()
 
     // INSERT 语句解析完成
     return insert_statement;
+}
+
+std::unique_ptr<AstStatementNode> Parser::parse_update_statement()
+{
+    // 获取 UPDATE 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 Update 语句节点
+    auto update_statement = std::make_unique<AstUpdateStatementNode>(line, column);
+
+    // 消耗 UPDATE 关键字
+    advance();
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after UPDATE");
+        return nullptr;
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    // 设置集合名称
+    update_statement->set_collection_name(collection_name);
+
+    // 期望 SET 关键字
+    consume(TokenType::DB_SET, "Expected SET after UPDATE");
+
+    // 解析赋值项列表
+    do {
+        if (!check(TokenType::DB_IDENTIFIER)) {
+            error("Expected column_name after SET");
+            return nullptr;
+        }
+        std::string column_name = current_token_.get_value();
+        // 消耗标识符
+        advance();
+        
+        // 期望 =
+        consume(TokenType::DB_EQUAL, "Expected = after column_name");
+
+        // 解析值
+        auto value = parse_expression();
+
+        // 创建 UpdateAssignment 对象
+        UpdateAssignment assignment(column_name, std::move(value));
+        // 添加 UpdateAssignment 对象
+        update_statement->add_assignment(std::move(assignment));
+    } while (match(TokenType::DB_COMMA));
+
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::DB_WHERE)) {
+        auto where_clause = parse_expression();
+        // 设置 WHERE 子句
+        update_statement->set_where_clause(std::move(where_clause));
+    }
+
+    // UPDATE 语句解析完成
+    return update_statement;
+}
+
+std::unique_ptr<AstStatementNode> Parser::parse_delete_statement()
+{
+    
 }
 
 std::unique_ptr<AstStatementNode> Parser::parse_create_statement()
