@@ -339,7 +339,39 @@ std::unique_ptr<AstStatementNode> Parser::parse_update_statement()
 
 std::unique_ptr<AstStatementNode> Parser::parse_delete_statement()
 {
-    
+    // 获取 DELETE 关键字的位置信息
+    std::size_t line = current_token_.get_line();
+    std::size_t column = current_token_.get_column();
+
+    // 创建 Delete 语句节点
+    auto delete_statement = std::make_unique<AstDeleteStatementNode>(line, column);
+
+    // 消耗 DELETE 关键字
+    advance();
+
+    // 期望 FROM 关键字
+    consume(TokenType::DB_FROM, "Expected FROM after DELETE");
+
+    // 解析集合名称
+    if (!check(TokenType::DB_IDENTIFIER)) {
+        error("Expected collection_name after DELETE");
+        return nullptr;
+    }
+    std::string collection_name = current_token_.get_value();
+    // 消耗标识符
+    advance();
+    // 设置集合名称
+    delete_statement->set_collection_name(collection_name);
+
+    // 解析可选的 WHERE 子句
+    if (match(TokenType::DB_WHERE)) {
+        auto where_clause = parse_expression();
+        // 设置 WHERE 子句
+        delete_statement->set_where_clause(std::move(where_clause));
+    }
+
+    // DELETE 语句解析完成
+    return delete_statement;
 }
 
 std::unique_ptr<AstStatementNode> Parser::parse_create_statement()
