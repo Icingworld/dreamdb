@@ -43,7 +43,9 @@ public:
 
     bool rename_collection(const std::string & collection_name, const std::string & new_collection_name);
 
-private:
+public:
+    std::size_t database_id_; // 数据库 ID
+    std::string database_name_; // 数据库名称
     std::vector<std::unique_ptr<CatalogCollectionEntry>> collection_entries_; // 集合条目列表
     std::unordered_map<std::string, std::size_t> collection_index_map_; // 集合索引映射 Map: 集合名称 -> 集合索引位置
 };

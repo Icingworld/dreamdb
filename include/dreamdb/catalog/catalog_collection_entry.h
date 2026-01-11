@@ -115,7 +115,10 @@ public:
      */
     bool remove_vindex(const std::string & vindex_name);
 
-private:
+public:
+    std::size_t collection_id_; // 集合 ID
+    std::string collection_name_; // 集合名称
+
     // 列条目存储
     std::vector<std::unique_ptr<CatalogColumnEntry>> column_entries_; // 列条目列表
     std::unordered_map<std::string, std::size_t> column_index_map_; // 列索引映射 Map: 列名称 -> 列索引位置

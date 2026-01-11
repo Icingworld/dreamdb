@@ -12,7 +12,7 @@ namespace dreamdb
 
 struct BoundInsertItem
 {
-    std::unique_ptr<Expression> column_reference;       // 列引用
+    std::size_t column_index;                           // 列索引
     std::unique_ptr<Expression> value;                  // 值
 };
 

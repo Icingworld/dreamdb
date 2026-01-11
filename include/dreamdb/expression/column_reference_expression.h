@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "dreamdb/expression/expression.h"
 
 namespace dreamdb
