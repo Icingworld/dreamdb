@@ -13,7 +13,6 @@ namespace dreamdb
 enum class LogicalPlanNodeOperationType : std::uint8_t
 {
     LOGICAL_PLAN_SELECT,     // SELECT 操作
-    LOGICAL_PLAN_INSERT,     // INSERT 操作
     LOGICAL_PLAN_UPDATE,     // UPDATE 操作
     LOGICAL_PLAN_DELETE      // DELETE 操作
 };

@@ -47,13 +47,6 @@ private:
     std::unique_ptr<PhysicalPlanNode> plan_select(const LogicalPlanNode & logical_node) const;
 
     /**
-     * @brief 计划 INSERT 逻辑节点
-     * @param logical_node INSERT 逻辑计划节点
-     * @return 物理计划节点
-     */
-    std::unique_ptr<PhysicalPlanNode> plan_insert(const LogicalPlanNode & logical_node) const;
-
-    /**
      * @brief 计划 UPDATE 逻辑节点
      * @param logical_node UPDATE 逻辑计划节点
      * @return 物理计划节点

@@ -13,7 +13,6 @@ namespace dreamdb
 enum class PhysicalPlanNodeOperationType : std::uint8_t
 {
     PHYSICAL_PLAN_SELECT,     // SELECT 操作
-    PHYSICAL_PLAN_INSERT,     // INSERT 操作
     PHYSICAL_PLAN_UPDATE,     // UPDATE 操作
     PHYSICAL_PLAN_DELETE      // DELETE 操作
 };

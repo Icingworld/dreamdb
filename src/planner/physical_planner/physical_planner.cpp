@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
-#include "dreamdb/planner/logical_planner/insert/logical_insert_plan_node.h"
 #include "dreamdb/planner/logical_planner/update/logical_update_plan_node.h"
 #include "dreamdb/planner/logical_planner/delete/logical_delete_plan_node.h"
 
@@ -21,8 +20,6 @@ std::unique_ptr<PhysicalPlanNode> PhysicalPlanner::plan(const LogicalPlanNode & 
     switch (logical_plan.get_operation_type()) {
         case LogicalPlanNodeOperationType::LOGICAL_PLAN_SELECT:
             return plan_select(logical_plan);
-        case LogicalPlanNodeOperationType::LOGICAL_PLAN_INSERT:
-            return plan_insert(logical_plan);
         case LogicalPlanNodeOperationType::LOGICAL_PLAN_UPDATE:
             return plan_update(logical_plan);
         case LogicalPlanNodeOperationType::LOGICAL_PLAN_DELETE:
@@ -39,11 +36,6 @@ std::unique_ptr<PhysicalPlanNode> PhysicalPlanner::plan_select(const LogicalPlan
     throw std::runtime_error("Select physical plan is not implemented");
 }
 
-std::unique_ptr<PhysicalPlanNode> PhysicalPlanner::plan_insert(const LogicalPlanNode & logical_node) const
-{
-    (void)logical_node;
-    throw std::runtime_error("Insert physical plan is not implemented");
-}
 
 std::unique_ptr<PhysicalPlanNode> PhysicalPlanner::plan_update(const LogicalPlanNode & logical_node) const
 {
