@@ -15,7 +15,8 @@ enum class BoundStatementType : std::uint8_t
     BINDER_BOUND_SHOW_STATEMENT,        // 绑定后的 SHOW 语句
     BINDER_BOUND_DESCRIBE_STATEMENT,    // 绑定后的 DESCRIBE 语句
     BINDER_BOUND_DROP_STATEMENT,        // 绑定后的 DROP 语句
-    BINDER_BOUND_CREATE_STATEMENT       // 绑定后的 CREATE 语句
+    BINDER_BOUND_CREATE_STATEMENT,      // 绑定后的 CREATE 语句
+    BINDER_BOUND_ALTER_STATEMENT        // 绑定后的 ALTER 语句
 };
 
 /**

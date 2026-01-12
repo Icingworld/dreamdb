@@ -14,6 +14,7 @@
 #include "dreamdb/parser/ast/ast_describe_statement_node.h"
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
+#include "dreamdb/parser/ast/ast_alter_statement_node.h"
 #include "dreamdb/parser/ast/ast_expression_node.h"
 #include "dreamdb/expression/expression.h"
 #include "dreamdb/catalog/catalog.h"
@@ -73,6 +74,8 @@ private:
     std::unique_ptr<BoundStatement> bind_drop_statement(const AstDropStatementNode & drop_statement);
 
     std::unique_ptr<BoundStatement> bind_create_statement(const AstCreateStatementNode & create_statement);
+
+    std::unique_ptr<BoundStatement> bind_alter_statement(const AstAlterStatementNode & alter_statement);
 
 private:
     std::unique_ptr<Catalog> catalog_;          // 表结构元数据目录

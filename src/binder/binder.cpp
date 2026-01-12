@@ -12,6 +12,7 @@
 #include "dreamdb/binder/bound/bound_describe_statement.h"
 #include "dreamdb/binder/bound/bound_drop_statement.h"
 #include "dreamdb/binder/bound/bound_create_statement.h"
+#include "dreamdb/binder/bound/bound_alter_statement.h"
 #include "dreamdb/parser/ast/ast_literal_expression_node.h"
 #include "dreamdb/parser/ast/ast_function_call_expression_node.h"
 #include "dreamdb/parser/ast/ast_vector_expression_node.h"
@@ -27,6 +28,7 @@
 #include "dreamdb/parser/ast/ast_describe_statement_node.h"
 #include "dreamdb/parser/ast/ast_drop_statement_node.h"
 #include "dreamdb/parser/ast/ast_create_statement_node.h"
+#include "dreamdb/parser/ast/ast_alter_statement_node.h"
 #include "dreamdb/expression/constant_expression.h"
 #include "dreamdb/expression/function_expression.h"
 #include "dreamdb/expression/column_reference_expression.h"
@@ -125,6 +127,8 @@ std::unique_ptr<BoundStatement> Binder::bind(const AstStatementNode & statement)
             return bind_drop_statement(static_cast<const AstDropStatementNode &>(statement));
         case AstStatementNodeType::AST_STATEMENT_CREATE:
             return bind_create_statement(static_cast<const AstCreateStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_ALTER:
+            return bind_alter_statement(static_cast<const AstAlterStatementNode &>(statement));
         default:
             throw std::runtime_error("Unsupported statement type");
     }
@@ -1092,6 +1096,93 @@ std::unique_ptr<BoundStatement> Binder::bind_create_statement(const AstCreateSta
     }
 
     return bound_create_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_alter_statement(const AstAlterStatementNode & alter_statement)
+{
+    auto bound_alter_statement = std::make_unique<BoundAlterStatement>();
+
+    if (!alter_statement.has_collection_name()) {
+        throw std::runtime_error("Collection name is required for ALTER statement");
+    }
+
+    const std::string & collection_name = alter_statement.get_collection_name();
+    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    if (!collection_entry) {
+        throw std::runtime_error("Collection not found: " + collection_name);
+    }
+
+    bound_alter_statement->collection_id = collection_entry->collection_id_;
+
+    if (!alter_statement.has_alter_operation()) {
+        throw std::runtime_error("Alter operation is required for ALTER statement");
+    }
+
+    if (alter_statement.has_add_column()) {
+        // ALTER ADD COLUMN
+        // 列定义将在执行阶段从 AST 转换
+        // 这里暂时创建一个空的 Field，实际转换在执行阶段进行
+        BoundAlterAddColumn bound_add_column{
+            Field::create_integer_field("", true, false)
+        };
+        bound_alter_statement->alter_operation = bound_add_column;
+    }
+    else if (alter_statement.has_drop_column()) {
+        // ALTER DROP COLUMN
+        const auto & drop_column = alter_statement.get_drop_column();
+        BoundAlterDropColumn bound_drop_column;
+
+        const std::string & column_name = drop_column.get_column_name();
+        const auto * column_entry = collection_entry->get_column_entry(column_name);
+        if (!column_entry) {
+            throw std::runtime_error("Column not found: " + column_name + " in collection " + collection_name);
+        }
+
+        bound_drop_column.column_id = column_entry->column_index();
+        bound_alter_statement->alter_operation = bound_drop_column;
+    }
+    else if (alter_statement.has_modify_column()) {
+        // ALTER MODIFY COLUMN
+        const auto & modify_column = alter_statement.get_modify_column();
+
+        const auto & new_definition = modify_column.get_new_definition();
+        if (!new_definition.has_name()) {
+            throw std::runtime_error("Column name is required for MODIFY COLUMN");
+        }
+
+        const std::string & column_name = new_definition.get_name();
+        const auto * column_entry = collection_entry->get_column_entry(column_name);
+        if (!column_entry) {
+            throw std::runtime_error("Column not found: " + column_name + " in collection " + collection_name);
+        }
+
+        // 新的列定义将在执行阶段从 AST 转换
+        BoundAlterModifyColumn bound_modify_column{
+            column_entry->column_index(),
+            Field::create_integer_field("", true, false)
+        };
+        bound_alter_statement->alter_operation = bound_modify_column;
+    }
+    else if (alter_statement.has_rename_column()) {
+        // ALTER RENAME COLUMN
+        const auto & rename_column = alter_statement.get_rename_column();
+        BoundAlterRenameColumn bound_rename_column;
+
+        const std::string & old_name = rename_column.get_old_name();
+        const auto * column_entry = collection_entry->get_column_entry(old_name);
+        if (!column_entry) {
+            throw std::runtime_error("Column not found: " + old_name + " in collection " + collection_name);
+        }
+
+        bound_rename_column.column_id = column_entry->column_index();
+        bound_rename_column.new_name = rename_column.get_new_name();
+        bound_alter_statement->alter_operation = bound_rename_column;
+    }
+    else {
+        throw std::runtime_error("Unknown alter operation type");
+    }
+
+    return bound_alter_statement;
 }
 
 } // namespace dreamdb
