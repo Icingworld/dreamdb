@@ -11,6 +11,7 @@
 #include "dreamdb/binder/bound/bound_show_statement.h"
 #include "dreamdb/binder/bound/bound_describe_statement.h"
 #include "dreamdb/binder/bound/bound_drop_statement.h"
+#include "dreamdb/binder/bound/bound_create_statement.h"
 #include "dreamdb/parser/ast/ast_literal_expression_node.h"
 #include "dreamdb/parser/ast/ast_function_call_expression_node.h"
 #include "dreamdb/parser/ast/ast_vector_expression_node.h"
@@ -948,6 +949,149 @@ std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStateme
     }
 
     return bound_drop_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_create_statement(const AstCreateStatementNode & create_statement)
+{
+    auto bound_create_statement = std::make_unique<BoundCreateStatement>();
+    bound_create_statement->if_not_exists = create_statement.get_if_not_exists();
+
+    if (!create_statement.has_create_operation()) {
+        throw std::runtime_error("Create operation is required for CREATE statement");
+    }
+
+    if (create_statement.has_create_database()) {
+        // CREATE DATABASE - 只需要名称，创建时还没有 ID
+        const auto & create_database = create_statement.get_create_database();
+        BoundCreateDatabase bound_create_database;
+        bound_create_database.database_name = create_database.get_database_name();
+        bound_create_statement->create_operation = bound_create_database;
+    }
+    else if (create_statement.has_create_collection()) {
+        // CREATE COLLECTION - 需要将列定义从 AstColumnDefinition 转换为 Field
+        // 注意：由于列定义的转换涉及复杂的类型解析和默认值绑定，这里暂时只存储集合名称
+        // 列定义将在执行阶段处理，因为需要更多上下文信息
+        const auto & create_collection = create_statement.get_create_collection();
+        BoundCreateCollection bound_create_collection;
+        bound_create_collection.collection_name = create_collection.get_collection_name();
+        // column_definitions 将在执行阶段从 AST 转换
+        bound_create_collection.column_definitions.clear();
+        bound_create_statement->create_operation = bound_create_collection;
+    }
+    else if (create_statement.has_create_index()) {
+        // CREATE INDEX - 需要验证集合存在，将列名转换为列 ID，将类型字符串转换为枚举
+        const auto & create_index = create_statement.get_create_index();
+        BoundCreateIndex bound_create_index;
+
+        const std::string & collection_name = create_index.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_create_index.collection_id = collection_entry->collection_id_;
+        bound_create_index.index_name = create_index.get_index_name();
+
+        // 将列名转换为列 ID
+        const auto & column_names = create_index.get_column_names();
+        bound_create_index.column_ids.clear();
+        bound_create_index.column_ids.reserve(column_names.size());
+        for (const auto & column_name : column_names) {
+            const auto * column_entry = collection_entry->get_column_entry(column_name);
+            if (!column_entry) {
+                throw std::runtime_error("Column not found: " + column_name + " in collection " + collection_name);
+            }
+            bound_create_index.column_ids.push_back(column_entry->column_index());
+        }
+
+        // 将索引类型字符串转换为枚举
+        const std::string & index_type_str = create_index.get_index_type();
+        if (index_type_str == "BTREE" || index_type_str == "btree") {
+            bound_create_index.index_type = IndexType::BTREE;
+        }
+        else if (index_type_str == "HASH" || index_type_str == "hash") {
+            bound_create_index.index_type = IndexType::HASH;
+        }
+        else {
+            throw std::runtime_error("Unknown index type: " + index_type_str);
+        }
+
+        bound_create_statement->create_operation = bound_create_index;
+    }
+    else if (create_statement.has_create_vindex()) {
+        // CREATE VINDEX - 需要验证集合存在，将列名转换为列 ID，将类型字符串转换为枚举
+        const auto & create_vindex = create_statement.get_create_vindex();
+        BoundCreateVIndex bound_create_vindex;
+
+        const std::string & collection_name = create_vindex.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_create_vindex.collection_id = collection_entry->collection_id_;
+        bound_create_vindex.vindex_name = create_vindex.get_vindex_name();
+
+        // 将列名转换为列 ID
+        const std::string & column_name = create_vindex.get_column_name();
+        const auto * column_entry = collection_entry->get_column_entry(column_name);
+        if (!column_entry) {
+            throw std::runtime_error("Column not found: " + column_name + " in collection " + collection_name);
+        }
+        bound_create_vindex.column_id = column_entry->column_index();
+
+        // 将向量索引类型字符串转换为枚举
+        const std::string & vindex_type_str = create_vindex.get_vindex_type();
+        if (vindex_type_str == "FLAT" || vindex_type_str == "flat") {
+            bound_create_vindex.vindex_type = VIndexType::FLAT;
+        }
+        else if (vindex_type_str == "IVF_FLAT" || vindex_type_str == "ivf_flat") {
+            bound_create_vindex.vindex_type = VIndexType::IVF_FLAT;
+        }
+        else if (vindex_type_str == "HNSW" || vindex_type_str == "hnsw") {
+            bound_create_vindex.vindex_type = VIndexType::HNSW;
+        }
+        else {
+            throw std::runtime_error("Unknown vindex type: " + vindex_type_str);
+        }
+
+        // 处理 WITH 子句：将表达式转换为字符串键值对（仅支持字面量值）
+        const auto & with_clauses = create_vindex.get_with_clauses();
+        bound_create_vindex.with_clauses.clear();
+        bound_create_vindex.with_clauses.reserve(with_clauses.size());
+        for (const auto & clause : with_clauses) {
+            std::string key = clause.get_key();
+            std::string value_str;
+            if (clause.has_value()) {
+                const auto & value_expr = clause.get_value();
+                if (value_expr->get_expression_type() == AstExpressionNodeType::AST_EXPRESSION_LITERAL) {
+                    const auto & literal_expr = static_cast<const AstLiteralExpressionNode &>(*value_expr);
+                    if (literal_expr.is_string()) {
+                        value_str = literal_expr.get_string();
+                    } else if (literal_expr.is_integer()) {
+                        value_str = std::to_string(literal_expr.get_integer());
+                    } else if (literal_expr.is_float()) {
+                        value_str = std::to_string(literal_expr.get_float());
+                    } else if (literal_expr.is_boolean()) {
+                        value_str = literal_expr.get_boolean() ? "true" : "false";
+                    } else {
+                        throw std::runtime_error("Unsupported literal type in WITH clause");
+                    }
+                } else {
+                    // 非字面量表达式需要在执行时处理，这里暂时跳过或抛出错误
+                    throw std::runtime_error("Only literal values are supported in WITH clause during binding");
+                }
+            }
+            bound_create_vindex.with_clauses.emplace_back(key, value_str);
+        }
+
+        bound_create_statement->create_operation = bound_create_vindex;
+    }
+    else {
+        throw std::runtime_error("Unknown create operation type");
+    }
+
+    return bound_create_statement;
 }
 
 } // namespace dreamdb
