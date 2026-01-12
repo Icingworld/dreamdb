@@ -14,8 +14,7 @@
 #include "dreamdb/planner/logical_planner/select/logical_project_node.h"
 #include "dreamdb/planner/logical_planner/select/logical_aggregate_node.h"
 #include "dreamdb/planner/logical_planner/select/logical_sort_node.h"
-#include "dreamdb/planner/logical_planner/select/logical_limit_node.h"
-#include "dreamdb/planner/logical_planner/select/logical_offset_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_limit_offset_node.h"
 #include "dreamdb/expression/column_reference_expression.h"
 #include "dreamdb/expression/constant_expression.h"
 #include "dreamdb/expression/binary_expression.h"
@@ -372,18 +371,14 @@ std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_select(const BoundSelectSt
         root = std::move(sort);
     }
 
-    // 7. 如果有 LIMIT，添加 Limit 节点
-    if (bound_select_statement.limit.has_value()) {
-        auto limit = std::make_unique<LogicalLimitNode>(bound_select_statement.limit.value());
-        limit->get_mutable_children().push_back(std::move(root));
-        root = std::move(limit);
-    }
-
-    // 8. 如果有 OFFSET，添加 Offset 节点
-    if (bound_select_statement.offset.has_value()) {
-        auto offset = std::make_unique<LogicalOffsetNode>(bound_select_statement.offset.value());
-        offset->get_mutable_children().push_back(std::move(root));
-        root = std::move(offset);
+    // 7. 如果有 LIMIT 或 OFFSET，添加 LimitOffset 节点
+    if (bound_select_statement.limit.has_value() || bound_select_statement.offset.has_value()) {
+        auto limit_offset = std::make_unique<LogicalLimitOffsetNode>(
+            bound_select_statement.limit,
+            bound_select_statement.offset
+        );
+        limit_offset->get_mutable_children().push_back(std::move(root));
+        root = std::move(limit_offset);
     }
 
     return root;
