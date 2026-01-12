@@ -15,7 +15,7 @@ namespace dreamdb
 class FunctionExpression : public Expression
 {
 public:
-    explicit FunctionExpression(const std::string & function_name, std::vector<std::unique_ptr<Expression>> arguments);
+    explicit FunctionExpression(const std::string & function_name, std::vector<std::unique_ptr<Expression>> arguments, bool is_aggregate = false);
 
     FunctionExpression(const FunctionExpression &) noexcept = delete;
 
@@ -47,9 +47,16 @@ public:
      */
     std::vector<std::unique_ptr<Expression>> & get_mutable_arguments() noexcept;
 
+    /**
+     * @brief 是否为聚合函数
+     * @return 是否为聚合函数
+     */
+    bool is_aggregate() const noexcept;
+
 private:
     std::string function_name_;                             // 函数名称
     std::vector<std::unique_ptr<Expression>> arguments_;    // 参数列表
+    bool is_aggregate_;                                      // 是否为聚合函数
 };
 
 } // namespace dreamdb
