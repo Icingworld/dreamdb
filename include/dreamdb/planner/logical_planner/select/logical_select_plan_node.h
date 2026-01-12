@@ -19,8 +19,7 @@ enum class LogicalSelectPlanNodeType : std::uint8_t
     SELECT_PROJECT,                // 投影（SELECT 列表）
     SELECT_AGGREGATE,              // 聚合（聚合函数，如 COUNT、SUM、AVG 等）
     SELECT_SORT,                   // 排序（ORDER BY 子句）
-    SELECT_LIMIT,                  // 限制（LIMIT 子句）
-    SELECT_OFFSET                  // 偏移（OFFSET 子句）
+    SELECT_LIMIT_OFFSET            // 限制和偏移（LIMIT 和 OFFSET 子句）
 };
 
 /**

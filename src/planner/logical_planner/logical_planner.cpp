@@ -6,7 +6,6 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include "dreamdb/planner/logical_planner/insert/logical_insert_plan_node.h"
 #include "dreamdb/planner/logical_planner/update/logical_update_plan_node.h"
 #include "dreamdb/planner/logical_planner/delete/logical_delete_plan_node.h"
 #include "dreamdb/planner/logical_planner/select/logical_scan_node.h"
@@ -14,8 +13,7 @@
 #include "dreamdb/planner/logical_planner/select/logical_project_node.h"
 #include "dreamdb/planner/logical_planner/select/logical_aggregate_node.h"
 #include "dreamdb/planner/logical_planner/select/logical_sort_node.h"
-#include "dreamdb/planner/logical_planner/select/logical_limit_node.h"
-#include "dreamdb/planner/logical_planner/select/logical_offset_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_limit_offset_node.h"
 #include "dreamdb/expression/column_reference_expression.h"
 #include "dreamdb/expression/constant_expression.h"
 #include "dreamdb/expression/binary_expression.h"
@@ -230,12 +228,13 @@ std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan(const BoundStatement & bou
     switch (bound_statement.get_type()) {
         case BoundStatementType::BINDER_BOUND_SELECT_STATEMENT:
             return plan_select(static_cast<const BoundSelectStatement &>(bound_statement));
-        case BoundStatementType::BINDER_BOUND_INSERT_STATEMENT:
-            return plan_insert(static_cast<const BoundInsertStatement &>(bound_statement));
         case BoundStatementType::BINDER_BOUND_DELETE_STATEMENT:
             return plan_delete(static_cast<const BoundDeleteStatement &>(bound_statement));
         case BoundStatementType::BINDER_BOUND_UPDATE_STATEMENT:
             return plan_update(static_cast<const BoundUpdateStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_INSERT_STATEMENT:
+            // INSERT 语句不需要经过 Planner，直接由 Executor 执行
+            throw std::runtime_error("INSERT statement should not be planned, it should be executed directly");
         default:
             throw std::runtime_error("Unsupported bound statement type: " + std::to_string(static_cast<int>(bound_statement.get_type())));
     }
@@ -372,46 +371,17 @@ std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_select(const BoundSelectSt
         root = std::move(sort);
     }
 
-    // 7. 如果有 LIMIT，添加 Limit 节点
-    if (bound_select_statement.limit.has_value()) {
-        auto limit = std::make_unique<LogicalLimitNode>(bound_select_statement.limit.value());
-        limit->get_mutable_children().push_back(std::move(root));
-        root = std::move(limit);
-    }
-
-    // 8. 如果有 OFFSET，添加 Offset 节点
-    if (bound_select_statement.offset.has_value()) {
-        auto offset = std::make_unique<LogicalOffsetNode>(bound_select_statement.offset.value());
-        offset->get_mutable_children().push_back(std::move(root));
-        root = std::move(offset);
+    // 7. 如果有 LIMIT 或 OFFSET，添加 LimitOffset 节点
+    if (bound_select_statement.limit.has_value() || bound_select_statement.offset.has_value()) {
+        auto limit_offset = std::make_unique<LogicalLimitOffsetNode>(
+            bound_select_statement.limit,
+            bound_select_statement.offset
+        );
+        limit_offset->get_mutable_children().push_back(std::move(root));
+        root = std::move(limit_offset);
     }
 
     return root;
-}
-
-std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_insert(const BoundInsertStatement & bound_insert_statement) const
-{
-    // 将 BoundInsertItem 转换为 LogicalInsertPlanNode::InsertItem
-    std::vector<LogicalInsertPlanNode::InsertItem> insert_items;
-    insert_items.reserve(bound_insert_statement.insert_items.size());
-
-    for (const auto & bound_item : bound_insert_statement.insert_items) {
-        // 将 column_index 转换为 ColumnReferenceExpression
-        auto column_ref = std::make_unique<ColumnReferenceExpression>(bound_item.column_index);
-
-        // 复制 value 表达式
-        auto value_expr = copy_expression(bound_item.value.get());
-
-        insert_items.push_back({
-            std::move(column_ref),
-            std::move(value_expr)
-        });
-    }
-
-    return std::make_unique<LogicalInsertPlanNode>(
-        bound_insert_statement.collection_id,
-        std::move(insert_items)
-    );
 }
 
 std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_delete(const BoundDeleteStatement & bound_delete_statement) const
