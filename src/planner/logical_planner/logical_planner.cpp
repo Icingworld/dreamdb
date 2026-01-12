@@ -384,7 +384,6 @@ std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_select(const BoundSelectSt
     return root;
 }
 
-
 std::unique_ptr<LogicalPlanNode> LogicalPlanner::plan_delete(const BoundDeleteStatement & bound_delete_statement) const
 {
     // 复制 WHERE 子句表达式
