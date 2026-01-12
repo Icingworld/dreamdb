@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_offset_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_offset_node.h"
 
 namespace dreamdb
 {
 
 LogicalOffsetNode::LogicalOffsetNode(std::size_t offset) noexcept
-    : LogicalPlanNode(LogicalPlanNodeType::OFFSET)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_OFFSET)
     , offset_(offset)
 {
 }

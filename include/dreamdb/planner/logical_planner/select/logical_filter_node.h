@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 #include "dreamdb/expression/expression.h"
 
 namespace dreamdb
@@ -11,7 +11,7 @@ namespace dreamdb
 /**
  * @brief 过滤节点
  */
-class LogicalFilterNode : public LogicalPlanNode
+class LogicalFilterNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalFilterNode(std::unique_ptr<Expression> predicate);

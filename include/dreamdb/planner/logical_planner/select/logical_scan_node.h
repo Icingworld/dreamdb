@@ -3,12 +3,12 @@
 #include <cstddef>
 #include <vector>
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 
 namespace dreamdb
 {
 
-class LogicalScanNode : public LogicalPlanNode
+class LogicalScanNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalScanNode(std::size_t collection_id, std::vector<std::size_t> field_indexes);

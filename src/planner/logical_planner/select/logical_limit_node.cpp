@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_limit_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_limit_node.h"
 
 namespace dreamdb
 {
 
 LogicalLimitNode::LogicalLimitNode(std::size_t limit) noexcept
-    : LogicalPlanNode(LogicalPlanNodeType::LIMIT)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_LIMIT)
     , limit_(limit)
 {
 }

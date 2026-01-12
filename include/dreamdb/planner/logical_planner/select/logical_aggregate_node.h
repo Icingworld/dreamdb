@@ -5,7 +5,7 @@
 #include <optional>
 #include <memory>
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 #include "dreamdb/expression/expression.h"
 
 namespace dreamdb
@@ -23,7 +23,7 @@ struct AggregateItem
 /**
  * @brief 聚合节点
  */
-class LogicalAggregateNode : public LogicalPlanNode
+class LogicalAggregateNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalAggregateNode(std::vector<std::unique_ptr<Expression>> group_by, std::vector<AggregateItem> aggregate_items);

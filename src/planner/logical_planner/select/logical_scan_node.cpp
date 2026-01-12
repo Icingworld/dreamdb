@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_scan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_scan_node.h"
 
 namespace dreamdb
 {
 
 LogicalScanNode::LogicalScanNode(std::size_t collection_id, std::vector<std::size_t> field_indexes)
-    : LogicalPlanNode(LogicalPlanNodeType::SCAN)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_SCAN)
     , collection_id_(collection_id)
     , field_indexes_(std::move(field_indexes))
 {

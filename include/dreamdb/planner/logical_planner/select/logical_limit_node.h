@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 
 namespace dreamdb
 {
@@ -8,7 +8,7 @@ namespace dreamdb
 /**
  * @brief 限制节点
  */
-class LogicalLimitNode : public LogicalPlanNode
+class LogicalLimitNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalLimitNode(std::size_t limit) noexcept;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 
 namespace dreamdb
 {
@@ -8,7 +8,7 @@ namespace dreamdb
 /**
  * @brief 偏移节点
  */
-class LogicalOffsetNode : public LogicalPlanNode
+class LogicalOffsetNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalOffsetNode(std::size_t offset) noexcept;

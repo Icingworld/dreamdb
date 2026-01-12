@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_project_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_project_node.h"
 
 namespace dreamdb
 {
 
 LogicalProjectNode::LogicalProjectNode(std::vector<ProjectItem> project_items)
-    : LogicalPlanNode(LogicalPlanNodeType::PROJECT)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_PROJECT)
     , project_items_(std::move(project_items))
 {
 }

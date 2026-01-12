@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_aggregate_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_aggregate_node.h"
 
 namespace dreamdb
 {
 
 LogicalAggregateNode::LogicalAggregateNode(std::vector<std::unique_ptr<Expression>> group_by, std::vector<AggregateItem> aggregate_items)
-    : LogicalPlanNode(LogicalPlanNodeType::AGGREGATE)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_AGGREGATE)
     , group_by_(std::move(group_by))
     , aggregate_items_(std::move(aggregate_items))
 {

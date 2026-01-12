@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 #include "dreamdb/expression/expression.h"
 
 namespace dreamdb
@@ -19,7 +19,7 @@ struct SortItem
 /**
  * @brief 排序节点
  */
-class LogicalSortNode : public LogicalPlanNode
+class LogicalSortNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalSortNode(std::vector<SortItem> sort_items);

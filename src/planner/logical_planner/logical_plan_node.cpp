@@ -1,16 +1,16 @@
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/logical_plan_node.h"
 
 namespace dreamdb
 {
 
-LogicalPlanNode::LogicalPlanNode(LogicalPlanNodeType type)
-    : type_(type)
+LogicalPlanNode::LogicalPlanNode(LogicalPlanNodeOperationType operation_type) noexcept
+    : operation_type_(operation_type)
 {
 }
 
-LogicalPlanNodeType LogicalPlanNode::get_type() const noexcept
+LogicalPlanNodeOperationType LogicalPlanNode::get_operation_type() const noexcept
 {
-    return type_;
+    return operation_type_;
 }
 
 const std::vector<std::unique_ptr<LogicalPlanNode>> & LogicalPlanNode::get_children() const noexcept

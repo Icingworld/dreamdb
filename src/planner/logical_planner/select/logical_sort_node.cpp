@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_sort_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_sort_node.h"
 
 namespace dreamdb
 {
 
 LogicalSortNode::LogicalSortNode(std::vector<SortItem> sort_items)
-    : LogicalPlanNode(LogicalPlanNodeType::SORT)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_SORT)
     , sort_items_(std::move(sort_items))
 {
 }

@@ -5,7 +5,7 @@
 #include <optional>
 #include <memory>
 
-#include "dreamdb/planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
 #include "dreamdb/expression/expression.h"
 
 namespace dreamdb
@@ -23,7 +23,7 @@ struct ProjectItem
 /**
  * @brief 投影节点
  */
-class LogicalProjectNode : public LogicalPlanNode
+class LogicalProjectNode : public LogicalSelectPlanNode
 {
 public:
     explicit LogicalProjectNode(std::vector<ProjectItem> project_items);

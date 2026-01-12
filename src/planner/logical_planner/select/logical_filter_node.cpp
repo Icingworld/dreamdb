@@ -1,10 +1,10 @@
-#include "dreamdb/planner/logical_filter_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_filter_node.h"
 
 namespace dreamdb
 {
 
 LogicalFilterNode::LogicalFilterNode(std::unique_ptr<Expression> predicate)
-    : LogicalPlanNode(LogicalPlanNodeType::FILTER)
+    : LogicalSelectPlanNode(LogicalSelectPlanNodeType::SELECT_FILTER)
     , predicate_(std::move(predicate))
 {
 }
