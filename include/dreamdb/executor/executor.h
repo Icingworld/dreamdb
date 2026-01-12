@@ -1,122 +1,30 @@
 #pragma once
 
-#include <cstddef>
-#include <string>
-#include <vector>
-#include <optional>
+#include <memory>
 
-#include "dreamdb/parser/ast/ast_node.h"
-#include "dreamdb/schema/entity.h"
-#include "dreamdb/schema/database_manager.h"
+#include "dreamdb/common/mutation_result.h"
+#include "dreamdb/planner/physical_planner/physical_plan_node.h"
+#include "dreamdb/binder/bound/bound_statement.h"
 
 namespace dreamdb
 {
 
-// 向前声明
-class SelectStmt;
-class DeleteStmt;
-class InsertStmt;
-class UpdateStmt;
-class CreateStmt;
-class DropStmt;
-class UseStmt;
-class DescribeStmt;
-class ShowStmt;
-class AlterStmt;
-class Database;
-class Collection;
-
-/**
- * @brief 执行器结果
- * 
- * 统一表示所有 SQL 语句的执行结果：
- * - SELECT: 返回查询结果（rows）和行数
- * - INSERT/UPDATE/DELETE: 返回受影响的行数（affected_count）
- * - CREATE/DROP: 返回成功/失败状态
- */
-class ExecutorResult
-{
-public:
-    ExecutorResult();
-
-    ExecutorResult(const ExecutorResult &) = delete;
-
-    ExecutorResult(ExecutorResult &&) noexcept = default;
-
-    ExecutorResult & operator=(const ExecutorResult &) = delete;
-
-    ExecutorResult & operator=(ExecutorResult &&) noexcept = default;
-
-    ~ExecutorResult() = default;
-
-public:
-    /**
-     * @brief 设置执行成功
-     */
-    void set_is_success(bool is_success) noexcept;
-    
-    /**
-     * @brief 设置消息（用于成功或错误信息）
-     * @param message 消息内容
-     */
-    void set_message(const std::string & message);
-
-    /**
-     * @brief 设置受影响的行数（用于 INSERT/UPDATE/DELETE）
-     * @param count 受影响的行数
-     */
-    void set_affected_count(std::size_t count) noexcept;
-
-    /**
-     * @brief 添加查询结果行（用于 SELECT）
-     * @param entity 实体
-     */
-    void add_row(Entity && entity);
-
-    /**
-     * @brief 检查执行是否成功
-     * @return 如果成功返回 true
-     */
-    bool get_is_success() const noexcept;
-
-    /**
-     * @brief 获取消息
-     * @return 消息内容
-     */
-    const std::string & get_message() const noexcept;
-
-    /**
-     * @brief 获取受影响的行数
-     * @return 受影响的行数
-     */
-    std::size_t get_affected_count() const noexcept;
-
-    /**
-     * @brief 获取查询结果行数
-     * @return 结果行数
-     */
-    std::size_t get_row_count() const noexcept;
-
-    /**
-     * @brief 获取查询结果（用于 SELECT）
-     * @return 结果行的引用
-     */
-    const std::vector<Entity> & get_rows() const noexcept;
-
-private:
-    bool is_success_;                               // 执行是否成功
-    std::string message_;                           // 成功或错误信息
-    std::optional<std::size_t> affected_count_;     // 受影响的行数
-    std::optional<std::vector<Entity>> rows_;       // 查询结果
-};
+class DatabaseManager;
 
 /**
  * @brief 执行器
+ * @details Executor 负责执行 SQL 语句
+ * - DML/DQL 语句经过 Planner 优化后，以 PhysicalPlanNode 形式执行
+ * - DDL 语句直接以 BoundStatement 形式执行
  */
 class Executor
 {
 public:
-    Executor(std::unique_ptr<DatabaseManager> database_manager);
+    /**
+     * @brief 构造函数
+     * @param database_manager 数据库管理器（所有权将被转移）
+     */
+    explicit Executor(std::unique_ptr<DatabaseManager> database_manager);
 
     Executor(const Executor &) = delete;
 
@@ -126,212 +34,47 @@ public:
 
     Executor & operator=(Executor &&) noexcept = default;
 
-    ~Executor();
+    ~Executor() = default;
 
 public:
     /**
-     * @brief 执行 SQL 语句
-     * @param ast 抽象语法树节点
+     * @brief 执行物理计划（用于 DML/DQL 语句，经过 planner 优化后）
+     * @param physical_plan 物理计划节点
      * @return 执行结果
      */
-    ExecutorResult execute(const AstNode & ast);
+    MutationResult execute(const PhysicalPlanNode & physical_plan);
+
+    /**
+     * @brief 执行绑定语句（用于 DDL 语句，直接执行）
+     * @param bound_statement 绑定后的语句
+     * @return 执行结果
+     */
+    MutationResult execute(const BoundStatement & bound_statement);
 
 private:
     /**
-     * @brief 执行 SELECT 语句
-     * @param select_stmt 选择语句节点
+     * @brief 执行 SELECT 物理计划
+     * @param physical_plan 物理计划节点
      * @return 执行结果
      */
-    ExecutorResult execute_select(const SelectStmt & select_stmt);
+    MutationResult execute_select(const PhysicalPlanNode & physical_plan);
 
     /**
-     * @brief 执行 DELETE 语句
-     * @param delete_stmt 删除语句节点
+     * @brief 执行 UPDATE 物理计划
+     * @param physical_plan 物理计划节点
      * @return 执行结果
      */
-    ExecutorResult execute_delete(const DeleteStmt & delete_stmt);
+    MutationResult execute_update(const PhysicalPlanNode & physical_plan);
 
     /**
-     * @brief 执行 INSERT 语句
-     * @param insert_stmt 插入语句节点
+     * @brief 执行 DELETE 物理计划
+     * @param physical_plan 物理计划节点
      * @return 执行结果
      */
-    ExecutorResult execute_insert(const InsertStmt & insert_stmt);
-
-    /**
-     * @brief 执行 UPDATE 语句
-     * @param update_stmt 更新语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_update(const UpdateStmt & update_stmt);
-
-    /**
-     * @brief 执行 CREATE 语句
-     * @param create_stmt 创建语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_create(const CreateStmt & create_stmt);
-
-    /**
-     * @brief 执行 DROP 语句
-     * @param drop_stmt 删除语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_drop(const DropStmt & drop_stmt);
-
-    /**
-     * @brief 执行 USE 语句
-     * @param use_stmt 切换数据库语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_use(const UseStmt & use_stmt);
-
-    /**
-     * @brief 执行 DESCRIBE 语句
-     * @param describe_stmt 描述语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_describe(const DescribeStmt & describe_stmt);
-
-    /**
-     * @brief 执行 SHOW 语句
-     * @param show_stmt 显示语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_show(const ShowStmt & show_stmt);
-
-    /**
-     * @brief 执行 ALTER 语句
-     * @param alter_stmt 修改语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_alter(const AlterStmt & alter_stmt);
-
-    /** 辅助解析语句 */
-
-    /**
-     * @brief 执行 CREATE DATABASE 语句
-     * @param create_stmt 创建语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_create_database(const CreateStmt & create_stmt);
-
-    /**
-     * @brief 执行 CREATE COLLECTION 语句
-     * @param create_stmt 创建语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_create_collection(const CreateStmt & create_stmt);
-
-    /**
-     * @brief 执行 CREATE INDEX 语句
-     * @param create_stmt 创建语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_create_index(const CreateStmt & create_stmt);
-
-    /**
-     * @brief 执行 CREATE VINDEX 语句
-     * @param create_stmt 创建语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_create_vindex(const CreateStmt & create_stmt);
-
-    /**
-     * @brief 执行 DROP DATABASE 语句
-     * @param drop_stmt 删除语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_drop_database(const DropStmt & drop_stmt);
-
-    /**
-     * @brief 执行 DROP COLLECTION 语句
-     * @param drop_stmt 删除语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_drop_collection(const DropStmt & drop_stmt);
-
-    /**
-     * @brief 执行 DROP INDEX 语句
-     * @param drop_stmt 删除语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_drop_index(const DropStmt & drop_stmt);
-
-    /**
-     * @brief 执行 DROP VINDEX 语句
-     * @param drop_stmt 删除语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_drop_vindex(const DropStmt & drop_stmt);
-
-    /**
-     * @brief 执行 SHOW DATABASES 语句
-     * @param show_stmt 显示语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_show_databases();
-
-    /**
-     * @brief 执行 SHOW COLLECTIONS 语句
-     * @return 执行结果
-     */
-    ExecutorResult execute_show_collections();
-
-    /**
-     * @brief 执行 SHOW INDEXES 语句
-     * @return 执行结果
-     */
-    ExecutorResult execute_show_indexes(const ShowStmt & show_stmt);
-
-    /**
-     * @brief 执行 SHOW VINDEXES 语句
-     * @param show_vindex_stmt 显示虚拟索引语句节点
-     * @return 执行结果
-     */
-    ExecutorResult execute_show_vindexes(const ShowStmt & show_stmt);
-
-    /** 辅助方法 */
-
-    /**
-     * @brief 将 AST 节点转换为 FieldValue
-     * @param ast_node AST 节点（必须是 LITERAL_EXPR）
-     * @param target_field_type 目标字段类型（可选，用于类型转换）
-     * @return FieldValue，如果转换失败则返回 Null()
-     */
-    FieldValue ast_to_field_value(const AstNode * ast_node, std::optional<FieldType> target_field_type = std::nullopt);
-
-    /** 辅助方法 - 统一访问入口，便于未来扩展 */
-
-    /**
-     * @brief 获取当前数据库
-     * @return 当前数据库指针，如果未选择数据库返回 nullptr
-     * @details 统一入口，未来可以在这里注入事务等上下文
-     */
-    Database * get_current_database();
-
-    /**
-     * @brief 执行操作（模板方法，用于包装存储操作）
-     * @param func 要执行的操作函数
-     * @return 执行结果
-     * @details 现在直接执行，未来可以在这里包装事务、日志等横切关注点
-     * 
-     * 使用示例：
-     * ```cpp
-     * return execute_with_context([&]() -> ExecutorResult {
-     *     auto* collection = get_collection(collection_name);
-     *     // 执行操作...
-     *     return result;
-     * });
-     * ```
-     */
-    template<typename Func>
-    ExecutorResult execute_with_context(Func && func);
+    MutationResult execute_delete(const PhysicalPlanNode & physical_plan);
 
 private:
-    std::unique_ptr<DatabaseManager> database_manager_;    // 数据库管理器引用
+    std::unique_ptr<DatabaseManager> database_manager_;  // 数据库管理器
 };
 
 } // namespace dreamdb
-
-#include "dreamdb/executor/executor.inl"

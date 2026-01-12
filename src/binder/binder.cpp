@@ -7,6 +7,10 @@
 #include "dreamdb/binder/bound/bound_delete_statement.h"
 #include "dreamdb/binder/bound/bound_update_statement.h"
 #include "dreamdb/binder/bound/bound_select_statement.h"
+#include "dreamdb/binder/bound/bound_use_statement.h"
+#include "dreamdb/binder/bound/bound_show_statement.h"
+#include "dreamdb/binder/bound/bound_describe_statement.h"
+#include "dreamdb/binder/bound/bound_drop_statement.h"
 #include "dreamdb/parser/ast/ast_literal_expression_node.h"
 #include "dreamdb/parser/ast/ast_function_call_expression_node.h"
 #include "dreamdb/parser/ast/ast_vector_expression_node.h"
@@ -17,6 +21,11 @@
 #include "dreamdb/parser/ast/ast_in_expression_node.h"
 #include "dreamdb/parser/ast/ast_between_expression_node.h"
 #include "dreamdb/parser/ast/ast_like_expression_node.h"
+#include "dreamdb/parser/ast/ast_use_statement_node.h"
+#include "dreamdb/parser/ast/ast_show_statement_node.h"
+#include "dreamdb/parser/ast/ast_describe_statement_node.h"
+#include "dreamdb/parser/ast/ast_drop_statement_node.h"
+#include "dreamdb/parser/ast/ast_create_statement_node.h"
 #include "dreamdb/expression/constant_expression.h"
 #include "dreamdb/expression/function_expression.h"
 #include "dreamdb/expression/column_reference_expression.h"
@@ -26,7 +35,9 @@
 #include "dreamdb/expression/between_expression.h"
 #include "dreamdb/expression/like_expression.h"
 #include "dreamdb/catalog/catalog_collection_entry.h"
+#include "dreamdb/catalog/catalog_database_entry.h"
 #include "dreamdb/common/null.h"
+#include "dreamdb/schema/field.h"
 
 namespace dreamdb
 {
@@ -103,6 +114,16 @@ std::unique_ptr<BoundStatement> Binder::bind(const AstStatementNode & statement)
             return bind_delete_statement(static_cast<const AstDeleteStatementNode &>(statement));
         case AstStatementNodeType::AST_STATEMENT_UPDATE:
             return bind_update_statement(static_cast<const AstUpdateStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_USE:
+            return bind_use_statement(static_cast<const AstUseStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_SHOW:
+            return bind_show_statement(static_cast<const AstShowStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_DESCRIBE:
+            return bind_describe_statement(static_cast<const AstDescribeStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_DROP:
+            return bind_drop_statement(static_cast<const AstDropStatementNode &>(statement));
+        case AstStatementNodeType::AST_STATEMENT_CREATE:
+            return bind_create_statement(static_cast<const AstCreateStatementNode &>(statement));
         default:
             throw std::runtime_error("Unsupported statement type");
     }
@@ -685,6 +706,248 @@ std::unique_ptr<BoundStatement> Binder::bind_update_statement(const AstUpdateSta
     }
 
     return bound_update_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_use_statement(const AstUseStatementNode & use_statement)
+{
+    // 创建绑定后的 USE 语句
+    auto bound_use_statement = std::make_unique<BoundUseStatement>();
+
+    if (!use_statement.has_database_name()) {
+        throw std::runtime_error("Database name is required for USE statement");
+    }
+
+    const std::string & database_name = use_statement.get_database_name();
+
+    // 检查数据库是否存在并获取数据库条目
+    const auto * database_entry = catalog_->get_database_entry(database_name);
+    if (!database_entry) {
+        throw std::runtime_error("Database not found: " + database_name);
+    }
+
+    // 设置数据库 ID
+    bound_use_statement->database_id = database_entry->database_id_;
+
+    return bound_use_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStatementNode & show_statement)
+{
+    // 创建绑定后的 SHOW 语句
+    auto bound_show_statement = std::make_unique<BoundShowStatement>();
+
+    if (!show_statement.has_show_operation()) {
+        throw std::runtime_error("Show operation is required for SHOW statement");
+    }
+
+    if (show_statement.has_show_databases()) {
+        // SHOW DATABASES - 不需要任何参数
+        bound_show_statement->show_operation = BoundShowDatabases{};
+    }
+    else if (show_statement.has_show_collections()) {
+        // SHOW COLLECTIONS
+        const auto & show_collections = show_statement.get_show_collections();
+        BoundShowCollections bound_show_collections;
+
+        if (show_collections.has_database_name()) {
+            const std::string & database_name = show_collections.get_database_name();
+            const auto * database_entry = catalog_->get_database_entry(database_name);
+            if (!database_entry) {
+                throw std::runtime_error("Database not found: " + database_name);
+            }
+            bound_show_collections.database_id = database_entry->database_id_;
+        }
+
+        bound_show_statement->show_operation = bound_show_collections;
+    }
+    else if (show_statement.has_show_indexes()) {
+        // SHOW INDEXES
+        const auto & show_indexes = show_statement.get_show_indexes();
+        BoundShowIndexes bound_show_indexes;
+
+        std::string database_name = current_database_;
+        if (show_indexes.has_database_name()) {
+            database_name = show_indexes.get_database_name();
+        }
+
+        const std::string & collection_name = show_indexes.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(database_name, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_show_indexes.collection_id = collection_entry->collection_id_;
+
+        if (show_indexes.has_database_name()) {
+            const auto * database_entry = catalog_->get_database_entry(database_name);
+            if (!database_entry) {
+                throw std::runtime_error("Database not found: " + database_name);
+            }
+            bound_show_indexes.database_id = database_entry->database_id_;
+        }
+
+        bound_show_statement->show_operation = bound_show_indexes;
+    }
+    else if (show_statement.has_show_vindexes()) {
+        // SHOW VINDEXES
+        const auto & show_vindexes = show_statement.get_show_vindexes();
+        BoundShowVIndexes bound_show_vindexes;
+
+        std::string database_name = current_database_;
+        if (show_vindexes.has_database_name()) {
+            database_name = show_vindexes.get_database_name();
+        }
+
+        const std::string & collection_name = show_vindexes.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(database_name, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_show_vindexes.collection_id = collection_entry->collection_id_;
+
+        if (show_vindexes.has_database_name()) {
+            const auto * database_entry = catalog_->get_database_entry(database_name);
+            if (!database_entry) {
+                throw std::runtime_error("Database not found: " + database_name);
+            }
+            bound_show_vindexes.database_id = database_entry->database_id_;
+        }
+
+        bound_show_statement->show_operation = bound_show_vindexes;
+    }
+    else {
+        throw std::runtime_error("Unknown show operation type");
+    }
+
+    return bound_show_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_describe_statement(const AstDescribeStatementNode & describe_statement)
+{
+    // 创建绑定后的 DESCRIBE 语句
+    auto bound_describe_statement = std::make_unique<BoundDescribeStatement>();
+
+    if (!describe_statement.has_collection_name()) {
+        throw std::runtime_error("Collection name is required for DESCRIBE statement");
+    }
+
+    const std::string & collection_name = describe_statement.get_collection_name();
+
+    // 检查集合合法性
+    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    if (!collection_entry) {
+        throw std::runtime_error("Collection not found: " + collection_name);
+    }
+
+    // 设置集合 ID
+    bound_describe_statement->collection_id = collection_entry->collection_id_;
+
+    return bound_describe_statement;
+}
+
+std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStatementNode & drop_statement)
+{
+    // 创建绑定后的 DROP 语句
+    auto bound_drop_statement = std::make_unique<BoundDropStatement>();
+
+    // 设置 if_exists 标志
+    bound_drop_statement->if_exists = drop_statement.get_if_exists();
+
+    if (!drop_statement.has_drop_operation()) {
+        throw std::runtime_error("Drop operation is required for DROP statement");
+    }
+
+    if (drop_statement.has_drop_database()) {
+        // DROP DATABASE
+        const auto & drop_database = drop_statement.get_drop_database();
+        BoundDropDatabase bound_drop_database;
+
+        const std::string & database_name = drop_database.get_database_name();
+        const auto * database_entry = catalog_->get_database_entry(database_name);
+        if (!database_entry) {
+            if (!bound_drop_statement->if_exists) {
+                throw std::runtime_error("Database not found: " + database_name);
+            }
+            // 如果 if_exists 为 true，即使数据库不存在也不抛出异常，但需要设置一个无效的 ID
+            bound_drop_database.database_id = 0;  // 无效 ID
+        } else {
+            bound_drop_database.database_id = database_entry->database_id_;
+        }
+
+        bound_drop_statement->drop_operation = bound_drop_database;
+    }
+    else if (drop_statement.has_drop_collection()) {
+        // DROP COLLECTION
+        const auto & drop_collection = drop_statement.get_drop_collection();
+        BoundDropCollection bound_drop_collection;
+
+        const std::string & collection_name = drop_collection.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        if (!collection_entry) {
+            if (!bound_drop_statement->if_exists) {
+                throw std::runtime_error("Collection not found: " + collection_name);
+            }
+            bound_drop_collection.collection_id = 0;  // 无效 ID
+        } else {
+            bound_drop_collection.collection_id = collection_entry->collection_id_;
+        }
+
+        bound_drop_statement->drop_operation = bound_drop_collection;
+    }
+    else if (drop_statement.has_drop_index()) {
+        // DROP INDEX
+        const auto & drop_index = drop_statement.get_drop_index();
+        BoundDropIndex bound_drop_index;
+
+        const std::string & collection_name = drop_index.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_drop_index.collection_id = collection_entry->collection_id_;
+        bound_drop_index.index_name = drop_index.get_index_name();
+
+        // 验证索引是否存在（如果 if_exists 为 false）
+        if (!bound_drop_statement->if_exists) {
+            const auto * index_entry = collection_entry->get_index_entry(bound_drop_index.index_name);
+            if (!index_entry) {
+                throw std::runtime_error("Index not found: " + bound_drop_index.index_name);
+            }
+        }
+
+        bound_drop_statement->drop_operation = bound_drop_index;
+    }
+    else if (drop_statement.has_drop_vindex()) {
+        // DROP VINDEX
+        const auto & drop_vindex = drop_statement.get_drop_vindex();
+        BoundDropVIndex bound_drop_vindex;
+
+        const std::string & collection_name = drop_vindex.get_collection_name();
+        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        if (!collection_entry) {
+            throw std::runtime_error("Collection not found: " + collection_name);
+        }
+
+        bound_drop_vindex.collection_id = collection_entry->collection_id_;
+        bound_drop_vindex.vindex_name = drop_vindex.get_vindex_name();
+
+        // 验证向量索引是否存在（如果 if_exists 为 false）
+        if (!bound_drop_statement->if_exists) {
+            const auto * vindex_entry = collection_entry->get_vindex_entry(bound_drop_vindex.vindex_name);
+            if (!vindex_entry) {
+                throw std::runtime_error("VIndex not found: " + bound_drop_vindex.vindex_name);
+            }
+        }
+
+        bound_drop_statement->drop_operation = bound_drop_vindex;
+    }
+    else {
+        throw std::runtime_error("Unknown drop operation type");
+    }
+
+    return bound_drop_statement;
 }
 
 } // namespace dreamdb
