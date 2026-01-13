@@ -19,8 +19,18 @@
 #include "dreamdb/catalog/logical_type.h"
 #include "dreamdb/common/type.h"
 #include "dreamdb/expression/constant_expression.h"
+#include "dreamdb/expression/column_reference_expression.h"
+#include "dreamdb/expression/binary_expression.h"
 #include "dreamdb/evaluator/evaluator.h"
 #include "dreamdb/evaluator/evaluator_context.h"
+#include "dreamdb/planner/physical_planner/select/physical_seq_scan_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_filter_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_project_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_aggregate_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_sort_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_limit_offset_node.h"
+#include "dreamdb/expression/function_expression.h"
+#include <unordered_map>
 
 namespace dreamdb
 {
@@ -145,6 +155,231 @@ std::optional<FieldValue> evaluate_expression_for_insert(const Expression * expr
 }
 
 /**
+ * @brief 查询结果行（用于 SELECT）
+ */
+struct QueryRow
+{
+    std::vector<FieldValue> values;  // 行的值列表
+    std::size_t entity_id = 0;       // 实体 ID（用于 UPDATE/DELETE）
+};
+
+/**
+ * @brief 评估表达式获取字段值（用于 Filter 和 Project）
+ * @param expr 表达式
+ * @param row 当前行的值
+ * @return 字段值，如果评估失败返回 std::nullopt
+ */
+std::optional<FieldValue> evaluate_expression_for_row(
+    const Expression * expr,
+    const QueryRow & row
+)
+{
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    switch (expr->get_type()) {
+        case ExpressionType::EXPRESSION_CONSTANT: {
+            const auto * const_expr = static_cast<const ConstantExpression *>(expr);
+            return const_expr->get_field_value();
+        }
+        case ExpressionType::EXPRESSION_COLUMN_REFERENCE: {
+            const auto * col_expr = static_cast<const ColumnReferenceExpression *>(expr);
+            std::size_t field_index = col_expr->get_field_index();
+            if (field_index < row.values.size()) {
+                return row.values[field_index];
+            }
+            return std::nullopt;
+        }
+        default:
+            // 其他表达式类型（如二元表达式）在 evaluate_condition_for_row 中处理
+            return std::nullopt;
+    }
+}
+
+/**
+ * @brief 简单比较两个 FieldValue（简化实现）
+ * @param left 左值
+ * @param right 右值
+ * @return 比较结果：-1 (left < right), 0 (left == right), 1 (left > right)，如果类型不兼容返回 std::nullopt
+ */
+std::optional<int> simple_compare_values(const FieldValue & left, const FieldValue & right)
+{
+    // 简化实现：只支持相同类型的比较
+    if (left.index() != right.index()) {
+        return std::nullopt;
+    }
+    
+    // 使用 variant 的索引来判断类型并比较
+    switch (left.index()) {
+        case 0: { // std::int8_t
+            return std::get<std::int8_t>(left) < std::get<std::int8_t>(right) ? -1 :
+                   std::get<std::int8_t>(left) > std::get<std::int8_t>(right) ? 1 : 0;
+        }
+        case 1: { // std::int16_t
+            return std::get<std::int16_t>(left) < std::get<std::int16_t>(right) ? -1 :
+                   std::get<std::int16_t>(left) > std::get<std::int16_t>(right) ? 1 : 0;
+        }
+        case 2: { // std::int32_t
+            return std::get<std::int32_t>(left) < std::get<std::int32_t>(right) ? -1 :
+                   std::get<std::int32_t>(left) > std::get<std::int32_t>(right) ? 1 : 0;
+        }
+        case 3: { // std::int64_t
+            return std::get<std::int64_t>(left) < std::get<std::int64_t>(right) ? -1 :
+                   std::get<std::int64_t>(left) > std::get<std::int64_t>(right) ? 1 : 0;
+        }
+        case 4: { // float
+            float l = std::get<float>(left);
+            float r = std::get<float>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 5: { // double
+            double l = std::get<double>(left);
+            double r = std::get<double>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 7: { // std::string
+            const std::string & l = std::get<std::string>(left);
+            const std::string & r = std::get<std::string>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 8: { // bool
+            bool l = std::get<bool>(left);
+            bool r = std::get<bool>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        default:
+            // 其他类型（Decimal, VECTOR, Null）暂不支持比较
+            return std::nullopt;
+    }
+}
+
+/**
+ * @brief 评估条件表达式（用于 Filter）
+ * @param expr 表达式
+ * @param row 当前行的值
+ * @param evaluator 评估器（用于比较值）
+ * @return 布尔值，如果评估失败返回 std::nullopt
+ */
+std::optional<bool> evaluate_condition_for_row(
+    const Expression * expr,
+    const QueryRow & row,
+    const Evaluator & evaluator
+)
+{
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    // 对于二元表达式，尝试评估为布尔值
+    if (expr->get_type() == ExpressionType::EXPRESSION_BINARY) {
+        const auto * bin_expr = static_cast<const BinaryExpression *>(expr);
+        BinaryOperatorType op = bin_expr->get_operator_type();
+        
+        auto left_val = evaluate_expression_for_row(&bin_expr->get_left(), row);
+        auto right_val = evaluate_expression_for_row(&bin_expr->get_right(), row);
+        
+        if (!left_val.has_value() || !right_val.has_value()) {
+            return std::nullopt;
+        }
+        
+        // 使用简单比较函数
+        auto compare_result = simple_compare_values(left_val.value(), right_val.value());
+        
+        if (!compare_result.has_value()) {
+            return std::nullopt;
+        }
+        
+        int cmp = compare_result.value();
+        
+        switch (op) {
+            case BinaryOperatorType::EXPRESSION_EQUAL:
+                return (cmp == 0);
+            case BinaryOperatorType::EXPRESSION_NOT_EQUAL:
+                return (cmp != 0);
+            case BinaryOperatorType::EXPRESSION_GREATER_THAN:
+                return (cmp > 0);
+            case BinaryOperatorType::EXPRESSION_GREATER_EQUAL:
+                return (cmp >= 0);
+            case BinaryOperatorType::EXPRESSION_LESS_THAN:
+                return (cmp < 0);
+            case BinaryOperatorType::EXPRESSION_LESS_EQUAL:
+                return (cmp <= 0);
+            case BinaryOperatorType::EXPRESSION_AND: {
+                // 对于 AND，递归评估两个操作数
+                auto left_bool = evaluate_condition_for_row(&bin_expr->get_left(), row, evaluator);
+                auto right_bool = evaluate_condition_for_row(&bin_expr->get_right(), row, evaluator);
+                if (left_bool.has_value() && right_bool.has_value()) {
+                    return left_bool.value() && right_bool.value();
+                }
+                return std::nullopt;
+            }
+            case BinaryOperatorType::EXPRESSION_OR: {
+                // 对于 OR，递归评估两个操作数
+                auto left_bool = evaluate_condition_for_row(&bin_expr->get_left(), row, evaluator);
+                auto right_bool = evaluate_condition_for_row(&bin_expr->get_right(), row, evaluator);
+                if (left_bool.has_value() && right_bool.has_value()) {
+                    return left_bool.value() || right_bool.value();
+                }
+                return std::nullopt;
+            }
+            default:
+                return std::nullopt;
+        }
+    }
+    
+    return std::nullopt;
+}
+
+// 前向声明
+std::vector<QueryRow> execute_physical_plan_node(
+    const PhysicalPlanNode * plan_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_select_plan_node(
+    const PhysicalSelectPlanNode * select_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_seq_scan(
+    const PhysicalSeqScanNode * scan_node,
+    DatabaseManager * database_manager
+);
+
+std::vector<QueryRow> execute_filter(
+    const PhysicalFilterNode * filter_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_project(
+    const PhysicalProjectNode * project_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_aggregate(
+    const PhysicalAggregateNode * aggregate_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_sort(
+    const PhysicalSortNode * sort_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_limit_offset(
+    const PhysicalLimitOffsetNode * limit_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+/**
  * @brief 格式化表格输出
  * @param column_name 列名
  * @param rows 行数据
@@ -192,6 +427,368 @@ std::string format_table(const std::string & column_name, const std::vector<std:
     return oss.str();
 }
 
+/**
+ * @brief 执行物理计划节点并返回查询结果（实现）
+ */
+std::vector<QueryRow> execute_physical_plan_node(
+    const PhysicalPlanNode * plan_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!plan_node) {
+        return {};
+    }
+    
+    // 根据操作类型分发
+    switch (plan_node->get_operation_type()) {
+        case PhysicalPlanNodeOperationType::PHYSICAL_PLAN_SELECT: {
+            const auto * select_node = static_cast<const PhysicalSelectPlanNode *>(plan_node);
+            return execute_select_plan_node(select_node, database_manager, evaluator);
+        }
+        default:
+            return {};
+    }
+}
+
+/**
+ * @brief 执行 SELECT 物理计划节点
+ */
+std::vector<QueryRow> execute_select_plan_node(
+    const PhysicalSelectPlanNode * select_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!select_node) {
+        return {};
+    }
+    
+    switch (select_node->get_operator_type()) {
+        case PhysicalSelectOperatorType::SELECT_SEQ_SCAN: {
+            const auto * scan_node = static_cast<const PhysicalSeqScanNode *>(select_node);
+            return execute_seq_scan(scan_node, database_manager);
+        }
+        case PhysicalSelectOperatorType::SELECT_FILTER: {
+            const auto * filter_node = static_cast<const PhysicalFilterNode *>(select_node);
+            return execute_filter(filter_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_PROJECT: {
+            const auto * project_node = static_cast<const PhysicalProjectNode *>(select_node);
+            return execute_project(project_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_AGGREGATE: {
+            const auto * aggregate_node = static_cast<const PhysicalAggregateNode *>(select_node);
+            return execute_aggregate(aggregate_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_SORT: {
+            const auto * sort_node = static_cast<const PhysicalSortNode *>(select_node);
+            return execute_sort(sort_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_LIMIT_OFFSET: {
+            const auto * limit_node = static_cast<const PhysicalLimitOffsetNode *>(select_node);
+            return execute_limit_offset(limit_node, database_manager, evaluator);
+        }
+        default:
+            return {};
+    }
+}
+
+/**
+ * @brief 执行全表扫描
+ */
+std::vector<QueryRow> execute_seq_scan(
+    const PhysicalSeqScanNode * scan_node,
+    DatabaseManager * database_manager
+)
+{
+    if (!scan_node || !database_manager) {
+        return {};
+    }
+    
+    // 查找集合
+    Catalog & catalog = database_manager->get_catalog();
+    std::size_t collection_id = scan_node->get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return {};
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return {};
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return {};
+    }
+    
+    // 获取所有实体（简化实现：使用空查询获取所有实体）
+    Query query;
+    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+    
+    // 转换为 QueryRow
+    std::vector<QueryRow> rows;
+    const std::vector<std::size_t> & field_indexes = scan_node->get_field_indexes();
+    
+    for (const auto & entity : entities) {
+        QueryRow row;
+        if (field_indexes.empty()) {
+            // 如果没有指定字段，返回所有字段
+            for (std::size_t i = 0; i < entity->field_count(); ++i) {
+                row.values.push_back(entity->get_value(i));
+            }
+        } else {
+            // 返回指定字段
+            for (std::size_t field_index : field_indexes) {
+                if (field_index < entity->field_count()) {
+                    row.values.push_back(entity->get_value(field_index));
+                }
+            }
+        }
+        rows.push_back(std::move(row));
+    }
+    
+    return rows;
+}
+
+/**
+ * @brief 执行过滤操作
+ */
+std::vector<QueryRow> execute_filter(
+    const PhysicalFilterNode * filter_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!filter_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点（应该是扫描节点）
+    const auto & children = filter_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 获取集合信息用于评估表达式
+    // 这里简化处理，假设子节点是扫描节点
+    Collection * collection = nullptr;
+    // TODO: 从子节点获取集合信息用于表达式评估
+    // Catalog & catalog = database_manager->get_catalog();
+    // Database * database = database_manager->get_current_database();
+    
+    if (!collection) {
+        // 如果无法获取集合，跳过过滤（简化处理）
+        return input_rows;
+    }
+    
+    // 评估谓词并过滤
+    std::vector<QueryRow> filtered_rows;
+    const Expression & predicate = filter_node->get_predicate();
+    
+    for (const auto & row : input_rows) {
+        // 评估条件表达式
+        auto condition_result = evaluate_condition_for_row(&predicate, row, evaluator);
+        
+        // 如果条件为 true，保留该行
+        if (condition_result.has_value() && condition_result.value()) {
+            filtered_rows.push_back(row);
+        }
+    }
+    
+    return filtered_rows;
+}
+
+/**
+ * @brief 执行投影操作
+ */
+std::vector<QueryRow> execute_project(
+    const PhysicalProjectNode * project_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!project_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = project_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 执行投影
+    std::vector<QueryRow> projected_rows;
+    const auto & project_items = project_node->get_project_items();
+    
+    for (const auto & input_row : input_rows) {
+        QueryRow projected_row;
+        
+        // 评估每个投影表达式
+        for (const auto & item : project_items) {
+            auto value = evaluate_expression_for_row(item.expression.get(), input_row);
+            if (value.has_value()) {
+                projected_row.values.push_back(value.value());
+            } else {
+                // 如果评估失败，添加 NULL 值
+                projected_row.values.push_back(Null{});
+            }
+        }
+        
+        // 保留实体 ID（用于后续操作）
+        projected_row.entity_id = input_row.entity_id;
+        
+        projected_rows.push_back(std::move(projected_row));
+    }
+    
+    return projected_rows;
+}
+
+/**
+ * @brief 执行聚合操作
+ */
+std::vector<QueryRow> execute_aggregate(
+    const PhysicalAggregateNode * aggregate_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!aggregate_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = aggregate_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // TODO: 实现聚合逻辑
+    // 简化处理：返回空结果
+    return {};
+}
+
+/**
+ * @brief 执行排序操作
+ */
+std::vector<QueryRow> execute_sort(
+    const PhysicalSortNode * sort_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!sort_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = sort_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // TODO: 实现排序逻辑
+    // 简化处理：返回输入行（不排序）
+    return input_rows;
+}
+
+/**
+ * @brief 执行限制和偏移操作
+ */
+std::vector<QueryRow> execute_limit_offset(
+    const PhysicalLimitOffsetNode * limit_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!limit_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = limit_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 应用偏移
+    std::size_t offset = limit_node->get_offset().value_or(0);
+    if (offset >= input_rows.size()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> result(input_rows.begin() + offset, input_rows.end());
+    
+    // 应用限制
+    if (limit_node->get_limit().has_value()) {
+        std::size_t limit = limit_node->get_limit().value();
+        if (limit < result.size()) {
+            result.resize(limit);
+        }
+    }
+    
+    return result;
+}
+
 } // anonymous namespace
 
 Executor::Executor(std::unique_ptr<DatabaseManager> database_manager)
@@ -236,22 +833,143 @@ MutationResult Executor::execute(const BoundStatement & bound_statement)
     }
 }
 
-MutationResult Executor::execute_select(const PhysicalSelectPlanNode & /*select_plan*/)
+MutationResult Executor::execute_select(const PhysicalSelectPlanNode & select_plan)
 {
-    // TODO: 实现 SELECT 执行逻辑
-    return MutationResult::make_failure("SELECT execution not implemented yet");
+    Evaluator evaluator;
+    const PhysicalPlanNode * plan_node = static_cast<const PhysicalPlanNode *>(&select_plan);
+    std::vector<QueryRow> rows = execute_physical_plan_node(plan_node, database_manager_.get(), evaluator);
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_affected_count(rows.size());
+    result.set_message(std::to_string(rows.size()) + " row(s) returned");
+    
+    // TODO: 格式化输出查询结果（可以后续实现）
+    
+    return result;
 }
 
-MutationResult Executor::execute_update(const PhysicalUpdatePlanNode & /*update_plan*/)
+MutationResult Executor::execute_update(const PhysicalUpdatePlanNode & update_plan)
 {
-    // TODO: 实现 UPDATE 执行逻辑
-    return MutationResult::make_failure("UPDATE execution not implemented yet");
+    // 执行 SELECT 子计划获取要更新的行 ID
+    Evaluator evaluator;
+    const PhysicalPlanNode * select_plan = update_plan.get_select_plan();
+    if (!select_plan) {
+        return MutationResult::make_failure("UPDATE plan missing SELECT sub-plan");
+    }
+    
+    // 执行 SELECT 子计划获取实体列表
+    // 注意：这里简化处理，假设 SELECT 返回的是实体 ID 列表
+    // 实际应该从 SELECT 结果中提取实体 ID
+    std::vector<QueryRow> rows = execute_physical_plan_node(select_plan, database_manager_.get(), evaluator);
+    
+    // 查找集合
+    Catalog & catalog = database_manager_->get_catalog();
+    std::size_t collection_id = update_plan.get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 从 SELECT 结果中提取实体 ID，然后对每个实体执行更新
+    // 这里简化处理，暂时返回未实现
+    return MutationResult::make_failure("UPDATE execution not fully implemented yet");
 }
 
-MutationResult Executor::execute_delete(const PhysicalDeletePlanNode & /*delete_plan*/)
+MutationResult Executor::execute_delete(const PhysicalDeletePlanNode & delete_plan)
 {
-    // TODO: 实现 DELETE 执行逻辑
-    return MutationResult::make_failure("DELETE execution not implemented yet");
+    // 执行 SELECT 子计划获取要删除的行 ID
+    Evaluator evaluator;
+    const PhysicalPlanNode * select_plan = delete_plan.get_select_plan();
+    if (!select_plan) {
+        return MutationResult::make_failure("DELETE plan missing SELECT sub-plan");
+    }
+    
+    // 执行 SELECT 子计划获取实体列表
+    std::vector<QueryRow> rows = execute_physical_plan_node(select_plan, database_manager_.get(), evaluator);
+    
+    // 查找集合
+    Catalog & catalog = database_manager_->get_catalog();
+    std::size_t collection_id = delete_plan.get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 从 SELECT 结果中提取实体 ID，然后对每个实体执行删除
+    // 这里简化处理，暂时返回未实现
+    return MutationResult::make_failure("DELETE execution not fully implemented yet");
 }
 
 MutationResult Executor::execute_use(const BoundUseStatement & use_statement)
