@@ -5,13 +5,13 @@
 
 #include "dreamdb/parser/ast/ast_node.h"
 
-namespace dreamdb
+namespace dreamdb::parser::ast
 {
 
 /**
- * @brief 表达式节点类型
+ * @brief Ast 表达式类型
  */
-enum class AstExpressionNodeType : std::uint8_t
+enum class AstExpressionType : std::uint8_t
 {
     AST_EXPRESSION_LITERAL,           // 字面量表达式
     AST_EXPRESSION_COLUMN_REFERENCE,  // 列引用表达式
@@ -30,31 +30,31 @@ enum class AstExpressionNodeType : std::uint8_t
  * @brief 表达式节点基类
  * @details 每个具体的表达式节点都继承自此类
  */
-class AstExpressionNode : public AstNode
+class AstExpression : public AstNode
 {
 protected:
-    AstExpressionNode(AstExpressionNodeType expression_type, std::size_t line = 0, std::size_t column = 0) noexcept;
+    AstExpression(AstExpressionType expression_type, std::size_t line = 0, std::size_t column = 0) noexcept;
 
 public:
-    AstExpressionNode(const AstExpressionNode &) = delete;
+    AstExpression(const AstExpression &) = delete;
 
-    AstExpressionNode(AstExpressionNode &&) noexcept = default;
+    AstExpression(AstExpression &&) noexcept = default;
 
-    AstExpressionNode & operator=(const AstExpressionNode &) = delete;
+    AstExpression & operator=(const AstExpression &) = delete;
 
-    AstExpressionNode & operator=(AstExpressionNode &&) noexcept = default;
+    AstExpression & operator=(AstExpression &&) noexcept = default;
 
-    ~AstExpressionNode() noexcept override = default;
+    ~AstExpression() noexcept override = default;
 
 public:
     /**
      * @brief 获取表达式节点类型
      * @return 表达式节点类型
      */
-    AstExpressionNodeType get_expression_type() const noexcept;
+    AstExpressionType type() const noexcept;
 
 private:
-    AstExpressionNodeType expression_type_;    // 表达式节点类型
+    AstExpressionType type_;    // Ast 表达式类型
 };
 
-} // namespace dreamdb
+} // namespace dreamdb::parser::ast
