@@ -6,12 +6,56 @@
 
 #include "dreamdb/schema/database_manager.h"
 #include "dreamdb/catalog/catalog.h"
+#include "dreamdb/catalog/catalog_database_entry.h"
+#include "dreamdb/catalog/catalog_collection_entry.h"
+#include "dreamdb/catalog/catalog_column_entry.h"
+#include "dreamdb/catalog/logical_type.h"
 
 namespace dreamdb
 {
 
 namespace
 {
+
+/**
+ * @brief 将 LogicalTypeId 转换为字符串
+ * @param type_id 逻辑类型 ID
+ * @return 类型字符串
+ */
+std::string logical_type_id_to_string(LogicalTypeId type_id)
+{
+    switch (type_id) {
+        case LogicalTypeId::LOGICAL_TYPE_BOOLEAN:
+            return "BOOLEAN";
+        case LogicalTypeId::LOGICAL_TYPE_INTEGER:
+            return "INTEGER";
+        case LogicalTypeId::LOGICAL_TYPE_FLOAT:
+            return "FLOAT";
+        case LogicalTypeId::LOGICAL_TYPE_STRING:
+            return "STRING";
+        case LogicalTypeId::LOGICAL_TYPE_VECTOR:
+            return "VECTOR";
+        case LogicalTypeId::LOGICAL_TYPE_NULL:
+            return "NULL";
+        case LogicalTypeId::LOGICAL_TYPE_INVALID:
+        default:
+            return "INVALID";
+    }
+}
+
+/**
+ * @brief 将 LogicalType 转换为字符串
+ * @param logical_type 逻辑类型
+ * @return 类型字符串
+ */
+std::string logical_type_to_string(const LogicalType & logical_type)
+{
+    std::string type_str = logical_type_id_to_string(logical_type.id);
+    if (logical_type.id == LogicalTypeId::LOGICAL_TYPE_VECTOR && logical_type.width > 0) {
+        type_str += "(" + std::to_string(logical_type.width) + ")";
+    }
+    return type_str;
+}
 
 /**
  * @brief 格式化表格输出
@@ -169,10 +213,111 @@ MutationResult Executor::execute_alter(const BoundAlterStatement & /*alter_state
     return MutationResult::make_failure("ALTER execution not implemented yet");
 }
 
-MutationResult Executor::execute_describe(const BoundDescribeStatement & /*describe_statement*/)
+MutationResult Executor::execute_describe(const BoundDescribeStatement & describe_statement)
 {
-    // TODO: 实现 DESCRIBE 执行逻辑
-    return MutationResult::make_failure("DESCRIBE execution not implemented yet");
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的集合条目
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == describe_statement.collection_id) {
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取所有列信息
+    std::vector<std::string> column_names = collection_entry->get_column_names();
+    
+    // 计算各列的宽度
+    std::size_t field_width = std::max(static_cast<std::size_t>(5), std::string("Field").size());
+    std::size_t type_width = std::max(static_cast<std::size_t>(4), std::string("Type").size());
+    std::size_t null_width = std::max(static_cast<std::size_t>(4), std::string("Null").size());
+    
+    // 收集所有列的数据
+    struct ColumnInfo
+    {
+        std::string field;
+        std::string type;
+        std::string null;
+    };
+    
+    std::vector<ColumnInfo> columns;
+    columns.reserve(column_names.size());
+    
+    for (const auto & column_name : column_names) {
+        const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_name);
+        if (!column_entry) {
+            continue;
+        }
+        
+        ColumnInfo info;
+        info.field = column_name;
+        info.type = logical_type_to_string(column_entry->logical_type());
+        info.null = column_entry->logical_type().nullable ? "YES" : "NO";
+        
+        field_width = std::max(field_width, info.field.size());
+        type_width = std::max(type_width, info.type.size());
+        null_width = std::max(null_width, info.null.size());
+        
+        columns.push_back(std::move(info));
+    }
+    
+    // 格式化输出
+    std::ostringstream oss;
+    
+    // 顶部边框
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    // 表头
+    oss << "| " << std::setw(static_cast<int>(field_width)) << std::left << "Field"
+        << " | " << std::setw(static_cast<int>(type_width)) << std::left << "Type"
+        << " | " << std::setw(static_cast<int>(null_width)) << std::left << "Null"
+        << " |\n";
+    
+    // 分隔线
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    // 数据行
+    for (const auto & col : columns) {
+        oss << "| " << std::setw(static_cast<int>(field_width)) << std::left << col.field
+            << " | " << std::setw(static_cast<int>(type_width)) << std::left << col.type
+            << " | " << std::setw(static_cast<int>(null_width)) << std::left << col.null
+            << " |\n";
+    }
+    
+    // 底部边框
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message(oss.str());
+    return result;
 }
 
 MutationResult Executor::execute_show(const BoundShowStatement & show_statement)
