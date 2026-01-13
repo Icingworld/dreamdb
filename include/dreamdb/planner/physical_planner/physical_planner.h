@@ -4,6 +4,9 @@
 
 #include "dreamdb/planner/physical_planner/physical_plan_node.h"
 #include "dreamdb/planner/logical_planner/logical_plan_node.h"
+#include "dreamdb/planner/logical_planner/select/logical_select_plan_node.h"
+#include "dreamdb/planner/logical_planner/update/logical_update_plan_node.h"
+#include "dreamdb/planner/logical_planner/delete/logical_delete_plan_node.h"
 #include "dreamdb/catalog/catalog.h"
 
 namespace dreamdb
@@ -44,21 +47,21 @@ private:
      * @param logical_node SELECT 逻辑计划节点
      * @return 物理计划节点
      */
-    std::unique_ptr<PhysicalPlanNode> plan_select(const LogicalPlanNode & logical_node) const;
+    std::unique_ptr<PhysicalPlanNode> plan_select(const LogicalSelectPlanNode & logical_node) const;
 
     /**
      * @brief 计划 UPDATE 逻辑节点
      * @param logical_node UPDATE 逻辑计划节点
      * @return 物理计划节点
      */
-    std::unique_ptr<PhysicalPlanNode> plan_update(const LogicalPlanNode & logical_node) const;
+    std::unique_ptr<PhysicalPlanNode> plan_update(const LogicalUpdatePlanNode & logical_node) const;
 
     /**
      * @brief 计划 DELETE 逻辑节点
      * @param logical_node DELETE 逻辑计划节点
      * @return 物理计划节点
      */
-    std::unique_ptr<PhysicalPlanNode> plan_delete(const LogicalPlanNode & logical_node) const;
+    std::unique_ptr<PhysicalPlanNode> plan_delete(const LogicalDeletePlanNode & logical_node) const;
 
 private:
     const Catalog & catalog_;  // Catalog 引用，用于获取元数据和索引信息

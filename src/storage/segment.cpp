@@ -64,9 +64,9 @@ std::unique_ptr<Entity> Segment::get_by_id(std::size_t id) const
     return storage_->get_by_id(id);
 }
 
-std::vector<std::unique_ptr<Entity>> Segment::query(const Query & query, const Collection * collection) const
+std::vector<std::unique_ptr<Entity>> Segment::get_all_entities() const
 {
-    return storage_->query(query, collection);
+    return storage_->get_all_entities();
 }
 
 std::size_t Segment::size() const noexcept

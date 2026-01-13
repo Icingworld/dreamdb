@@ -11,7 +11,6 @@
 #include "dreamdb/schema/field.h"
 #include "dreamdb/schema/entity.h"
 #include "dreamdb/common/mutation_result.h"
-#include "dreamdb/query/query.h"
 #include "dreamdb/schema/index_meta.h"
 #include "dreamdb/index/index_manager.h"
 #include "dreamdb/index/index_key_base.h"
@@ -115,11 +114,11 @@ public:
     MutationResult update(std::size_t id, std::vector<std::pair<std::size_t, FieldValue>> fields);
 
     /**
-     * @brief 查询实体
-     * @param query 查询条件
-     * @return 查询结果
+     * @brief 获取所有实体（用于全表扫描）
+     * @return 所有实体的列表
+     * @note 过滤、排序和限制由物理计划层处理
      */
-    std::vector<std::unique_ptr<Entity>> query(const Query & query) const;
+    std::vector<std::unique_ptr<Entity>> get_all_entities() const;
 
     /** 索引接口 */
 
@@ -259,36 +258,6 @@ private:
      */
     void rebuild_field_to_index_map();
 
-    /**
-     * @brief 从 WHERE 条件提取字段索引（内部辅助方法）
-     * @param where_clause WHERE 子句的 AST 节点
-     * @return 字段索引列表（按顺序）
-     * @details 仅支持简单的等值查询，如 id = 1, name = 'test' 等
-     */
-    std::vector<std::size_t> extract_fields_from_where(const AstNode* where_clause) const;
-
-    /**
-     * @brief 从 WHERE 条件构建索引键（内部辅助方法）
-     * @param where_clause WHERE 子句的 AST 节点
-     * @param index_meta 索引元数据
-     * @return 索引键，如果无法构建则返回 nullptr
-     * @details 仅支持简单的等值查询，如 id = 1, name = 'test' 等
-     */
-    std::unique_ptr<IndexKey> build_index_key_from_where(
-        const AstNode* where_clause,
-        const IndexMeta& index_meta
-    ) const;
-
-    /**
-     * @brief 使用索引执行查询（内部辅助方法）
-     * @param query 查询对象
-     * @param index_meta 索引元数据
-     * @return 查询结果
-     */
-    std::vector<std::unique_ptr<Entity>> query_using_index(
-        const Query& query,
-        const IndexMeta* index_meta
-    ) const;
     std::string name_;                                  // 集合名称
     std::vector<Field> schema_;                         // 字段定义列表
     std::unordered_map<std::string, std::size_t> field_index_map_; // 字段索引映射

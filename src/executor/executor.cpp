@@ -3,1469 +3,2164 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
-#include "dreamdb/common/decimal.h"
-#include "dreamdb/common/null.h"
-#include <sstream>
-#include <iomanip>
 
-#include "dreamdb/parser/ast/select_stmt.h"
-#include "dreamdb/parser/ast/delete_stmt.h"
-#include "dreamdb/parser/ast/insert_stmt.h"
-#include "dreamdb/parser/ast/update_stmt.h"
-#include "dreamdb/parser/ast/create_stmt.h"
-#include "dreamdb/parser/ast/drop_stmt.h"
-#include "dreamdb/parser/ast/use_stmt.h"
-#include "dreamdb/parser/ast/describe_stmt.h"
-#include "dreamdb/parser/ast/show_stmt.h"
-#include "dreamdb/parser/ast/alter_stmt.h"
+#include "dreamdb/schema/database_manager.h"
 #include "dreamdb/schema/database.h"
 #include "dreamdb/schema/collection.h"
-#include "dreamdb/parser/ast/literal_expr.h"
-#include "dreamdb/parser/ast/identifier_expr.h"
-#include "dreamdb/query/query.h"
-#include "dreamdb/query/order.h"
-#include "dreamdb/query/limit.h"
+#include "dreamdb/schema/index_meta.h"
+#include "dreamdb/schema/field.h"
+#include "dreamdb/schema/entity.h"
+#include "dreamdb/catalog/catalog.h"
+#include "dreamdb/catalog/catalog_database_entry.h"
+#include "dreamdb/catalog/catalog_collection_entry.h"
+#include "dreamdb/catalog/catalog_column_entry.h"
+#include "dreamdb/catalog/catalog_index_entry.h"
+#include "dreamdb/catalog/catalog_vindex_entry.h"
+#include "dreamdb/catalog/logical_type.h"
+#include "dreamdb/common/type.h"
+#include "dreamdb/expression/constant_expression.h"
+#include "dreamdb/expression/column_reference_expression.h"
+#include "dreamdb/expression/binary_expression.h"
 #include "dreamdb/evaluator/evaluator.h"
 #include "dreamdb/evaluator/evaluator_context.h"
+#include "dreamdb/planner/physical_planner/select/physical_seq_scan_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_filter_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_project_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_aggregate_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_sort_node.h"
+#include "dreamdb/planner/physical_planner/select/physical_limit_offset_node.h"
+#include "dreamdb/expression/function_expression.h"
+#include <unordered_map>
 
 namespace dreamdb
 {
 
-ExecutorResult::ExecutorResult()
-    : is_success_(false)
-    , message_()
-    , affected_count_(0)
-    , rows_()
+namespace
 {
+
+/**
+ * @brief 将 LogicalTypeId 转换为字符串
+ * @param type_id 逻辑类型 ID
+ * @return 类型字符串
+ */
+std::string logical_type_id_to_string(LogicalTypeId type_id)
+{
+    switch (type_id) {
+        case LogicalTypeId::LOGICAL_TYPE_BOOLEAN:
+            return "BOOLEAN";
+        case LogicalTypeId::LOGICAL_TYPE_INTEGER:
+            return "INTEGER";
+        case LogicalTypeId::LOGICAL_TYPE_FLOAT:
+            return "FLOAT";
+        case LogicalTypeId::LOGICAL_TYPE_STRING:
+            return "STRING";
+        case LogicalTypeId::LOGICAL_TYPE_VECTOR:
+            return "VECTOR";
+        case LogicalTypeId::LOGICAL_TYPE_NULL:
+            return "NULL";
+        case LogicalTypeId::LOGICAL_TYPE_INVALID:
+        default:
+            return "INVALID";
+    }
 }
 
-void ExecutorResult::set_is_success(bool is_success) noexcept
+/**
+ * @brief 将 LogicalType 转换为字符串
+ * @param logical_type 逻辑类型
+ * @return 类型字符串
+ */
+std::string logical_type_to_string(const LogicalType & logical_type)
 {
-    is_success_ = is_success;
+    std::string type_str = logical_type_id_to_string(logical_type.id);
+    if (logical_type.id == LogicalTypeId::LOGICAL_TYPE_VECTOR && logical_type.width > 0) {
+        type_str += "(" + std::to_string(logical_type.width) + ")";
+    }
+    return type_str;
 }
 
-void ExecutorResult::set_message(const std::string & message)
+/**
+ * @brief 将 FieldType 转换为 LogicalTypeId
+ * @param field_type 字段类型
+ * @return 逻辑类型 ID
+ */
+LogicalTypeId field_type_to_logical_type_id(FieldType field_type)
 {
-    message_ = message;
+    switch (field_type) {
+        case FieldType::BOOLEAN:
+            return LogicalTypeId::LOGICAL_TYPE_BOOLEAN;
+        case FieldType::TINYINT:
+        case FieldType::SMALLINT:
+        case FieldType::INTEGER:
+        case FieldType::BIGINT:
+        case FieldType::TIMESTAMP:
+            return LogicalTypeId::LOGICAL_TYPE_INTEGER;
+        case FieldType::FLOAT:
+        case FieldType::DOUBLE:
+        case FieldType::DECIMAL:
+            return LogicalTypeId::LOGICAL_TYPE_FLOAT;
+        case FieldType::CHAR:
+        case FieldType::VARCHAR:
+        case FieldType::ENUM:
+            return LogicalTypeId::LOGICAL_TYPE_STRING;
+        case FieldType::VECTOR:
+            return LogicalTypeId::LOGICAL_TYPE_VECTOR;
+        default:
+            return LogicalTypeId::LOGICAL_TYPE_INVALID;
+    }
 }
 
-void ExecutorResult::set_affected_count(std::size_t affected_count) noexcept
+/**
+ * @brief 将 Field 转换为 LogicalType
+ * @param field 字段定义
+ * @return 逻辑类型
+ */
+LogicalType field_to_logical_type(const Field & field)
 {
-    affected_count_ = affected_count;
+    LogicalType logical_type;
+    logical_type.id = field_type_to_logical_type_id(field.get_type());
+    logical_type.nullable = field.get_is_nullable();
+    
+    // 对于 VECTOR 类型，使用 length 作为 width（维度）
+    if (field.get_type() == FieldType::VECTOR) {
+        logical_type.width = static_cast<std::size_t>(field.get_length());
+    }
+    else {
+        logical_type.width = 0;
+    }
+    
+    return logical_type;
 }
 
-void ExecutorResult::add_row(Entity && entity)
+/**
+ * @brief 评估表达式获取字段值（用于 INSERT）
+ * @param expr 表达式
+ * @return 字段值，如果评估失败返回 std::nullopt
+ */
+std::optional<FieldValue> evaluate_expression_for_insert(const Expression * expr)
 {
-    rows_->emplace_back(std::move(entity));
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    // 对于常量表达式，直接获取值
+    if (expr->get_type() == ExpressionType::EXPRESSION_CONSTANT) {
+        const auto * const_expr = static_cast<const ConstantExpression *>(expr);
+        return const_expr->get_field_value();
+    }
+    
+    // 对于其他表达式，需要使用 Evaluator
+    // 但 INSERT 语句中的值应该是常量，所以这里简化处理
+    // 如果遇到非常量表达式，返回错误
+    return std::nullopt;
 }
 
-bool ExecutorResult::get_is_success() const noexcept
+/**
+ * @brief 查询结果行（用于 SELECT）
+ */
+struct QueryRow
 {
-    return is_success_;
+    std::vector<FieldValue> values;  // 行的值列表
+    std::size_t entity_id = 0;       // 实体 ID（用于 UPDATE/DELETE）
+};
+
+/**
+ * @brief 评估表达式获取字段值（用于 Filter 和 Project）
+ * @param expr 表达式
+ * @param row 当前行的值
+ * @return 字段值，如果评估失败返回 std::nullopt
+ */
+std::optional<FieldValue> evaluate_expression_for_row(
+    const Expression * expr,
+    const QueryRow & row
+)
+{
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    switch (expr->get_type()) {
+        case ExpressionType::EXPRESSION_CONSTANT: {
+            const auto * const_expr = static_cast<const ConstantExpression *>(expr);
+            return const_expr->get_field_value();
+        }
+        case ExpressionType::EXPRESSION_COLUMN_REFERENCE: {
+            const auto * col_expr = static_cast<const ColumnReferenceExpression *>(expr);
+            std::size_t field_index = col_expr->get_field_index();
+            if (field_index < row.values.size()) {
+                return row.values[field_index];
+            }
+            return std::nullopt;
+        }
+        default:
+            // 其他表达式类型（如二元表达式）在 evaluate_condition_for_row 中处理
+            return std::nullopt;
+    }
 }
 
-const std::string & ExecutorResult::get_message() const noexcept
+/**
+ * @brief 简单比较两个 FieldValue（简化实现）
+ * @param left 左值
+ * @param right 右值
+ * @return 比较结果：-1 (left < right), 0 (left == right), 1 (left > right)，如果类型不兼容返回 std::nullopt
+ */
+std::optional<int> simple_compare_values(const FieldValue & left, const FieldValue & right)
 {
-    return message_;
+    // 简化实现：只支持相同类型的比较
+    if (left.index() != right.index()) {
+        return std::nullopt;
+    }
+    
+    // 使用 variant 的索引来判断类型并比较
+    switch (left.index()) {
+        case 0: { // std::int8_t
+            return std::get<std::int8_t>(left) < std::get<std::int8_t>(right) ? -1 :
+                   std::get<std::int8_t>(left) > std::get<std::int8_t>(right) ? 1 : 0;
+        }
+        case 1: { // std::int16_t
+            return std::get<std::int16_t>(left) < std::get<std::int16_t>(right) ? -1 :
+                   std::get<std::int16_t>(left) > std::get<std::int16_t>(right) ? 1 : 0;
+        }
+        case 2: { // std::int32_t
+            return std::get<std::int32_t>(left) < std::get<std::int32_t>(right) ? -1 :
+                   std::get<std::int32_t>(left) > std::get<std::int32_t>(right) ? 1 : 0;
+        }
+        case 3: { // std::int64_t
+            return std::get<std::int64_t>(left) < std::get<std::int64_t>(right) ? -1 :
+                   std::get<std::int64_t>(left) > std::get<std::int64_t>(right) ? 1 : 0;
+        }
+        case 4: { // float
+            float l = std::get<float>(left);
+            float r = std::get<float>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 5: { // double
+            double l = std::get<double>(left);
+            double r = std::get<double>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 7: { // std::string
+            const std::string & l = std::get<std::string>(left);
+            const std::string & r = std::get<std::string>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        case 8: { // bool
+            bool l = std::get<bool>(left);
+            bool r = std::get<bool>(right);
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
+        default:
+            // 其他类型（Decimal, VECTOR, Null）暂不支持比较
+            return std::nullopt;
+    }
 }
 
-std::size_t ExecutorResult::get_affected_count() const noexcept
+/**
+ * @brief 评估条件表达式（用于 Filter）
+ * @param expr 表达式
+ * @param row 当前行的值
+ * @param evaluator 评估器（用于比较值）
+ * @return 布尔值，如果评估失败返回 std::nullopt
+ */
+std::optional<bool> evaluate_condition_for_row(
+    const Expression * expr,
+    const QueryRow & row,
+    const Evaluator & evaluator
+)
 {
-    return affected_count_.value();
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    // 对于二元表达式，尝试评估为布尔值
+    if (expr->get_type() == ExpressionType::EXPRESSION_BINARY) {
+        const auto * bin_expr = static_cast<const BinaryExpression *>(expr);
+        BinaryOperatorType op = bin_expr->get_operator_type();
+        
+        auto left_val = evaluate_expression_for_row(&bin_expr->get_left(), row);
+        auto right_val = evaluate_expression_for_row(&bin_expr->get_right(), row);
+        
+        if (!left_val.has_value() || !right_val.has_value()) {
+            return std::nullopt;
+        }
+        
+        // 使用简单比较函数
+        auto compare_result = simple_compare_values(left_val.value(), right_val.value());
+        
+        if (!compare_result.has_value()) {
+            return std::nullopt;
+        }
+        
+        int cmp = compare_result.value();
+        
+        switch (op) {
+            case BinaryOperatorType::EXPRESSION_EQUAL:
+                return (cmp == 0);
+            case BinaryOperatorType::EXPRESSION_NOT_EQUAL:
+                return (cmp != 0);
+            case BinaryOperatorType::EXPRESSION_GREATER_THAN:
+                return (cmp > 0);
+            case BinaryOperatorType::EXPRESSION_GREATER_EQUAL:
+                return (cmp >= 0);
+            case BinaryOperatorType::EXPRESSION_LESS_THAN:
+                return (cmp < 0);
+            case BinaryOperatorType::EXPRESSION_LESS_EQUAL:
+                return (cmp <= 0);
+            case BinaryOperatorType::EXPRESSION_AND: {
+                // 对于 AND，递归评估两个操作数
+                auto left_bool = evaluate_condition_for_row(&bin_expr->get_left(), row, evaluator);
+                auto right_bool = evaluate_condition_for_row(&bin_expr->get_right(), row, evaluator);
+                if (left_bool.has_value() && right_bool.has_value()) {
+                    return left_bool.value() && right_bool.value();
+                }
+                return std::nullopt;
+            }
+            case BinaryOperatorType::EXPRESSION_OR: {
+                // 对于 OR，递归评估两个操作数
+                auto left_bool = evaluate_condition_for_row(&bin_expr->get_left(), row, evaluator);
+                auto right_bool = evaluate_condition_for_row(&bin_expr->get_right(), row, evaluator);
+                if (left_bool.has_value() && right_bool.has_value()) {
+                    return left_bool.value() || right_bool.value();
+                }
+                return std::nullopt;
+            }
+            default:
+                return std::nullopt;
+        }
+    }
+    
+    return std::nullopt;
 }
 
-std::size_t ExecutorResult::get_row_count() const noexcept
+// 前向声明
+std::vector<QueryRow> execute_physical_plan_node(
+    const PhysicalPlanNode * plan_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_select_plan_node(
+    const PhysicalSelectPlanNode * select_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_seq_scan(
+    const PhysicalSeqScanNode * scan_node,
+    DatabaseManager * database_manager
+);
+
+std::vector<QueryRow> execute_filter(
+    const PhysicalFilterNode * filter_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_project(
+    const PhysicalProjectNode * project_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_aggregate(
+    const PhysicalAggregateNode * aggregate_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_sort(
+    const PhysicalSortNode * sort_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+std::vector<QueryRow> execute_limit_offset(
+    const PhysicalLimitOffsetNode * limit_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+);
+
+/**
+ * @brief 格式化表格输出
+ * @param column_name 列名
+ * @param rows 行数据
+ * @return 格式化后的字符串
+ */
+std::string format_table(const std::string & column_name, const std::vector<std::string> & rows)
 {
-    return rows_->size();
+    if (rows.empty()) {
+        // 空表
+        std::size_t width = std::max(column_name.size(), static_cast<std::size_t>(8));
+        std::ostringstream oss;
+        oss << "+" << std::string(width + 2, '-') << "+\n";
+        oss << "| " << std::setw(static_cast<int>(width)) << std::left << column_name << " |\n";
+        oss << "+" << std::string(width + 2, '-') << "+\n";
+        return oss.str();
+    }
+
+    // 计算列宽（列名和所有行的最大宽度）
+    std::size_t width = column_name.size();
+    for (const auto & row : rows) {
+        width = std::max(width, row.size());
+    }
+    // 最小宽度为 8
+    width = std::max(width, static_cast<std::size_t>(8));
+
+    std::ostringstream oss;
+    
+    // 顶部边框
+    oss << "+" << std::string(width + 2, '-') << "+\n";
+    
+    // 表头
+    oss << "| " << std::setw(static_cast<int>(width)) << std::left << column_name << " |\n";
+    
+    // 分隔线
+    oss << "+" << std::string(width + 2, '-') << "+\n";
+    
+    // 数据行
+    for (const auto & row : rows) {
+        oss << "| " << std::setw(static_cast<int>(width)) << std::left << row << " |\n";
+    }
+    
+    // 底部边框
+    oss << "+" << std::string(width + 2, '-') << "+\n";
+    
+    return oss.str();
 }
 
-const std::vector<Entity> & ExecutorResult::get_rows() const noexcept
+/**
+ * @brief 执行物理计划节点并返回查询结果（实现）
+ */
+std::vector<QueryRow> execute_physical_plan_node(
+    const PhysicalPlanNode * plan_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
 {
-    return rows_.value();
+    if (!plan_node) {
+        return {};
+    }
+    
+    // 根据操作类型分发
+    switch (plan_node->get_operation_type()) {
+        case PhysicalPlanNodeOperationType::PHYSICAL_PLAN_SELECT: {
+            const auto * select_node = static_cast<const PhysicalSelectPlanNode *>(plan_node);
+            return execute_select_plan_node(select_node, database_manager, evaluator);
+        }
+        default:
+            return {};
+    }
 }
+
+/**
+ * @brief 执行 SELECT 物理计划节点
+ */
+std::vector<QueryRow> execute_select_plan_node(
+    const PhysicalSelectPlanNode * select_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!select_node) {
+        return {};
+    }
+    
+    switch (select_node->get_operator_type()) {
+        case PhysicalSelectOperatorType::SELECT_SEQ_SCAN: {
+            const auto * scan_node = static_cast<const PhysicalSeqScanNode *>(select_node);
+            return execute_seq_scan(scan_node, database_manager);
+        }
+        case PhysicalSelectOperatorType::SELECT_FILTER: {
+            const auto * filter_node = static_cast<const PhysicalFilterNode *>(select_node);
+            return execute_filter(filter_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_PROJECT: {
+            const auto * project_node = static_cast<const PhysicalProjectNode *>(select_node);
+            return execute_project(project_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_AGGREGATE: {
+            const auto * aggregate_node = static_cast<const PhysicalAggregateNode *>(select_node);
+            return execute_aggregate(aggregate_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_SORT: {
+            const auto * sort_node = static_cast<const PhysicalSortNode *>(select_node);
+            return execute_sort(sort_node, database_manager, evaluator);
+        }
+        case PhysicalSelectOperatorType::SELECT_LIMIT_OFFSET: {
+            const auto * limit_node = static_cast<const PhysicalLimitOffsetNode *>(select_node);
+            return execute_limit_offset(limit_node, database_manager, evaluator);
+        }
+        default:
+            return {};
+    }
+}
+
+/**
+ * @brief 执行全表扫描
+ */
+std::vector<QueryRow> execute_seq_scan(
+    const PhysicalSeqScanNode * scan_node,
+    DatabaseManager * database_manager
+)
+{
+    if (!scan_node || !database_manager) {
+        return {};
+    }
+    
+    // 查找集合
+    Catalog & catalog = database_manager->get_catalog();
+    std::size_t collection_id = scan_node->get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return {};
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return {};
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return {};
+    }
+    
+    // 获取所有实体（全表扫描）
+    std::vector<std::unique_ptr<Entity>> entities = collection->get_all_entities();
+    
+    // 转换为 QueryRow
+    std::vector<QueryRow> rows;
+    const std::vector<std::size_t> & field_indexes = scan_node->get_field_indexes();
+    
+    for (const auto & entity : entities) {
+        QueryRow row;
+        if (field_indexes.empty()) {
+            // 如果没有指定字段，返回所有字段
+            for (std::size_t i = 0; i < entity->field_count(); ++i) {
+                row.values.push_back(entity->get_value(i));
+            }
+        } else {
+            // 返回指定字段
+            for (std::size_t field_index : field_indexes) {
+                if (field_index < entity->field_count()) {
+                    row.values.push_back(entity->get_value(field_index));
+                }
+            }
+        }
+        rows.push_back(std::move(row));
+    }
+    
+    return rows;
+}
+
+/**
+ * @brief 执行过滤操作
+ */
+std::vector<QueryRow> execute_filter(
+    const PhysicalFilterNode * filter_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!filter_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点（应该是扫描节点）
+    const auto & children = filter_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 获取集合信息用于评估表达式
+    // 这里简化处理，假设子节点是扫描节点
+    Collection * collection = nullptr;
+    // TODO: 从子节点获取集合信息用于表达式评估
+    // Catalog & catalog = database_manager->get_catalog();
+    // Database * database = database_manager->get_current_database();
+    
+    if (!collection) {
+        // 如果无法获取集合，跳过过滤（简化处理）
+        return input_rows;
+    }
+    
+    // 评估谓词并过滤
+    std::vector<QueryRow> filtered_rows;
+    const Expression & predicate = filter_node->get_predicate();
+    
+    for (const auto & row : input_rows) {
+        // 评估条件表达式
+        auto condition_result = evaluate_condition_for_row(&predicate, row, evaluator);
+        
+        // 如果条件为 true，保留该行
+        if (condition_result.has_value() && condition_result.value()) {
+            filtered_rows.push_back(row);
+        }
+    }
+    
+    return filtered_rows;
+}
+
+/**
+ * @brief 执行投影操作
+ */
+std::vector<QueryRow> execute_project(
+    const PhysicalProjectNode * project_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!project_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = project_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 执行投影
+    std::vector<QueryRow> projected_rows;
+    const auto & project_items = project_node->get_project_items();
+    
+    for (const auto & input_row : input_rows) {
+        QueryRow projected_row;
+        
+        // 评估每个投影表达式
+        for (const auto & item : project_items) {
+            auto value = evaluate_expression_for_row(item.expression.get(), input_row);
+            if (value.has_value()) {
+                projected_row.values.push_back(value.value());
+            } else {
+                // 如果评估失败，添加 NULL 值
+                projected_row.values.push_back(Null{});
+            }
+        }
+        
+        // 保留实体 ID（用于后续操作）
+        projected_row.entity_id = input_row.entity_id;
+        
+        projected_rows.push_back(std::move(projected_row));
+    }
+    
+    return projected_rows;
+}
+
+/**
+ * @brief 执行聚合操作
+ */
+std::vector<QueryRow> execute_aggregate(
+    const PhysicalAggregateNode * aggregate_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!aggregate_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = aggregate_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // TODO: 实现聚合逻辑
+    // 简化处理：返回空结果
+    return {};
+}
+
+/**
+ * @brief 执行排序操作
+ */
+std::vector<QueryRow> execute_sort(
+    const PhysicalSortNode * sort_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!sort_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = sort_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // TODO: 实现排序逻辑
+    // 简化处理：返回输入行（不排序）
+    return input_rows;
+}
+
+/**
+ * @brief 执行限制和偏移操作
+ */
+std::vector<QueryRow> execute_limit_offset(
+    const PhysicalLimitOffsetNode * limit_node,
+    DatabaseManager * database_manager,
+    const Evaluator & evaluator
+)
+{
+    if (!limit_node || !database_manager) {
+        return {};
+    }
+    
+    // 执行子节点
+    const auto & children = limit_node->get_children();
+    if (children.empty()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> input_rows = execute_physical_plan_node(
+        static_cast<const PhysicalPlanNode *>(children[0].get()),
+        database_manager,
+        evaluator
+    );
+    
+    // 应用偏移
+    std::size_t offset = limit_node->get_offset().value_or(0);
+    if (offset >= input_rows.size()) {
+        return {};
+    }
+    
+    std::vector<QueryRow> result(input_rows.begin() + offset, input_rows.end());
+    
+    // 应用限制
+    if (limit_node->get_limit().has_value()) {
+        std::size_t limit = limit_node->get_limit().value();
+        if (limit < result.size()) {
+            result.resize(limit);
+        }
+    }
+    
+    return result;
+}
+
+} // anonymous namespace
 
 Executor::Executor(std::unique_ptr<DatabaseManager> database_manager)
     : database_manager_(std::move(database_manager))
 {
 }
 
-Executor::~Executor() = default;
-
-ExecutorResult Executor::execute(const AstNode & ast)
+const Catalog & Executor::get_catalog() const noexcept
 {
-    // 根据不同语句类型执行不同操作
-    switch (ast.get_type()) {
-        case AstNodeType::SELECT_STMT:
-            return execute_select(static_cast<const SelectStmt &>(ast));
-        case AstNodeType::DELETE_STMT:
-            return execute_delete(static_cast<const DeleteStmt &>(ast));
-        case AstNodeType::INSERT_STMT:
-            return execute_insert(static_cast<const InsertStmt &>(ast));
-        case AstNodeType::UPDATE_STMT:
-            return execute_update(static_cast<const UpdateStmt &>(ast));
-        case AstNodeType::CREATE_STMT:
-            return execute_create(static_cast<const CreateStmt &>(ast));
-        case AstNodeType::DROP_STMT:
-            return execute_drop(static_cast<const DropStmt &>(ast));
-        case AstNodeType::USE_STMT:
-            return execute_use(static_cast<const UseStmt &>(ast));
-        case AstNodeType::DESCRIBE_STMT:
-            return execute_describe(static_cast<const DescribeStmt &>(ast));
-        case AstNodeType::SHOW_STMT:
-            return execute_show(static_cast<const ShowStmt &>(ast));
-        case AstNodeType::ALTER_STMT:
-            return execute_alter(static_cast<const AlterStmt &>(ast));
-        default: {
-            ExecutorResult result;
-            result.set_is_success(false);
-            result.set_message("Unsupported AST node type: " + ast.debug_string());
-            return result;
-        }
+    return database_manager_->get_catalog();
+}
+
+Catalog & Executor::get_catalog() noexcept
+{
+    return database_manager_->get_catalog();
+}
+
+std::string Executor::get_current_database_name() const
+{
+    Database * current_db = database_manager_->get_current_database();
+    if (current_db) {
+        return current_db->get_name();
+    }
+    return "";
+}
+
+MutationResult Executor::execute(const PhysicalPlanNode & physical_plan)
+{
+    switch (physical_plan.get_operation_type())
+    {
+        case PhysicalPlanNodeOperationType::PHYSICAL_PLAN_SELECT:
+            return execute_select(static_cast<const PhysicalSelectPlanNode &>(physical_plan));
+        case PhysicalPlanNodeOperationType::PHYSICAL_PLAN_UPDATE:
+            return execute_update(static_cast<const PhysicalUpdatePlanNode &>(physical_plan));
+        case PhysicalPlanNodeOperationType::PHYSICAL_PLAN_DELETE:
+            return execute_delete(static_cast<const PhysicalDeletePlanNode &>(physical_plan));
+        default:
+            return MutationResult::make_failure("Unsupported physical plan operation type");
     }
 }
 
-/**
- * @brief 将 FieldValue 转换为字符串表示
- * @param value 字段值
- * @return 字符串表示
- */
-static std::string field_value_to_string(const FieldValue & value)
+MutationResult Executor::execute(const BoundStatement & bound_statement)
 {
-    if (std::holds_alternative<Null>(value)) {
-        return "NULL";
-    } else if (std::holds_alternative<std::int8_t>(value)) {
-        return std::to_string(std::get<std::int8_t>(value));
-    } else if (std::holds_alternative<std::int16_t>(value)) {
-        return std::to_string(std::get<std::int16_t>(value));
-    } else if (std::holds_alternative<std::int32_t>(value)) {
-        return std::to_string(std::get<std::int32_t>(value));
-    } else if (std::holds_alternative<std::int64_t>(value)) {
-        return std::to_string(std::get<std::int64_t>(value));
-    } else if (std::holds_alternative<float>(value)) {
-        return std::to_string(std::get<float>(value));
-    } else if (std::holds_alternative<double>(value)) {
-        return std::to_string(std::get<double>(value));
-    } else if (std::holds_alternative<Decimal>(value)) {
-        return std::get<Decimal>(value).to_string();
-    } else if (std::holds_alternative<std::string>(value)) {
-        return std::get<std::string>(value);
-    } else if (std::holds_alternative<bool>(value)) {
-        return std::get<bool>(value) ? "true" : "false";
-    } else if (std::holds_alternative<std::vector<float>>(value)) {
-        const auto & vec = std::get<std::vector<float>>(value);
-        std::ostringstream oss;
-        oss << "[";
-        for (std::size_t i = 0; i < vec.size(); ++i) {
-            if (i > 0) oss << ", ";
-            oss << vec[i];
-        }
-        oss << "]";
-        return oss.str();
+    switch (bound_statement.get_type()) {
+        case BoundStatementType::BINDER_BOUND_USE_STATEMENT:
+            return execute_use(static_cast<const BoundUseStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_CREATE_STATEMENT:
+            return execute_create(static_cast<const BoundCreateStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_DROP_STATEMENT:
+            return execute_drop(static_cast<const BoundDropStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_ALTER_STATEMENT:
+            return execute_alter(static_cast<const BoundAlterStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_DESCRIBE_STATEMENT:
+            return execute_describe(static_cast<const BoundDescribeStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_SHOW_STATEMENT:
+            return execute_show(static_cast<const BoundShowStatement &>(bound_statement));
+        case BoundStatementType::BINDER_BOUND_INSERT_STATEMENT:
+            return execute_insert(static_cast<const BoundInsertStatement &>(bound_statement));
+        default:
+            return MutationResult::make_failure("Unsupported bound statement type");
     }
-    return "<unknown>";
 }
 
-ExecutorResult Executor::execute_select(const SelectStmt & select_stmt)
+MutationResult Executor::execute_select(const PhysicalSelectPlanNode & select_plan)
 {
-    // 获取查询的集合名称
-    const std::string & collection_name = select_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 获取 SELECT 列表
-    const std::vector<SelectItem> & select_items = select_stmt.get_select_items();
-    if (select_items.empty()) {
-        result.set_is_success(false);
-        result.set_message("SELECT list is empty");
-        return result;
-    }
-
-    // 构造一个 Query
-    Query query;
-    // 设置 where 条件
-    const AstNode * where_clause = select_stmt.get_where_clause();
-    if (where_clause != nullptr) {
-        query.set_where_clause(where_clause);
-    }
-    // 设置 order by 条件（只支持第一个 ORDER BY 项）
-    const std::vector<OrderByItem> & order_by_items = select_stmt.get_order_by_items();
-    if (!order_by_items.empty()) {
-        const OrderByItem & first_order_item = order_by_items[0];
-        const AstNode * order_expr = first_order_item.get_expression();
-
-        // ORDER BY 表达式必须是标识符（列名）
-        if (order_expr != nullptr && order_expr->get_type() == AstNodeType::IDENTIFIER_EXPR) {
-            const IdentifierExpr * id_expr = static_cast<const IdentifierExpr *>(order_expr);
-            const std::string & column_name = id_expr->get_original_identifier();
-            std::optional<std::size_t> field_index = collection->get_field_index(column_name);
-            if (field_index.has_value()) {
-                if (field_index.value() <= 255) {
-                    Direction order_direction = first_order_item.get_order_type();
-                    query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_direction));
-                }
-            }
-        }
-    }
-    // 设置 limit 条件
-    const std::optional<std::size_t> & limit = select_stmt.get_limit();
-    if (limit.has_value()) {
-        query.set_limit(Limit(limit.value()));
-    }
-
-    // 执行查询，获取符合条件的实体
-    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
-
-    // 准备评估器
     Evaluator evaluator;
-    EvaluatorContext context;
-    context.set_collection(collection);
+    const PhysicalPlanNode * plan_node = static_cast<const PhysicalPlanNode *>(&select_plan);
+    std::vector<QueryRow> rows = execute_physical_plan_node(plan_node, database_manager_.get(), evaluator);
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_affected_count(rows.size());
+    result.set_message(std::to_string(rows.size()) + " row(s) returned");
+    
+    // TODO: 格式化输出查询结果（可以后续实现）
+    
+    return result;
+}
 
-    // 处理每个实体
-    for (const auto & entity : entities) {
-        context.set_entity(entity.get());
-
-        // 判断是否是 SELECT *
-        bool is_select_star = select_items.size() == 1 && 
-                              select_items[0].get_select_item_type() == SelectItem::SelectItemType::STAR;
-
-        Entity result_entity(0, is_select_star ? entity->field_count() : select_items.size());
-
-        if (is_select_star) {
-            // SELECT *: 直接复制所有字段
-            for (std::size_t i = 0; i < entity->field_count(); ++i) {
-                result_entity.set_value(i, entity->get_value(i));
-            }
-        } else {
-            // SELECT 表达式列表: 评估每个表达式
-
-            for (std::size_t i = 0; i < select_items.size(); ++i) {
-                const SelectItem & item = select_items[i];
-
-                if (item.get_select_item_type() == SelectItem::SelectItemType::EXPRESSION) {
-                    const AstNode * expr = item.get_select_item_expression();
-                    if (expr != nullptr) {
-                        // 评估表达式
-                        EvaluateResult eval_result = evaluator.evaluate(expr, context);
-                        if (eval_result.get_is_success()) {
-                            result_entity.set_value(i, eval_result.get_value());
-                        } else {
-                            result.set_is_success(false);
-                            result.set_message("Error evaluating expression: " + eval_result.get_error_message());
-                            return result;
-                        }
-                    } else {
-                        result_entity.set_value(i, Null());
-                    }
-                } else {
-                    // 不应该到达这里，因为已经检查了 SELECT *
-                    result.set_is_success(false);
-                    result.set_message("Invalid SELECT item type");
-                    return result;
-                }
+MutationResult Executor::execute_update(const PhysicalUpdatePlanNode & update_plan)
+{
+    // 执行 SELECT 子计划获取要更新的行 ID
+    Evaluator evaluator;
+    const PhysicalPlanNode * select_plan = update_plan.get_select_plan();
+    if (!select_plan) {
+        return MutationResult::make_failure("UPDATE plan missing SELECT sub-plan");
+    }
+    
+    // 执行 SELECT 子计划获取实体列表
+    // 注意：这里简化处理，假设 SELECT 返回的是实体 ID 列表
+    // 实际应该从 SELECT 结果中提取实体 ID
+    std::vector<QueryRow> rows = execute_physical_plan_node(select_plan, database_manager_.get(), evaluator);
+    
+    // 查找集合
+    Catalog & catalog = database_manager_->get_catalog();
+    std::size_t collection_id = update_plan.get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
             }
         }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 从 SELECT 结果中提取实体 ID，然后对每个实体执行更新
+    // 这里简化处理，暂时返回未实现
+    return MutationResult::make_failure("UPDATE execution not fully implemented yet");
+}
 
-        result.add_row(std::move(result_entity));
+MutationResult Executor::execute_delete(const PhysicalDeletePlanNode & delete_plan)
+{
+    // 执行 SELECT 子计划获取要删除的行 ID
+    Evaluator evaluator;
+    const PhysicalPlanNode * select_plan = delete_plan.get_select_plan();
+    if (!select_plan) {
+        return MutationResult::make_failure("DELETE plan missing SELECT sub-plan");
+    }
+    
+    // 执行 SELECT 子计划获取实体列表
+    std::vector<QueryRow> rows = execute_physical_plan_node(select_plan, database_manager_.get(), evaluator);
+    
+    // 查找集合
+    Catalog & catalog = database_manager_->get_catalog();
+    std::size_t collection_id = delete_plan.get_collection_id();
+    
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取集合对象
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 从 SELECT 结果中提取实体 ID，然后对每个实体执行删除
+    // 这里简化处理，暂时返回未实现
+    return MutationResult::make_failure("DELETE execution not fully implemented yet");
+}
+
+MutationResult Executor::execute_use(const BoundUseStatement & use_statement)
+{
+    database_manager_->set_current_database(use_statement.database_id);
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Database changed.");
+    return result;
+}
+
+MutationResult Executor::execute_create(const BoundCreateStatement & create_statement)
+{
+    if (std::holds_alternative<std::monostate>(create_statement.create_operation)) {
+        return MutationResult::make_failure("Invalid CREATE operation");
     }
 
-    // 格式化查询结果
+    if (std::holds_alternative<BoundCreateDatabase>(create_statement.create_operation)) {
+        const auto & op = std::get<BoundCreateDatabase>(create_statement.create_operation);
+        return execute_create_database(op.database_name, create_statement.if_not_exists);
+    }
+    else if (std::holds_alternative<BoundCreateCollection>(create_statement.create_operation)) {
+        const auto & op = std::get<BoundCreateCollection>(create_statement.create_operation);
+        return execute_create_collection(op.collection_name, op.column_definitions, create_statement.if_not_exists);
+    }
+    else if (std::holds_alternative<BoundCreateIndex>(create_statement.create_operation)) {
+        const auto & op = std::get<BoundCreateIndex>(create_statement.create_operation);
+        return execute_create_index(op.collection_id, op.index_name, op.column_ids, op.index_type, create_statement.if_not_exists);
+    }
+    else if (std::holds_alternative<BoundCreateVIndex>(create_statement.create_operation)) {
+        const auto & op = std::get<BoundCreateVIndex>(create_statement.create_operation);
+        return execute_create_vindex(op.collection_id, op.vindex_name, op.column_id, op.vindex_type, op.with_clauses, create_statement.if_not_exists);
+    }
+
+    return MutationResult::make_failure("Unsupported CREATE operation");
+}
+
+MutationResult Executor::execute_drop(const BoundDropStatement & drop_statement)
+{
+    if (std::holds_alternative<std::monostate>(drop_statement.drop_operation)) {
+        return MutationResult::make_failure("Invalid DROP operation");
+    }
+
+    if (std::holds_alternative<BoundDropDatabase>(drop_statement.drop_operation)) {
+        const auto & op = std::get<BoundDropDatabase>(drop_statement.drop_operation);
+        return execute_drop_database(op.database_id, drop_statement.if_exists);
+    }
+    else if (std::holds_alternative<BoundDropCollection>(drop_statement.drop_operation)) {
+        const auto & op = std::get<BoundDropCollection>(drop_statement.drop_operation);
+        return execute_drop_collection(op.collection_id, drop_statement.if_exists);
+    }
+    else if (std::holds_alternative<BoundDropIndex>(drop_statement.drop_operation)) {
+        const auto & op = std::get<BoundDropIndex>(drop_statement.drop_operation);
+        return execute_drop_index(op.collection_id, op.index_name, drop_statement.if_exists);
+    }
+    else if (std::holds_alternative<BoundDropVIndex>(drop_statement.drop_operation)) {
+        const auto & op = std::get<BoundDropVIndex>(drop_statement.drop_operation);
+        return execute_drop_vindex(op.collection_id, op.vindex_name, drop_statement.if_exists);
+    }
+
+    return MutationResult::make_failure("Unsupported DROP operation");
+}
+
+MutationResult Executor::execute_alter(const BoundAlterStatement & alter_statement)
+{
+    if (std::holds_alternative<std::monostate>(alter_statement.alter_operation)) {
+        return MutationResult::make_failure("Invalid ALTER operation");
+    }
+
+    if (std::holds_alternative<BoundAlterAddColumn>(alter_statement.alter_operation)) {
+        const auto & op = std::get<BoundAlterAddColumn>(alter_statement.alter_operation);
+        return execute_alter_add_column(alter_statement.collection_id, op.column_definition);
+    }
+    else if (std::holds_alternative<BoundAlterDropColumn>(alter_statement.alter_operation)) {
+        const auto & op = std::get<BoundAlterDropColumn>(alter_statement.alter_operation);
+        return execute_alter_drop_column(alter_statement.collection_id, op.column_id);
+    }
+    else if (std::holds_alternative<BoundAlterModifyColumn>(alter_statement.alter_operation)) {
+        const auto & op = std::get<BoundAlterModifyColumn>(alter_statement.alter_operation);
+        return execute_alter_modify_column(alter_statement.collection_id, op.column_id, op.new_definition);
+    }
+    else if (std::holds_alternative<BoundAlterRenameColumn>(alter_statement.alter_operation)) {
+        const auto & op = std::get<BoundAlterRenameColumn>(alter_statement.alter_operation);
+        return execute_alter_rename_column(alter_statement.collection_id, op.column_id, op.new_name);
+    }
+
+    return MutationResult::make_failure("Unsupported ALTER operation");
+}
+
+MutationResult Executor::execute_describe(const BoundDescribeStatement & describe_statement)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的集合条目
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == describe_statement.collection_id) {
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取所有列信息
+    std::vector<std::string> column_names = collection_entry->get_column_names();
+    
+    // 计算各列的宽度
+    std::size_t field_width = std::max(static_cast<std::size_t>(5), std::string("Field").size());
+    std::size_t type_width = std::max(static_cast<std::size_t>(4), std::string("Type").size());
+    std::size_t null_width = std::max(static_cast<std::size_t>(4), std::string("Null").size());
+    
+    // 收集所有列的数据
+    struct ColumnInfo
+    {
+        std::string field;
+        std::string type;
+        std::string null;
+    };
+    
+    std::vector<ColumnInfo> columns;
+    columns.reserve(column_names.size());
+    
+    for (const auto & column_name : column_names) {
+        const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_name);
+        if (!column_entry) {
+            continue;
+        }
+        
+        ColumnInfo info;
+        info.field = column_name;
+        info.type = logical_type_to_string(column_entry->logical_type());
+        info.null = column_entry->logical_type().nullable ? "YES" : "NO";
+        
+        field_width = std::max(field_width, info.field.size());
+        type_width = std::max(type_width, info.type.size());
+        null_width = std::max(null_width, info.null.size());
+        
+        columns.push_back(std::move(info));
+    }
+    
+    // 格式化输出
     std::ostringstream oss;
-
-    if (entities.empty()) {
-        oss << "Empty result set (0 row(s))";
-    } else {
-        // 获取列名（用于表头）
-        std::vector<std::string> column_names;
-        bool is_select_star = select_items.size() == 1 && 
-                              select_items[0].get_select_item_type() == SelectItem::SelectItemType::STAR;
-
-        if (is_select_star) {
-            // SELECT *: 使用 schema 中的所有字段名
-            const std::vector<Field> & schema = collection->get_schema();
-            for (const auto & field : schema) {
-                column_names.push_back(field.get_name());
-            }
-        } else {
-            // SELECT 表达式列表: 使用别名或表达式名称
-            for (const auto & item : select_items) {
-                if (item.get_select_item_type() == SelectItem::SelectItemType::EXPRESSION) {
-                    const std::string & alias = item.get_select_item_alias();
-                    if (!alias.empty()) {
-                        column_names.push_back(alias);
-                    } else {
-                        // 如果没有别名，使用表达式类型作为列名
-                        const AstNode * expr = item.get_select_item_expression();
-                        if (expr != nullptr) {
-                            if (expr->get_type() == AstNodeType::IDENTIFIER_EXPR) {
-                                const IdentifierExpr * id_expr = static_cast<const IdentifierExpr *>(expr);
-                                column_names.push_back(id_expr->get_original_identifier());
-                            } else {
-                                column_names.push_back("expr_" + std::to_string(column_names.size()));
-                            }
-                        } else {
-                            column_names.push_back("null");
-                        }
-                    }
-                }
-            }
-        }
-
-        // 从 result 中获取 rows（已经 add_row 了）
-        // 但是需要重新处理，因为 result.rows_ 可能还没有初始化
-        // 直接使用 entities 来格式化
-
-        // 先获取第一个实体的字段数来确定列数
-        std::size_t num_columns = entities[0]->field_count();
-
-        // 计算每列的最大宽度（用于格式化）
-        std::vector<std::size_t> column_widths(num_columns);
-        for (std::size_t i = 0; i < column_names.size() && i < num_columns; ++i) {
-            column_widths[i] = column_names[i].length();
-        }
-
-        // 将实体转换为字符串，并计算列宽
-        std::vector<std::vector<std::string>> rows;
-        for (const auto & entity_ptr : entities) {
-            std::vector<std::string> row;
-            for (std::size_t i = 0; i < entity_ptr->field_count(); ++i) {
-                const FieldValue & value = entity_ptr->get_value(i);
-                std::string value_str = field_value_to_string(value);
-                row.push_back(value_str);
-                if (i < column_widths.size() && value_str.length() > column_widths[i]) {
-                    column_widths[i] = value_str.length();
-                }
-            }
-            rows.push_back(row);
-        }
-
-        // 生成表头
-        oss << "|";
-        for (std::size_t i = 0; i < column_names.size() && i < num_columns; ++i) {
-            oss << " " << std::setw(static_cast<int>(column_widths[i])) << std::left << column_names[i] << " |";
-        }
-        oss << "\n";
-
-        // 生成分隔线
-        oss << "|";
-        for (std::size_t i = 0; i < num_columns; ++i) {
-            if (i < column_widths.size()) {
-                oss << std::string(column_widths[i] + 2, '-') << "|";
-            }
-        }
-        oss << "\n";
-
-        // 生成数据行
-        for (const auto & row : rows) {
-            oss << "|";
-            for (std::size_t i = 0; i < row.size(); ++i) {
-                if (i < column_widths.size()) {
-                    oss << " " << std::setw(static_cast<int>(column_widths[i])) << std::left << row[i] << " |";
-                }
-            }
-            oss << "\n";
-        }
-
-        oss << "\n(" << rows.size() << " row(s))";
+    
+    // 顶部边框
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    // 表头
+    oss << "| " << std::setw(static_cast<int>(field_width)) << std::left << "Field"
+        << " | " << std::setw(static_cast<int>(type_width)) << std::left << "Type"
+        << " | " << std::setw(static_cast<int>(null_width)) << std::left << "Null"
+        << " |\n";
+    
+    // 分隔线
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    // 数据行
+    for (const auto & col : columns) {
+        oss << "| " << std::setw(static_cast<int>(field_width)) << std::left << col.field
+            << " | " << std::setw(static_cast<int>(type_width)) << std::left << col.type
+            << " | " << std::setw(static_cast<int>(null_width)) << std::left << col.null
+            << " |\n";
     }
-
-    result.set_is_success(true);
+    
+    // 底部边框
+    oss << "+" << std::string(field_width + 2, '-') 
+        << "+" << std::string(type_width + 2, '-')
+        << "+" << std::string(null_width + 2, '-') << "+\n";
+    
+    MutationResult result = MutationResult::make_success();
     result.set_message(oss.str());
-    result.set_affected_count(entities.size());
     return result;
 }
 
-ExecutorResult Executor::execute_delete(const DeleteStmt & delete_stmt)
+MutationResult Executor::execute_show(const BoundShowStatement & show_statement)
 {
-    // 获取删除的集合名称
-    const std::string & collection_name = delete_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
+    if (std::holds_alternative<std::monostate>(show_statement.show_operation)) {
+        return MutationResult::make_failure("Invalid SHOW operation");
     }
 
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
+    if (std::holds_alternative<BoundShowDatabases>(show_statement.show_operation)) {
+        return execute_show_databases();
+    }
+    else if (std::holds_alternative<BoundShowCollections>(show_statement.show_operation)) {
+        const auto & op = std::get<BoundShowCollections>(show_statement.show_operation);
+        return execute_show_collections(op.database_id);
+    }
+    else if (std::holds_alternative<BoundShowIndexes>(show_statement.show_operation)) {
+        const auto & op = std::get<BoundShowIndexes>(show_statement.show_operation);
+        return execute_show_indexes(op.collection_id, op.database_id);
+    }
+    else if (std::holds_alternative<BoundShowVIndexes>(show_statement.show_operation)) {
+        const auto & op = std::get<BoundShowVIndexes>(show_statement.show_operation);
+        return execute_show_vindexes(op.collection_id, op.database_id);
     }
 
-    // 构造一个 Query
-    Query query;
-    // 设置 where 条件
-    const AstNode * where_clause = delete_stmt.get_where_clause();
-    if (where_clause != nullptr) {
-        query.set_where_clause(where_clause);
-    }
-    // 设置 order by 条件
-    std::optional<std::string> order_column = delete_stmt.get_order_column();
-    if (order_column.has_value()) {
-        // 存在排序，设置排序条件
-        std::optional<std::size_t> field_index = collection->get_field_index(order_column.value());
-        if (field_index.has_value()) {
-            // Order 需要 std::uint8_t，进行类型转换
-            if (field_index.value() > 255) {
-                result.set_is_success(false);
-                result.set_message("Field index too large for ordering");
-                return result;
-            }
-            // 获取 order_type，也需要检查是否存在
-            std::optional<Direction> order_type_opt = delete_stmt.get_order_type();
-            Direction order_type = order_type_opt.value_or(Direction::ASC); // 默认 ASC
-            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_type));
-        } else {
-            result.set_is_success(false);
-            result.set_message("Unknown column: '" + order_column.value() + "'");
-            return result;
-        }
-    }
-    // 设置 limit 条件
-    std::optional<std::size_t> limit = delete_stmt.get_limit();
-    if (limit.has_value()) {
-        query.set_limit(Limit(limit.value()));
-    }
-    
-    // 执行查询，获取符合条件的实体
-    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
-    
-    // 删除查询结果中的实体
-    std::size_t deleted_count = 0;
-    for (const auto & entity : entities) {
-        MutationResult remove_result = collection->remove(entity->get_id());
-        if (remove_result.is_success()) {
-            deleted_count++;
-        }
-    }
-    
-    result.set_is_success(true);
-    result.set_affected_count(deleted_count);
-    result.set_message("Deleted " + std::to_string(deleted_count) + " row(s)");
-    return result;
+    return MutationResult::make_failure("Unsupported SHOW operation");
 }
 
-ExecutorResult Executor::execute_insert(const InsertStmt & insert_stmt)
+MutationResult Executor::execute_show_databases()
 {
-    // 获取插入的集合名称
-    const std::string & collection_name = insert_stmt.get_collection_name();
-
-    // 获取插入的列名
-    const std::vector<std::string> & column_names = insert_stmt.get_column_names();
-    // 获取插入的值
-    const std::vector<std::unique_ptr<AstNode>> & values = insert_stmt.get_values();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 获取集合的 Schema
-    const std::vector<Field> & schema = collection->get_schema();
-
-    // 检查值和列名的数量匹配
-    if (!column_names.empty() && column_names.size() != values.size()) {
-        result.set_is_success(false);
-        result.set_message("Number of columns and values do not match");
-        return result;
-    }
-
-    // 创建实体
-    Entity entity = collection->create_entity();
-    // 记录是否提供值
-    std::vector<bool> is_filled(schema.size(), false);
-
-    if (column_names.empty()) {
-        // 按表结构顺序插入
-        if (values.size() != schema.size()) {
-            result.set_is_success(false);
-            result.set_message("Number of values does not match number of columns");
-            return result;
-        }
-        for (std::size_t i = 0; i < values.size(); ++i) {
-            // 转换 AstNode 为 FieldValue
-            FieldType field_type = schema[i].get_type();
-            FieldValue field_value = ast_to_field_value(values[i].get(), field_type);
-            
-            is_filled[i] = true;
-            entity.set_value(i, field_value);
-        }
-    } else {
-        // 填充已有的列名和值
-        for (std::size_t i = 0; i < column_names.size(); ++i) {
-            const std::string & column_name = column_names[i];
-            const std::unique_ptr<AstNode> & value = values[i];
-            
-            // 找到该列的索引
-            std::optional<std::size_t> index = collection->get_field_index(column_name);
-            if (!index.has_value()) {
-                result.set_is_success(false);
-                result.set_message("Unknown column: '" + column_name + "'");
-                return result;
-            }
-            
-            // 检查重复列名
-            if (is_filled[index.value()]) {
-                result.set_is_success(false);
-                result.set_message("Duplicate column: '" + column_name + "'");
-                return result;
-            }
-            
-            // 转换 AstNode 为 FieldValue
-            FieldType field_type = schema[index.value()].get_type();
-            FieldValue field_value = ast_to_field_value(value.get(), field_type);
-
-            is_filled[index.value()] = true;
-            entity.set_value(index.value(), field_value);
-        }
-    }
-
-    // 统一验证实体合法性
-    for (std::size_t i = 0; i < schema.size(); ++i) {
-        if (is_filled[i]) {
-            // 已填充，验证值的合法性
-            const FieldValue & value = entity.get_value(i);
-
-            // 验证 NULL 约束
-            if (std::holds_alternative<Null>(value) && !schema[i].get_is_nullable()) {
-                result.set_is_success(false);
-                result.set_message("Field '" + schema[i].get_name() + "' cannot be NULL");
-                return result;
-            }
-
-            // 验证 ENUM 约束（仅在非 NULL 时验证）
-            if (schema[i].get_type() == FieldType::ENUM && !std::holds_alternative<Null>(value)) {
-                if (!std::holds_alternative<std::string>(value)) {
-                    result.set_is_success(false);
-                    result.set_message("Field '" + schema[i].get_name() + "' must be a string");
-                    return result;
-                }
-                const std::vector<std::string> & options = schema[i].get_options();
-                const std::string & str_value = std::get<std::string>(value);
-                if (std::find(options.begin(), options.end(), str_value) == options.end()) {
-                    result.set_is_success(false);
-                    result.set_message("Invalid value for field '" + schema[i].get_name() + "': '" + str_value + "'");
-                    return result;
-                }
-            }
-
-            // 验证字符串长度约束
-            if ((schema[i].get_type() == FieldType::VARCHAR || schema[i].get_type() == FieldType::CHAR)
-                && !std::holds_alternative<Null>(value)) {
-                if (!std::holds_alternative<std::string>(value)) {
-                    result.set_is_success(false);
-                    result.set_message("Field '" + schema[i].get_name() + "' must be a string");
-                    return result;
-                }
-                const std::string & str_value = std::get<std::string>(value);
-                if (static_cast<int>(str_value.length()) > schema[i].get_length()) {
-                    result.set_is_success(false);
-                    result.set_message("Field '" + schema[i].get_name() + "' exceeds maximum length " 
-                                     + std::to_string(schema[i].get_length()));
-                    return result;
-                }
-            }
-
-            // 验证 PRIMARY KEY 约束
-            // TODO: 实现 PRIMARY KEY 约束验证
-        } else {
-            // 未填充，验证默认值、自动递增、NULL 检查
-
-            // 验证自动递增
-            if (schema[i].get_is_auto_increment()) {
-                // TODO: 实现自动递增
-                continue;
-            }
-
-            // 允许 NULL，验证默认值
-            const FieldValue & default_value = schema[i].get_default_value();
-            // 当前实现中，不设置默认值时，默认值为 Null()
-            if (!std::holds_alternative<Null>(default_value)) {
-                // 有默认值，使用默认值，无论是否允许 NULL
-                entity.set_value(i, default_value);
-                continue;
-            }
-
-            // 验证 NULL 约束
-            if (!schema[i].get_is_nullable()) {
-                // 不允许 NULL，且没有默认值，报错
-                result.set_is_success(false);
-                result.set_message("Field '" + schema[i].get_name() + "' is required but not provided");
-                return result;
-            }
-
-            // 允许 NULL，且没有默认值，设置为 NULL
-            // Entity 构造函数已初始化为 Null()，无需设置
-            // entity.set_value(i, Null());
-        }
-    }
-
-    // 验证合法，执行插入
-    MutationResult mutation_result = collection->insert(entity);
-    if (!mutation_result.is_success()) {
-        result.set_is_success(false);
-        result.set_message(mutation_result.get_error_message());
-        return result;
-    }
-
-    result.set_is_success(true);
-    result.set_message("Inserted " + std::to_string(mutation_result.get_affected_count()) + " rows");
-    result.set_affected_count(1);
-    return result;
-}
-
-ExecutorResult Executor::execute_update(const UpdateStmt & update_stmt)
-{
-    // 获取更新的集合名称
-    const std::string & collection_name = update_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 获取集合的 Schema
-    const std::vector<Field> & schema = collection->get_schema();
-
-    // 获取 SET 子句的赋值列表
-    const std::vector<std::pair<std::string, std::unique_ptr<AstNode>>> & assignments = update_stmt.get_assignments();
-    if (assignments.empty()) {
-        result.set_is_success(false);
-        result.set_message("No fields to update");
-        return result;
-    }
-
-    // 验证所有列名是否存在，并构建更新字段列表（字段索引 -> 字段值）
-    std::vector<std::pair<std::size_t, FieldValue>> update_fields;
-    for (const auto & assignment : assignments) {
-        const std::string & column_name = assignment.first;
-        const std::unique_ptr<AstNode> & value_expr = assignment.second;
-
-        // 查找列索引
-        std::optional<std::size_t> field_index = collection->get_field_index(column_name);
-        if (!field_index.has_value()) {
-            result.set_is_success(false);
-            result.set_message("Unknown column: '" + column_name + "'");
-            return result;
-        }
-
-        // 检查重复列名（在同一个 UPDATE 语句中）
-        for (const auto & [idx, _] : update_fields) {
-            if (idx == field_index.value()) {
-                result.set_is_success(false);
-                result.set_message("Duplicate column: '" + column_name + "'");
-                return result;
-            }
-        }
-
-        // 转换 AstNode 为 FieldValue
-        FieldType field_type = schema[field_index.value()].get_type();
-        FieldValue field_value = ast_to_field_value(value_expr.get(), field_type);
-
-        // 验证值的合法性
-        // 验证 NULL 约束
-        if (std::holds_alternative<Null>(field_value) && !schema[field_index.value()].get_is_nullable()) {
-            result.set_is_success(false);
-            result.set_message("Field '" + column_name + "' cannot be NULL");
-            return result;
-        }
-
-        // 验证 ENUM 约束
-        if (schema[field_index.value()].get_type() == FieldType::ENUM && !std::holds_alternative<Null>(field_value)) {
-            if (!std::holds_alternative<std::string>(field_value)) {
-                result.set_is_success(false);
-                result.set_message("Field '" + column_name + "' must be a string");
-                return result;
-            }
-            const std::vector<std::string> & options = schema[field_index.value()].get_options();
-            const std::string & str_value = std::get<std::string>(field_value);
-            if (std::find(options.begin(), options.end(), str_value) == options.end()) {
-                result.set_is_success(false);
-                result.set_message("Invalid value for field '" + column_name + "': '" + str_value + "'");
-                return result;
-            }
-        }
-
-        // 验证字符串长度约束
-        if ((schema[field_index.value()].get_type() == FieldType::VARCHAR || 
-             schema[field_index.value()].get_type() == FieldType::CHAR) &&
-            !std::holds_alternative<Null>(field_value)) {
-            if (!std::holds_alternative<std::string>(field_value)) {
-                result.set_is_success(false);
-                result.set_message("Field '" + column_name + "' must be a string");
-                return result;
-            }
-            const std::string & str_value = std::get<std::string>(field_value);
-            if (static_cast<int>(str_value.length()) > schema[field_index.value()].get_length()) {
-                result.set_is_success(false);
-                result.set_message("Field '" + column_name + "' exceeds maximum length " 
-                                 + std::to_string(schema[field_index.value()].get_length()));
-                return result;
-            }
-        }
-
-        update_fields.emplace_back(field_index.value(), field_value);
-    }
-
-    // 构造一个 Query
-    Query query;
-    // 设置 where 条件
-    const AstNode * where_clause = update_stmt.get_where_clause();
-    if (where_clause != nullptr) {
-        query.set_where_clause(where_clause);
-    }
-    // 设置 order by 条件
-    const std::optional<std::string> & order_column = update_stmt.get_order_column();
-    if (order_column.has_value()) {
-        // 存在排序，设置排序条件
-        std::optional<std::size_t> field_index = collection->get_field_index(order_column.value());
-        if (field_index.has_value()) {
-            // Order 需要 std::uint8_t，进行类型转换
-            if (field_index.value() > 255) {
-                result.set_is_success(false);
-                result.set_message("Field index too large for ordering");
-                return result;
-            }
-            // 获取 order_type，也需要检查是否存在
-            const std::optional<Direction> & order_type_opt = update_stmt.get_order_type();
-            Direction order_type = order_type_opt.value_or(Direction::ASC); // 默认 ASC
-            query.set_order(Order(static_cast<std::uint8_t>(field_index.value()), order_type));
-        } else {
-            result.set_is_success(false);
-            result.set_message("Unknown column: '" + order_column.value() + "'");
-            return result;
-        }
-    }
-    // 设置 limit 条件
-    const std::optional<std::size_t> & limit = update_stmt.get_limit();
-    if (limit.has_value()) {
-        query.set_limit(Limit(limit.value()));
-    }
+    // 获取数据库名称列表
+    const Catalog & catalog = database_manager_->get_catalog();
+    std::vector<std::string> database_names = catalog.get_database_names();
     
-    // 执行查询，获取符合条件的实体
-    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+    // 格式化输出
+    std::string output = format_table("Database", database_names);
     
-    // 更新查询结果中的实体
-    std::size_t updated_count = 0;
-    for (const auto & entity : entities) {
-        MutationResult update_result = collection->update(entity->get_id(), update_fields);
-        if (update_result.is_success()) {
-            updated_count++;
-        }
-    }
-    
-    result.set_is_success(true);
-    result.set_affected_count(updated_count);
-    result.set_message("Updated " + std::to_string(updated_count) + " row(s)");
-    return result;
-}
-
-ExecutorResult Executor::execute_create(const CreateStmt & create_stmt)
-{
-    // 获取创建类型
-    CreateStmt::CreateType create_type = create_stmt.get_create_type();
-
-    // 根据不同创建类型执行不同创建操作
-    switch (create_type) {
-        case CreateStmt::CreateType::DATABASE:
-            return execute_create_database(create_stmt);
-        case CreateStmt::CreateType::COLLECTION:
-            return execute_create_collection(create_stmt);
-        case CreateStmt::CreateType::INDEX:
-            return execute_create_index(create_stmt);
-        case CreateStmt::CreateType::VINDEX:
-            return execute_create_vindex(create_stmt);
-        default: {
-            ExecutorResult result;
-            result.set_is_success(false);
-            result.set_message("Unsupported create type: " + std::to_string(static_cast<std::uint8_t>(create_type)));
-            return result;
-        }
-    }
-}
-
-ExecutorResult Executor::execute_drop(const DropStmt & drop_stmt)
-{
-    // 获取删除类型
-    DropStmt::DropType drop_type = drop_stmt.get_drop_type();
-
-    // 根据不同删除类型执行不同删除操作
-    switch (drop_type) {
-        case DropStmt::DropType::DATABASE:
-            return execute_drop_database(drop_stmt);
-        case DropStmt::DropType::COLLECTION:
-            return execute_drop_collection(drop_stmt);
-        case DropStmt::DropType::INDEX:
-            return execute_drop_index(drop_stmt);
-        case DropStmt::DropType::VINDEX:
-            return execute_drop_vindex(drop_stmt);
-        default: {
-            ExecutorResult result;
-            result.set_is_success(false);
-            result.set_message("Unsupported drop type: " + std::to_string(static_cast<std::uint8_t>(drop_type)));
-            return result;
-        }
-    }
-}
-
-ExecutorResult Executor::execute_use(const UseStmt & use_stmt)
-{
-    // 获取数据库名称
-    const std::string & database_name = use_stmt.get_database_name();
-
-    ExecutorResult result;
-
-    // 检查数据库是否存在
-    if (!database_manager_->has_database(database_name)) {
-        result.set_is_success(false);
-        result.set_message("Unknown database: '" + database_name + "'");
-        return result;
-    }
-
-    // 设置当前数据库
-    database_manager_->set_current_database(database_name);
-    result.set_is_success(true);
-    result.set_message("Database changed");
-
-    return result;
-}
-
-ExecutorResult Executor::execute_describe(const DescribeStmt & describe_stmt)
-{
-    // 获取集合名
-    const std::string & collection_name = describe_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 获取 Schema
-    const std::vector<Field> & schema = collection->get_schema();
-
-    // 格式化输出 Schema 信息
-    std::string output = "Collection: " + collection_name + "\n";
-    output += "Fields (" + std::to_string(schema.size()) + "):\n";
-    output += "------------------------------------------------------------\n";
-
-    // 遍历每个字段，格式化输出
-    for (std::size_t i = 0; i < schema.size(); ++i) {
-        const Field & field = schema[i];
-
-        // 字段名和索引
-        output += "[" + std::to_string(i) + "] " + field.get_name() + " | ";
-
-        // 字段类型
-        FieldType type = field.get_type();
-        std::string type_str;
-        switch (type) {
-            case FieldType::TINYINT:
-                type_str = "TINYINT";
-                break;
-            case FieldType::SMALLINT:
-                type_str = "SMALLINT";
-                break;
-            case FieldType::INTEGER:
-                type_str = "INTEGER";
-                break;
-            case FieldType::BIGINT:
-                type_str = "BIGINT";
-                break;
-            case FieldType::FLOAT:
-                type_str = "FLOAT";
-                break;
-            case FieldType::DOUBLE:
-                type_str = "DOUBLE";
-                break;
-            case FieldType::DECIMAL:
-                type_str = "DECIMAL(" + std::to_string(field.get_length()) + "," + std::to_string(field.get_precision()) + ")";
-                break;
-            case FieldType::CHAR:
-                type_str = "CHAR(" + std::to_string(field.get_length()) + ")";
-                break;
-            case FieldType::VARCHAR:
-                type_str = "VARCHAR(" + std::to_string(field.get_length()) + ")";
-                break;
-            case FieldType::BOOLEAN:
-                type_str = "BOOLEAN";
-                break;
-            case FieldType::TIMESTAMP:
-                type_str = "TIMESTAMP";
-                break;
-            case FieldType::ENUM: {
-                type_str = "ENUM(";
-                const auto & options = field.get_options();
-                for (std::size_t j = 0; j < options.size(); ++j) {
-                    if (j > 0) type_str += ",";
-                    type_str += "'" + options[j] + "'";
-                }
-                type_str += ")";
-                break;
-            }
-            case FieldType::VECTOR:
-                type_str = "VECTOR(" + std::to_string(field.get_length()) + ")";
-                break;
-        }
-        output += type_str + " | ";
-
-        // 属性列表
-        std::vector<std::string> attributes;
-
-        // NULL 约束
-        if (!field.get_is_nullable()) {
-            attributes.push_back("NOT NULL");
-        }
-
-        // PRIMARY KEY
-        if (field.get_is_primary()) {
-            attributes.push_back("PRIMARY KEY");
-        }
-
-        // AUTO_INCREMENT
-        if (field.get_is_auto_increment()) {
-            attributes.push_back("AUTO_INCREMENT");
-        }
-        
-        // 输出属性
-        if (!attributes.empty()) {
-            for (std::size_t j = 0; j < attributes.size(); ++j) {
-                if (j > 0) output += " ";
-                output += attributes[j];
-            }
-        }
-        
-        output += "\n";
-    }
-
-    result.set_is_success(true);
+    MutationResult result = MutationResult::make_success();
     result.set_message(output);
-
     return result;
 }
 
-ExecutorResult Executor::execute_show(const ShowStmt & show_stmt)
+MutationResult Executor::execute_show_collections(std::optional<std::size_t> database_id)
 {
-    // 获取显示类型
-    ShowStmt::ShowType show_type = show_stmt.get_show_type();
+    const Catalog & catalog = database_manager_->get_catalog();
+    std::vector<std::string> collection_names;
+    
+    if (database_id.has_value()) {
+        // 从指定的数据库获取集合列表
+        const CatalogDatabaseEntry * database_entry = catalog.get_database_entry(database_id.value());
+        if (!database_entry) {
+            return MutationResult::make_failure("Database not found");
+        }
+        collection_names = database_entry->get_collection_names();
+    }
+    else {
+        // 从当前数据库获取集合列表
+        Database * current_database = database_manager_->get_current_database();
+        if (!current_database) {
+            return MutationResult::make_failure("No database selected");
+        }
 
-    // 根据不同显示类型执行不同显示操作
-    switch (show_type) {
-        case ShowStmt::ShowType::DATABASES:
-            return execute_show_databases();
-        case ShowStmt::ShowType::COLLECTIONS:
-            return execute_show_collections();
-        case ShowStmt::ShowType::INDEXES:
-            return execute_show_indexes(show_stmt);
-        case ShowStmt::ShowType::VINDEXES:
-            return execute_show_vindexes(show_stmt);
-        default: {
-            ExecutorResult result;
-            result.set_is_success(false);
-            result.set_message("Unsupported show type: " + std::to_string(static_cast<std::uint8_t>(show_type)));
+        // 从 Catalog 获取当前数据库的条目
+        const CatalogDatabaseEntry * database_entry = catalog.get_database_entry(current_database->get_name());
+        if (!database_entry) {
+            return MutationResult::make_failure("Current database not found in catalog");
+        }
+        collection_names = database_entry->get_collection_names();
+    }
+
+    // 格式化输出
+    std::string output = format_table("Collection", collection_names);
+
+    MutationResult result = MutationResult::make_success();
+    result.set_message(output);
+    return result;
+}
+
+MutationResult Executor::execute_show_indexes(std::size_t /*collection_id*/, std::optional<std::size_t> /*database_id*/)
+{
+    // TODO: 实现 SHOW INDEXES 执行逻辑
+    return MutationResult::make_failure("SHOW INDEXES execution not implemented yet");
+}
+
+MutationResult Executor::execute_show_vindexes(std::size_t /*collection_id*/, std::optional<std::size_t> /*database_id*/)
+{
+    // TODO: 实现 SHOW VINDEXES 执行逻辑
+    return MutationResult::make_failure("SHOW VINDEXES execution not implemented yet");
+}
+
+MutationResult Executor::execute_drop_database(std::size_t database_id, bool if_exists)
+{
+    // 检查数据库是否存在
+    if (!database_manager_->has_database(database_id)) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Database does not exist, skipping.");
             return result;
         }
+        return MutationResult::make_failure("Database not found");
     }
-}
 
-ExecutorResult Executor::execute_alter(const AlterStmt &)
-{
-    ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_alter not implemented");
+    // 删除数据库
+    bool success = database_manager_->drop_database(database_id);
+    if (!success) {
+        return MutationResult::make_failure("Failed to drop database");
+    }
+
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Database dropped successfully.");
     return result;
 }
 
-ExecutorResult Executor::execute_create_database(const CreateStmt & create_stmt)
+MutationResult Executor::execute_drop_collection(std::size_t collection_id, bool if_exists)
 {
-    // 获取数据库名称
-    const std::string & database_name = create_stmt.get_object_name();
-    // 获取是否跳过存在性检查
-    const bool is_if_not_exists = create_stmt.get_is_if_not_exists();
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Collection does not exist, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 从 Database 删除集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        // 如果当前数据库不匹配，需要找到对应的数据库
+        // 这里简化处理，假设集合在当前数据库中
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    bool success = database->drop_collection(collection_entry->collection_name_);
+    if (!success) {
+        return MutationResult::make_failure("Failed to drop collection");
+    }
+    
+    // 从 Catalog 删除集合条目
+    CatalogDatabaseEntry * mutable_db_entry = const_cast<CatalogDatabaseEntry *>(database_entry);
+    mutable_db_entry->remove_collection(collection_entry->collection_name_);
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Collection dropped successfully.");
+    return result;
+}
 
-    ExecutorResult result;
+MutationResult Executor::execute_drop_index(std::size_t collection_id, const std::string & index_name, bool if_exists)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Collection does not exist, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 检查索引是否存在
+    if (!collection_entry->get_index_entry(index_name)) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Index does not exist, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Index not found");
+    }
+    
+    // 从 Database 删除索引
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    bool success = collection->remove_index(index_name);
+    if (!success) {
+        return MutationResult::make_failure("Failed to drop index");
+    }
+    
+    // 从 Catalog 删除索引条目
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    mutable_coll_entry->remove_index(index_name);
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Index dropped successfully.");
+    return result;
+}
 
+MutationResult Executor::execute_drop_vindex(std::size_t collection_id, const std::string & vindex_name, bool if_exists)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的集合条目
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Collection does not exist, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 检查向量索引是否存在
+    if (!collection_entry->get_vindex_entry(vindex_name)) {
+        if (if_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Vector index does not exist, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Vector index not found");
+    }
+    
+    // 从 Catalog 删除向量索引条目
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    bool success = mutable_coll_entry->remove_vindex(vindex_name);
+    if (!success) {
+        return MutationResult::make_failure("Failed to drop vector index");
+    }
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Vector index dropped successfully.");
+    return result;
+}
+
+MutationResult Executor::execute_create_database(const std::string & database_name, bool if_not_exists)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 检查数据库是否已存在
+    if (catalog.has_database(database_name)) {
+        if (if_not_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Database already exists, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Database already exists");
+    }
+    
     // 创建数据库
-    if (database_manager_->create_database(database_name)) {
-        result.set_is_success(true);
-        result.set_message("Database created");
-    } else {
-        if (is_if_not_exists) {
-            result.set_is_success(true);
-            result.set_message("Database already exists, skipping");
-        } else {
-            result.set_is_success(false);
-            result.set_message("Database '" + database_name + "' already exists");
-        }
+    std::size_t database_id = database_manager_->create_database(database_name);
+    if (database_id == 0) {
+        return MutationResult::make_failure("Failed to create database");
     }
-
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Database created successfully.");
     return result;
 }
 
-ExecutorResult Executor::execute_create_collection(const CreateStmt & create_stmt)
+MutationResult Executor::execute_create_collection(
+    const std::string & collection_name,
+    const std::vector<Field> & column_definitions,
+    bool if_not_exists
+)
 {
-    // 获取集合名称
-    const std::string & collection_name = create_stmt.get_object_name();
-    // 获取是否跳过存在性检查
-    const bool is_if_not_exists = create_stmt.get_is_if_not_exists();
-
-    ExecutorResult result;
-
     // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
+    Database * current_database = database_manager_->get_current_database();
+    if (!current_database) {
+        return MutationResult::make_failure("No database selected");
     }
-
-    // 构造字段定义列表
-    std::vector<Field> fields;
-    const std::vector<ColumnDefinition> & column_definitions = create_stmt.get_column_definitions().value();
-    for (const auto & column_definition : column_definitions) {
-        // 处理 options：如果是 optional，有值则使用，否则传空 vector
-        const auto & options_opt = column_definition.get_options();
-        const std::vector<std::string> & options = options_opt.has_value() ? options_opt.value() : std::vector<std::string>{};
-
-        FieldValue default_value = Null();
-        const AstNode * default_ast = column_definition.get_default_value();
-        if (default_ast != nullptr) {
-            // 使用字段类型进行类型转换
-            default_value = ast_to_field_value(default_ast, column_definition.get_type());
+    
+    // 检查集合是否已存在
+    if (current_database->has_collection(collection_name)) {
+        if (if_not_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Collection already exists, skipping.");
+            return result;
         }
-
-        fields.emplace_back(
-            column_definition.get_name(),
-            column_definition.get_type(),
-            column_definition.get_length(),
-            column_definition.get_precision(),
-            options,
-            column_definition.get_is_nullable(),
-            column_definition.get_is_primary(),
-            column_definition.get_comment(),
-            default_value,
-            column_definition.get_is_auto_increment()
-        );
+        return MutationResult::make_failure("Collection already exists");
     }
-
+    
     // 创建集合
-    if (database->create_collection(collection_name, fields)) {
-        result.set_is_success(true);
-        result.set_message("Collection created");
-    } else {
-        if (is_if_not_exists) {
-            result.set_is_success(true);
-            result.set_message("Collection already exists, skipping");
-        } else {
-            result.set_is_success(false);
-            result.set_message("Collection '" + collection_name + "' already exists");
-        }
+    Collection * collection = current_database->create_collection(collection_name, column_definitions);
+    if (!collection) {
+        return MutationResult::make_failure("Failed to create collection");
     }
-
+    
+    // 在 Catalog 中创建集合条目
+    Catalog & catalog = database_manager_->get_catalog();
+    const CatalogDatabaseEntry * database_entry = catalog.get_database_entry(current_database->get_name());
+    if (!database_entry) {
+        return MutationResult::make_failure("Current database not found in catalog");
+    }
+    
+    // 创建集合条目
+    auto collection_entry = std::make_unique<CatalogCollectionEntry>(collection_name);
+    
+    // 添加列条目
+    for (std::size_t i = 0; i < column_definitions.size(); ++i) {
+        const Field & field = column_definitions[i];
+        LogicalType logical_type = field_to_logical_type(field);
+        auto column_entry = std::make_unique<CatalogColumnEntry>(field.get_name(), logical_type, i);
+        collection_entry->add_column(std::move(column_entry));
+    }
+    
+    // 将集合条目添加到数据库条目
+    CatalogDatabaseEntry * mutable_db_entry = const_cast<CatalogDatabaseEntry *>(database_entry);
+    mutable_db_entry->add_collection(std::move(collection_entry));
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Collection created successfully.");
     return result;
 }
 
-ExecutorResult Executor::execute_create_index(const CreateStmt & create_stmt)
+MutationResult Executor::execute_create_index(
+    std::size_t collection_id,
+    const std::string & index_name,
+    const std::vector<std::size_t> & column_ids,
+    IndexType index_type,
+    bool if_not_exists
+)
 {
-    ExecutorResult result;
-
-    // 获取索引名称、集合名称、索引名称和索引类型
-    const std::string & index_name = create_stmt.get_object_name();
-    const std::string & collection_name = create_stmt.get_collection_name().value();
-    const IndexType & index_type = create_stmt.get_index_type().value();
-    const std::vector<std::string> & column_names = create_stmt.get_column_names().value();
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
     }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
     }
-
-    // 创建索引元数据
+    
+    // 检查索引是否已存在
+    if (collection_entry->get_index_entry(index_name)) {
+        if (if_not_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Index already exists, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Index already exists");
+    }
+    
+    // 从 Database 获取集合并创建索引
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // 创建 IndexMeta
     IndexMeta index_meta;
     index_meta.set_index_name(index_name);
     index_meta.set_index_type(index_type);
-    for (const std::string & column_name : column_names) {
-        std::optional<std::size_t> field_index = collection->get_field_index(column_name);
-        if (field_index.has_value()) {
-            index_meta.add_field_index(field_index.value());
-        } else {
-            result.set_is_success(false);
-            result.set_message("Unknown column: '" + column_name + "'");
-            return result;
-        }
+    index_meta.set_is_unique(false);  // 默认非唯一索引，可以根据需要调整
+    for (std::size_t column_id : column_ids) {
+        index_meta.add_field_index(column_id);
     }
-    // TODO: 暂不支持 UNIQUE 索引
-    index_meta.set_is_unique(false);
-
-    // 创建索引
-    if (collection->create_index(index_meta)) {
-        result.set_is_success(true);
-        result.set_message("Index created");
-    } else {
-        result.set_is_success(false);
-        result.set_message("Unknown index: '" + index_name + "'");
+    
+    // 在 Collection 中创建索引
+    bool success = collection->create_index(index_meta);
+    if (!success) {
+        return MutationResult::make_failure("Failed to create index in collection");
     }
+    
+    // 在 Catalog 中创建索引条目
+    auto catalog_index_entry = std::make_unique<CatalogIndexEntry>(
+        index_name,
+        index_type,
+        false,  // 默认非唯一
+        column_ids
+    );
+    
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    mutable_coll_entry->add_index(std::move(catalog_index_entry));
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Index created successfully.");
     return result;
 }
 
-ExecutorResult Executor::execute_create_vindex(const CreateStmt &)
+MutationResult Executor::execute_create_vindex(
+    std::size_t collection_id,
+    const std::string & vindex_name,
+    std::size_t column_id,
+    VIndexType vindex_type,
+    const std::vector<std::pair<std::string, std::string>> & with_clauses,
+    bool if_not_exists
+)
 {
-    ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_create_vindex not implemented");
-    return result;
-}
-
-ExecutorResult Executor::execute_drop_database(const DropStmt & drop_stmt)
-{
-    // 获取数据库名称
-    const std::string & database_name = drop_stmt.get_object_name();
-
-    // 检查是否为当前数据库
-    Database * database = get_current_database();
-    if (database != nullptr && database->get_name() == database_name) {
-        // 是当前数据库，设置为空后再进行删除操作
-        database_manager_->set_current_database("");
-    }
-
-    ExecutorResult result;
-
-    // 删除该数据库
-    if (database_manager_->drop_database(database_name)) {
-        result.set_is_success(true);
-        result.set_message("Database dropped");
-    } else {
-        result.set_is_success(false);
-        result.set_message("Unknown database: '" + database_name + "'");
-    }
-
-    return result;
-}
-
-ExecutorResult Executor::execute_drop_collection(const DropStmt & drop_stmt)
-{
-    // 获取集合名称
-    const std::string & collection_name = drop_stmt.get_object_name();
-
-    ExecutorResult result;
-
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 删除集合
-    if (database->drop_collection(collection_name)) {
-        result.set_is_success(true);
-        result.set_message("Collection dropped");
-    } else {
-        // 集合不存在
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-    }
-
-    return result;
-}
-
-ExecutorResult Executor::execute_drop_index(const DropStmt & drop_stmt)
-{
-    // 获取索引名称和集合名称
-    const std::string & index_name = drop_stmt.get_object_name();
-    const std::string & collection_name = drop_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 删除索引
-    if (collection->remove_index(index_name)) {
-        result.set_is_success(true);
-        result.set_message("Index dropped");
-    } else {
-        result.set_is_success(false);
-        result.set_message("Unknown index: '" + index_name + "'");
-    }
-
-    return result;
-}
-
-ExecutorResult Executor::execute_drop_vindex(const DropStmt &)
-{
-    ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_drop_vindex not implemented");
-    return result;
-}
-
-ExecutorResult Executor::execute_show_databases()
-{
-    ExecutorResult result;
-    result.set_is_success(true);
-    result.set_message("Databases:\n");
-    for (const std::string & database : database_manager_->get_databases()) {
-        result.set_message(database + "\n");
-    }
-    return result;
-}
-
-ExecutorResult Executor::execute_show_collections()
-{
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-
-    if (database == nullptr) {
-        // 没有选择数据库
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    result.set_is_success(true);
-    result.set_message("Collections:\n");
-    for (const std::string & collection : database->get_collections()) {
-        result.set_message(collection + "\n");
-    }
-    return result;
-}
-
-ExecutorResult Executor::execute_show_indexes(const ShowStmt & show_stmt)
-{
-    // 获取集合名称
-    const std::string & collection_name = show_stmt.get_collection_name();
-
-    ExecutorResult result;
-
-    // 获取当前数据库
-    Database * database = get_current_database();
-    if (database == nullptr) {
-        result.set_is_success(false);
-        result.set_message("No database selected");
-        return result;
-    }
-
-    // 获取集合
-    Collection * collection = database->get_collection(collection_name);
-    if (collection == nullptr) {
-        result.set_is_success(false);
-        result.set_message("Unknown collection: '" + collection_name + "'");
-        return result;
-    }
-
-    // 获取所有索引元数据
-    std::vector<const IndexMeta*> all_indexes = collection->get_all_index_metadata();
-
-    // 构建返回消息
-    result.set_is_success(true);
-    std::string message = "Indexes:\n";
-    for (const IndexMeta * index_meta : all_indexes) {
-        if (index_meta == nullptr) {
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的集合条目
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
             continue;
         }
-        std::string index_name = index_meta->get_index_name();
-        message += index_name + "\n";
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
     }
-    result.set_message(message);
-
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 检查向量索引是否已存在
+    if (collection_entry->get_vindex_entry(vindex_name)) {
+        if (if_not_exists) {
+            MutationResult result = MutationResult::make_success();
+            result.set_message("Vector index already exists, skipping.");
+            return result;
+        }
+        return MutationResult::make_failure("Vector index already exists");
+    }
+    
+    // 检查列是否存在
+    const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_id);
+    if (!column_entry) {
+        return MutationResult::make_failure("Column not found");
+    }
+    
+    // 检查列类型是否为 VECTOR
+    if (column_entry->logical_type().id != LogicalTypeId::LOGICAL_TYPE_VECTOR) {
+        return MutationResult::make_failure("Column is not a vector type");
+    }
+    
+    // 解析 WITH 子句中的 metric_type（如果有）
+    std::optional<MetricType> metric_type = std::nullopt;
+    for (const auto & [key, value] : with_clauses) {
+        if (key == "metric_type" || key == "metric") {
+            if (value == "L2" || value == "l2") {
+                metric_type = MetricType::L2;
+            }
+            else if (value == "IP" || value == "ip") {
+                metric_type = MetricType::IP;
+            }
+            else if (value == "COSINE" || value == "cosine") {
+                metric_type = MetricType::COSINE;
+            }
+        }
+    }
+    
+    // 在 Catalog 中创建向量索引条目
+    auto catalog_vindex_entry = std::make_unique<CatalogVIndexEntry>(
+        vindex_name,
+        column_id,
+        vindex_type,
+        metric_type
+    );
+    
+    // 设置其他配置选项
+    for (const auto & [key, value] : with_clauses) {
+        if (key != "metric_type" && key != "metric") {
+            catalog_vindex_entry->set_option(key, value);
+        }
+    }
+    
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    mutable_coll_entry->add_vindex(std::move(catalog_vindex_entry));
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Vector index created successfully.");
     return result;
 }
 
-ExecutorResult Executor::execute_show_vindexes(const ShowStmt &)
+MutationResult Executor::execute_alter_add_column(std::size_t collection_id, const Field & column_definition)
 {
-    ExecutorResult result;
-    result.set_is_success(false);
-    result.set_message("Executor::execute_show_vindexes not implemented");
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 检查列是否已存在
+    if (collection_entry->has_column(column_definition.get_name())) {
+        return MutationResult::make_failure("Column already exists");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 在 Collection 中添加列（需要 Collection 提供 add_column 方法）
+    // 目前先只在 Catalog 中添加
+    
+    // 在 Catalog 中添加列条目
+    std::size_t new_column_index = collection_entry->get_column_names().size();
+    LogicalType logical_type = field_to_logical_type(column_definition);
+    auto column_entry = std::make_unique<CatalogColumnEntry>(
+        column_definition.get_name(),
+        logical_type,
+        new_column_index
+    );
+    
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    mutable_coll_entry->add_column(std::move(column_entry));
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Column added successfully.");
     return result;
 }
 
-FieldValue Executor::ast_to_field_value(const AstNode * ast_node, std::optional<FieldType> target_field_type)
+MutationResult Executor::execute_alter_drop_column(std::size_t collection_id, std::size_t column_id)
 {
-    if (ast_node == nullptr) {
-        return Null();
-    }
-
-    // 目前只支持字面量表达式
-    if (ast_node->get_type() != AstNodeType::LITERAL_EXPR) {
-        // TODO: 未来可能需要支持其他表达式类型（如函数调用、计算表达式等）
-        return Null();
-    }
-
-    const LiteralExpr * literal = static_cast<const LiteralExpr *>(ast_node);
-    const auto & literal_value = literal->get_literal_value();
-    LiteralExpr::LiteralType literal_type = literal->get_literal_type();
-
-    // 根据字面量类型和目标字段类型进行转换
-    switch (literal_type) {
-        case LiteralExpr::LiteralType::INTEGER: {
-            std::int64_t int_val = std::get<std::int64_t>(literal_value);
-
-            // 如果有目标类型，进行类型转换
-            if (target_field_type.has_value()) {
-                switch (target_field_type.value()) {
-                    case FieldType::TINYINT:
-                        return static_cast<std::int8_t>(int_val);
-                    case FieldType::SMALLINT:
-                        return static_cast<std::int16_t>(int_val);
-                    case FieldType::INTEGER:
-                        return static_cast<std::int32_t>(int_val);
-                    case FieldType::BIGINT:
-                    case FieldType::TIMESTAMP:
-                        return int_val;
-                    case FieldType::FLOAT:
-                        return static_cast<float>(int_val);
-                    case FieldType::DOUBLE:
-                        return static_cast<double>(int_val);
-                    default:
-                        // 对于其他类型，返回 BIGINT
-                        return int_val;
-                }
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
             }
-            // 没有目标类型，默认返回 BIGINT
-            return int_val;
         }
-
-        case LiteralExpr::LiteralType::FLOAT: {
-            double float_val = std::get<double>(literal_value);
-            
-            if (target_field_type.has_value()) {
-                switch (target_field_type.value()) {
-                    case FieldType::FLOAT:
-                        return static_cast<float>(float_val);
-                    case FieldType::DOUBLE:
-                        return float_val;
-                    case FieldType::TINYINT:
-                        return static_cast<std::int8_t>(float_val);
-                    case FieldType::SMALLINT:
-                        return static_cast<std::int16_t>(float_val);
-                    case FieldType::INTEGER:
-                        return static_cast<std::int32_t>(float_val);
-                    case FieldType::BIGINT:
-                        return static_cast<std::int64_t>(float_val);
-                    default:
-                        return float_val;
-                }
-            }
-            return float_val;
+        if (collection_entry) {
+            break;
         }
-
-        case LiteralExpr::LiteralType::STRING: {
-            const std::string & str_val = std::get<std::string>(literal_value);
-            // 字符串直接返回，适用于 CHAR, VARCHAR, ENUM
-            return str_val;
-        }
-
-        case LiteralExpr::LiteralType::BOOLEAN: {
-            bool bool_val = std::get<bool>(literal_value);
-            return bool_val;
-        }
-
-        case LiteralExpr::LiteralType::NULL_VALUE: {
-            return Null();
-        }
-
-        case LiteralExpr::LiteralType::VECTOR: {
-            const std::vector<float> & vec_val = std::get<std::vector<float>>(literal_value);
-            return vec_val;
-        }
-
-        default:
-            return Null();
     }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取列条目
+    const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_id);
+    if (!column_entry) {
+        return MutationResult::make_failure("Column not found");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 在 Collection 中删除列（需要 Collection 提供 remove_column 方法）
+    // 目前先只在 Catalog 中删除
+    
+    // 在 Catalog 中删除列条目
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    bool success = mutable_coll_entry->remove_column(column_entry->name());
+    if (!success) {
+        return MutationResult::make_failure("Failed to remove column from catalog");
+    }
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Column dropped successfully.");
+    return result;
 }
 
-Database * Executor::get_current_database()
+MutationResult Executor::execute_alter_modify_column(
+    std::size_t collection_id,
+    std::size_t column_id,
+    const Field & new_definition
+)
 {
-    // 统一入口，未来可以在这里注入事务等上下文
-    // 例如：检查事务状态、获取事务相关的数据库视图等
-    return database_manager_->get_current_database();
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取列条目
+    const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_id);
+    if (!column_entry) {
+        return MutationResult::make_failure("Column not found");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 在 Collection 中修改列（需要 Collection 提供 modify_column 方法）
+    // 目前先只在 Catalog 中修改
+    
+    // 创建新的列条目
+    LogicalType logical_type = field_to_logical_type(new_definition);
+    CatalogColumnEntry new_column_entry(new_definition.get_name(), logical_type, column_id);
+    
+    // 在 Catalog 中修改列条目
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    bool success = mutable_coll_entry->modify_column(column_entry->name(), new_column_entry);
+    if (!success) {
+        return MutationResult::make_failure("Failed to modify column in catalog");
+    }
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Column modified successfully.");
+    return result;
+}
+
+MutationResult Executor::execute_alter_rename_column(
+    std::size_t collection_id,
+    std::size_t column_id,
+    const std::string & new_name
+)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 获取列条目
+    const CatalogColumnEntry * column_entry = collection_entry->get_column_entry(column_id);
+    if (!column_entry) {
+        return MutationResult::make_failure("Column not found");
+    }
+    
+    // 检查新名称是否已存在
+    if (collection_entry->has_column(new_name)) {
+        return MutationResult::make_failure("Column name already exists");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // TODO: 在 Collection 中重命名列（需要 Collection 提供 rename_column 方法）
+    // 目前先只在 Catalog 中重命名
+    
+    // 在 Catalog 中重命名列条目
+    // 注意：CatalogColumnEntry 没有直接的 rename 方法，需要先删除再添加
+    // 或者使用 modify_column 方法（如果支持重命名）
+    // 这里简化处理，使用 modify_column 并保持其他属性不变
+    CatalogColumnEntry new_column_entry(new_name, column_entry->logical_type(), column_id);
+    
+    CatalogCollectionEntry * mutable_coll_entry = const_cast<CatalogCollectionEntry *>(collection_entry);
+    bool success = mutable_coll_entry->modify_column(column_entry->name(), new_column_entry);
+    if (!success) {
+        return MutationResult::make_failure("Failed to rename column in catalog");
+    }
+    
+    MutationResult result = MutationResult::make_success();
+    result.set_message("Column renamed successfully.");
+    return result;
+}
+
+MutationResult Executor::execute_insert(const BoundInsertStatement & insert_statement)
+{
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == insert_statement.collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        // 如果当前数据库不匹配，需要找到对应的数据库
+        // 这里简化处理，假设集合在当前数据库中
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // 创建实体
+    Entity entity = collection->create_entity();
+    
+    // 获取集合的 schema 信息
+    const std::vector<Field> & schema = collection->get_schema();
+    
+    // 评估并设置每个插入项的值
+    for (const auto & item : insert_statement.insert_items) {
+        if (item.column_index >= schema.size()) {
+            return MutationResult::make_failure("Column index out of range");
+        }
+        
+        // 评估表达式获取字段值
+        std::optional<FieldValue> value = evaluate_expression_for_insert(item.value.get());
+        
+        if (!value.has_value()) {
+            return MutationResult::make_failure("Failed to evaluate expression for column " + std::to_string(item.column_index));
+        }
+        
+        // 检查类型兼容性（简化处理，这里假设类型已经由 Binder 验证）
+        // 设置实体字段值
+        entity.set_value(item.column_index, value.value());
+    }
+    
+    // 对于未指定的字段，如果字段允许 NULL，则设置为 NULL
+    // 如果字段不允许 NULL 且没有默认值，则返回错误
+    for (std::size_t i = 0; i < schema.size(); ++i) {
+        // 检查该字段是否在 insert_items 中
+        bool found = false;
+        for (const auto & item : insert_statement.insert_items) {
+            if (item.column_index == i) {
+                found = true;
+                break;
+            }
+        }
+        
+        if (!found) {
+            const Field & field = schema[i];
+            if (!field.get_is_nullable()) {
+                return MutationResult::make_failure("Column " + std::to_string(i) + " is not nullable and no value provided");
+            }
+            // 对于可空字段，如果未指定值，可以保持默认值（如果有）或设置为 NULL
+            // 这里简化处理，不设置值（Entity 创建时可能已有默认值）
+        }
+    }
+    
+    // 插入实体
+    MutationResult result = collection->insert(entity);
+    
+    if (result.is_success()) {
+        result.set_message("1 row inserted");
+        result.set_affected_count(1);
+    }
+    
+    return result;
 }
 
 } // namespace dreamdb

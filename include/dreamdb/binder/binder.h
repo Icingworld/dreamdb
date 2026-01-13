@@ -9,6 +9,12 @@
 #include "dreamdb/parser/ast/ast_insert_statement_node.h"
 #include "dreamdb/parser/ast/ast_delete_statement_node.h"
 #include "dreamdb/parser/ast/ast_update_statement_node.h"
+#include "dreamdb/parser/ast/ast_use_statement_node.h"
+#include "dreamdb/parser/ast/ast_show_statement_node.h"
+#include "dreamdb/parser/ast/ast_describe_statement_node.h"
+#include "dreamdb/parser/ast/ast_drop_statement_node.h"
+#include "dreamdb/parser/ast/ast_create_statement_node.h"
+#include "dreamdb/parser/ast/ast_alter_statement_node.h"
 #include "dreamdb/parser/ast/ast_expression_node.h"
 #include "dreamdb/expression/expression.h"
 #include "dreamdb/catalog/catalog.h"
@@ -23,10 +29,10 @@ class Binder
 public:
     /**
      * @brief 构造函数
-     * @param catalog Catalog 指针（所有权将被转移）
+     * @param catalog Catalog 引用（Binder 只读取，不修改）
      * @param current_database 当前数据库名称
      */
-    explicit Binder(std::unique_ptr<Catalog> catalog, const std::string & current_database);
+    explicit Binder(const Catalog & catalog, const std::string & current_database);
 
     /**
      * @brief 绑定语句
@@ -59,8 +65,20 @@ private:
 
     std::unique_ptr<BoundStatement> bind_update_statement(const AstUpdateStatementNode & update_statement);
 
+    std::unique_ptr<BoundStatement> bind_use_statement(const AstUseStatementNode & use_statement);
+
+    std::unique_ptr<BoundStatement> bind_show_statement(const AstShowStatementNode & show_statement);
+
+    std::unique_ptr<BoundStatement> bind_describe_statement(const AstDescribeStatementNode & describe_statement);
+
+    std::unique_ptr<BoundStatement> bind_drop_statement(const AstDropStatementNode & drop_statement);
+
+    std::unique_ptr<BoundStatement> bind_create_statement(const AstCreateStatementNode & create_statement);
+
+    std::unique_ptr<BoundStatement> bind_alter_statement(const AstAlterStatementNode & alter_statement);
+
 private:
-    std::unique_ptr<Catalog> catalog_;          // 表结构元数据目录
+    const Catalog & catalog_;                   // 表结构元数据目录（只读引用）
     std::string current_database_;              // 当前数据库
 };
 
