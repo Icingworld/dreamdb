@@ -60,3 +60,5 @@ private:
 };
 
 } // namespace dreamdb
+
+#include "dreamdb/expression/constant_expression.inl"
