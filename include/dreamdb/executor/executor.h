@@ -109,6 +109,40 @@ private:
     MutationResult execute_drop(const BoundDropStatement & drop_statement);
 
     /**
+     * @brief 执行 DROP DATABASE 语句
+     * @param database_id 数据库 ID
+     * @param if_exists 如果不存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_drop_database(std::size_t database_id, bool if_exists);
+
+    /**
+     * @brief 执行 DROP COLLECTION 语句
+     * @param collection_id 集合 ID
+     * @param if_exists 如果不存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_drop_collection(std::size_t collection_id, bool if_exists);
+
+    /**
+     * @brief 执行 DROP INDEX 语句
+     * @param collection_id 集合 ID
+     * @param index_name 索引名称
+     * @param if_exists 如果不存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_drop_index(std::size_t collection_id, const std::string & index_name, bool if_exists);
+
+    /**
+     * @brief 执行 DROP VINDEX 语句
+     * @param collection_id 集合 ID
+     * @param vindex_name 向量索引名称
+     * @param if_exists 如果不存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_drop_vindex(std::size_t collection_id, const std::string & vindex_name, bool if_exists);
+
+    /**
      * @brief 执行 ALTER 语句
      * @param alter_statement 绑定后的 ALTER 语句
      * @return 执行结果
