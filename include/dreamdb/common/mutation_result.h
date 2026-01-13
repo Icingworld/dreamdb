@@ -11,7 +11,7 @@ namespace dreamdb
 class MutationResult
 {
 public:
-    MutationResult() = default;
+    explicit MutationResult();
 
     MutationResult(const MutationResult &) = default;
 
@@ -26,17 +26,16 @@ public:
 public:
     /**
      * @brief 创建成功结果
-     * @param affected_count 受影响的行数
      * @return 成功的结果对象
      */
-    static MutationResult make_success(std::size_t affected_count = 1);
+    static MutationResult make_success();
 
     /**
      * @brief 创建失败结果
-     * @param error_message 错误信息
+     * @param message 消息
      * @return 失败的结果对象
      */
-    static MutationResult make_failure(const std::string & error_message);
+    static MutationResult make_failure(const std::string & message);
 
 public:
     /**
@@ -46,10 +45,10 @@ public:
     void set_success(bool success) noexcept;
 
     /**
-     * @brief 设置错误信息
-     * @param message 错误信息
+     * @brief 设置消息
+     * @param message 消息
      */
-    void set_error_message(const std::string & message);
+    void set_message(const std::string & message);
 
     /**
      * @brief 设置受影响的行数
@@ -64,10 +63,10 @@ public:
     bool is_success() const noexcept;
 
     /**
-     * @brief 获取错误信息
-     * @return 错误信息，如果成功则为空字符串
+     * @brief 获取消息
+     * @return 消息
      */
-    const std::string & get_error_message() const noexcept;
+    const std::string & get_message() const noexcept;
 
     /**
      * @brief 获取受影响的行数
@@ -76,9 +75,9 @@ public:
     std::size_t get_affected_count() const noexcept;
 
 private:
-    bool success_ = false;                    // 操作是否成功
-    std::string error_message_;               // 错误信息
-    std::size_t affected_count_ = 0;          // 受影响的记录数
+    bool success_;                       // 操作是否成功
+    std::string message_;                // 消息
+    std::size_t affected_count_;         // 受影响的记录数
 };
 
 } // namespace dreamdb
