@@ -99,8 +99,8 @@ static UnaryOperatorType convert_unary_operator(AstUnaryOperatorType ast_op)
     }
 }
 
-Binder::Binder(std::unique_ptr<Catalog> catalog, const std::string & current_database)
-    : catalog_(std::move(catalog))
+Binder::Binder(const Catalog & catalog, const std::string & current_database)
+    : catalog_(catalog)
     , current_database_(current_database)
 {
 }
@@ -146,7 +146,7 @@ std::unique_ptr<BoundStatement> Binder::bind_select_statement(const AstSelectSta
     const std::string & collection_name = select_statement.get_collection_name();
 
     // 检查集合合法性
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }
@@ -382,7 +382,7 @@ std::unique_ptr<BoundStatement> Binder::bind_insert_statement(const AstInsertSta
     const std::string & collection_name = insert_statement.get_collection_name();
 
     // 检查集合合法性
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }
@@ -627,7 +627,7 @@ std::unique_ptr<BoundStatement> Binder::bind_delete_statement(const AstDeleteSta
     const std::string & collection_name = delete_statement.get_collection_name();
 
     // 检查集合合法性
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }
@@ -655,7 +655,7 @@ std::unique_ptr<BoundStatement> Binder::bind_update_statement(const AstUpdateSta
     const std::string & collection_name = update_statement.get_collection_name();
 
     // 检查集合合法性
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }
@@ -725,7 +725,7 @@ std::unique_ptr<BoundStatement> Binder::bind_use_statement(const AstUseStatement
     const std::string & database_name = use_statement.get_database_name();
 
     // 检查数据库是否存在并获取数据库条目
-    const auto * database_entry = catalog_->get_database_entry(database_name);
+    const auto * database_entry = catalog_.get_database_entry(database_name);
     if (!database_entry) {
         throw std::runtime_error("Database not found: " + database_name);
     }
@@ -756,7 +756,7 @@ std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStateme
 
         if (show_collections.has_database_name()) {
             const std::string & database_name = show_collections.get_database_name();
-            const auto * database_entry = catalog_->get_database_entry(database_name);
+            const auto * database_entry = catalog_.get_database_entry(database_name);
             if (!database_entry) {
                 throw std::runtime_error("Database not found: " + database_name);
             }
@@ -776,7 +776,7 @@ std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStateme
         }
 
         const std::string & collection_name = show_indexes.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(database_name, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(database_name, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -784,7 +784,7 @@ std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStateme
         bound_show_indexes.collection_id = collection_entry->collection_id_;
 
         if (show_indexes.has_database_name()) {
-            const auto * database_entry = catalog_->get_database_entry(database_name);
+            const auto * database_entry = catalog_.get_database_entry(database_name);
             if (!database_entry) {
                 throw std::runtime_error("Database not found: " + database_name);
             }
@@ -804,7 +804,7 @@ std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStateme
         }
 
         const std::string & collection_name = show_vindexes.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(database_name, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(database_name, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -812,7 +812,7 @@ std::unique_ptr<BoundStatement> Binder::bind_show_statement(const AstShowStateme
         bound_show_vindexes.collection_id = collection_entry->collection_id_;
 
         if (show_vindexes.has_database_name()) {
-            const auto * database_entry = catalog_->get_database_entry(database_name);
+            const auto * database_entry = catalog_.get_database_entry(database_name);
             if (!database_entry) {
                 throw std::runtime_error("Database not found: " + database_name);
             }
@@ -840,7 +840,7 @@ std::unique_ptr<BoundStatement> Binder::bind_describe_statement(const AstDescrib
     const std::string & collection_name = describe_statement.get_collection_name();
 
     // 检查集合合法性
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }
@@ -869,7 +869,7 @@ std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStateme
         BoundDropDatabase bound_drop_database;
 
         const std::string & database_name = drop_database.get_database_name();
-        const auto * database_entry = catalog_->get_database_entry(database_name);
+        const auto * database_entry = catalog_.get_database_entry(database_name);
         if (!database_entry) {
             if (!bound_drop_statement->if_exists) {
                 throw std::runtime_error("Database not found: " + database_name);
@@ -888,7 +888,7 @@ std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStateme
         BoundDropCollection bound_drop_collection;
 
         const std::string & collection_name = drop_collection.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
         if (!collection_entry) {
             if (!bound_drop_statement->if_exists) {
                 throw std::runtime_error("Collection not found: " + collection_name);
@@ -906,7 +906,7 @@ std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStateme
         BoundDropIndex bound_drop_index;
 
         const std::string & collection_name = drop_index.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -930,7 +930,7 @@ std::unique_ptr<BoundStatement> Binder::bind_drop_statement(const AstDropStateme
         BoundDropVIndex bound_drop_vindex;
 
         const std::string & collection_name = drop_vindex.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -988,7 +988,7 @@ std::unique_ptr<BoundStatement> Binder::bind_create_statement(const AstCreateSta
         BoundCreateIndex bound_create_index;
 
         const std::string & collection_name = create_index.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -1028,7 +1028,7 @@ std::unique_ptr<BoundStatement> Binder::bind_create_statement(const AstCreateSta
         BoundCreateVIndex bound_create_vindex;
 
         const std::string & collection_name = create_vindex.get_collection_name();
-        const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+        const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
         if (!collection_entry) {
             throw std::runtime_error("Collection not found: " + collection_name);
         }
@@ -1107,7 +1107,7 @@ std::unique_ptr<BoundStatement> Binder::bind_alter_statement(const AstAlterState
     }
 
     const std::string & collection_name = alter_statement.get_collection_name();
-    const auto * collection_entry = catalog_->get_collection_entry(current_database_, collection_name);
+    const auto * collection_entry = catalog_.get_collection_entry(current_database_, collection_name);
     if (!collection_entry) {
         throw std::runtime_error("Collection not found: " + collection_name);
     }

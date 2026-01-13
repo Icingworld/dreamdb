@@ -29,10 +29,10 @@ class Binder
 public:
     /**
      * @brief 构造函数
-     * @param catalog Catalog 指针（所有权将被转移）
+     * @param catalog Catalog 引用（Binder 只读取，不修改）
      * @param current_database 当前数据库名称
      */
-    explicit Binder(std::unique_ptr<Catalog> catalog, const std::string & current_database);
+    explicit Binder(const Catalog & catalog, const std::string & current_database);
 
     /**
      * @brief 绑定语句
@@ -78,7 +78,7 @@ private:
     std::unique_ptr<BoundStatement> bind_alter_statement(const AstAlterStatementNode & alter_statement);
 
 private:
-    std::unique_ptr<Catalog> catalog_;          // 表结构元数据目录
+    const Catalog & catalog_;                   // 表结构元数据目录（只读引用）
     std::string current_database_;              // 当前数据库
 };
 

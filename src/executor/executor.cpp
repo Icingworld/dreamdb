@@ -550,9 +550,8 @@ std::vector<QueryRow> execute_seq_scan(
         return {};
     }
     
-    // 获取所有实体（简化实现：使用空查询获取所有实体）
-    Query query;
-    std::vector<std::unique_ptr<Entity>> entities = collection->query(query);
+    // 获取所有实体（全表扫描）
+    std::vector<std::unique_ptr<Entity>> entities = collection->get_all_entities();
     
     // 转换为 QueryRow
     std::vector<QueryRow> rows;
@@ -794,6 +793,25 @@ std::vector<QueryRow> execute_limit_offset(
 Executor::Executor(std::unique_ptr<DatabaseManager> database_manager)
     : database_manager_(std::move(database_manager))
 {
+}
+
+const Catalog & Executor::get_catalog() const noexcept
+{
+    return database_manager_->get_catalog();
+}
+
+Catalog & Executor::get_catalog() noexcept
+{
+    return database_manager_->get_catalog();
+}
+
+std::string Executor::get_current_database_name() const
+{
+    Database * current_db = database_manager_->get_current_database();
+    if (current_db) {
+        return current_db->get_name();
+    }
+    return "";
 }
 
 MutationResult Executor::execute(const PhysicalPlanNode & physical_plan)

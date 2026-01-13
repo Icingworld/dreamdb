@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include "dreamdb/parser/ast/ast_node.h"
+#include "dreamdb/parser/ast/ast_expression_node.h"
 #include "dreamdb/schema/field.h"
 #include "dreamdb/evaluator/evaluator_context.h"
 
@@ -124,7 +124,7 @@ public:
      * @return 表达式评估结果 
      */
     EvaluateResult evaluate(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context,
         std::optional<FieldType> field_type = std::nullopt
     ) const;
@@ -136,7 +136,7 @@ public:
      * @return 条件表达式评估结果
      */
     std::optional<bool> evaluate_condition(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -148,7 +148,7 @@ private:
      * @return 字面量表达式评估结果
      */
     EvaluateResult evaluate_literal(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         std::optional<FieldType> target_type
     ) const;
 
@@ -159,7 +159,7 @@ private:
      * @return 字段引用表达式评估结果
      */
     EvaluateResult evaluate_identifier(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -170,7 +170,7 @@ private:
      * @return 二元表达式评估结果
      */
     EvaluateResult evaluate_binary(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -181,7 +181,7 @@ private:
      * @return 一元表达式评估结果
      */
     EvaluateResult evaluate_unary(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -192,7 +192,7 @@ private:
      * @return LIKE 表达式评估结果
      */
     EvaluateResult evaluate_like(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -203,7 +203,7 @@ private:
      * @return IN 表达式评估结果
      */
     EvaluateResult evaluate_in(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -214,7 +214,7 @@ private:
      * @return BETWEEN 表达式评估结果
      */
     EvaluateResult evaluate_between(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -225,7 +225,7 @@ private:
      * @return NULL 表达式评估结果
      */
     EvaluateResult evaluate_null(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 
@@ -236,7 +236,7 @@ private:
      * @return 函数调用表达式评估结果
      */
     EvaluateResult evaluate_function_call(
-        const AstNode * expr,
+        const AstExpressionNode * expr,
         const EvaluatorContext & context
     ) const;
 

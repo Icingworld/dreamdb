@@ -4,7 +4,6 @@
 #include <regex>
 #include <stdexcept>
 
-#include "dreamdb/query/query.h"
 #include "dreamdb/query/order.h"
 #include "dreamdb/query/limit.h"
 #include "dreamdb/common/null.h"
@@ -164,57 +163,15 @@ std::unique_ptr<Entity> MemoryStorage::get_by_id(std::size_t id) const
     return std::make_unique<Entity>(it->second);
 }
 
-std::vector<std::unique_ptr<Entity>> MemoryStorage::query(const Query & query, const Collection * collection) const
+std::vector<std::unique_ptr<Entity>> MemoryStorage::get_all_entities() const
 {
     std::vector<std::unique_ptr<Entity>> results;
-
-    // 创建 Evaluator 和 EvaluatorContext
-    Evaluator evaluator;
-    EvaluatorContext context;
-    if (collection != nullptr) {
-        context.set_collection(collection);
+    results.reserve(entity_map_.size());
+    
+    for (const auto & [id, entity] : entity_map_) {
+        results.push_back(std::make_unique<Entity>(entity));
     }
-
-    // 1. 条件过滤（WHERE）
-    if (query.has_where_clause()) {
-        const AstNode * where_clause = query.get_where_clause();
-        for (const auto & [id, entity] : entity_map_) {
-            // 设置当前实体到上下文
-            context.set_entity(&entity);
-
-            // 使用 Evaluator 评估 WHERE 条件
-            std::optional<bool> condition_result = evaluator.evaluate_condition(where_clause, context);
-            if (condition_result.value_or(false)) {
-                results.push_back(std::make_unique<Entity>(entity));
-            }
-        }
-    }
-    else {
-        // 没有条件，返回所有实体
-        results.reserve(entity_map_.size());
-        for (const auto & [id, entity] : entity_map_) {
-            results.push_back(std::make_unique<Entity>(entity));
-        }
-    }
-
-    // 2. 排序（ORDER BY）
-    if (query.has_order()) {
-        const Order & order = *query.get_order();
-        std::sort(results.begin(), results.end(),
-                  [&order](const std::unique_ptr<Entity> & lhs, const std::unique_ptr<Entity> & rhs) {
-                      return compare_entities(*lhs, *rhs, order);
-                  });
-    }
-
-    // 3. 限制（LIMIT）
-    if (query.has_limit()) {
-        const Limit & limit = *query.get_limit();
-        const std::int64_t limit_value = limit.get_limit();
-        if (limit_value >= 0 && static_cast<std::size_t>(limit_value) < results.size()) {
-            results.resize(static_cast<std::size_t>(limit_value));
-        }
-    }
-
+    
     return results;
 }
 

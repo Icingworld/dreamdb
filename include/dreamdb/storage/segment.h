@@ -8,7 +8,6 @@
 #include "dreamdb/common/type.h"
 #include "dreamdb/common/mutation_result.h"
 #include "dreamdb/schema/entity.h"
-#include "dreamdb/query/query.h"
 
 namespace dreamdb
 {
@@ -109,12 +108,10 @@ public:
     std::unique_ptr<Entity> get_by_id(std::size_t id) const;
  
     /**
-     * @brief 执行查询
-     * @param query 查询对象，包含条件、排序和限制
-     * @param collection 集合对象，用于创建评估上下文
-     * @return 匹配的实体列表
+     * @brief 获取所有实体
+     * @return 所有实体的列表
      */
-    std::vector<std::unique_ptr<Entity>> query(const Query & query, const Collection * collection) const;
+    std::vector<std::unique_ptr<Entity>> get_all_entities() const;
 
 public:
     /** 统计信息访问接口 */

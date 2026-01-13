@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "dreamdb/common/mutation_result.h"
 #include "dreamdb/planner/physical_planner/physical_plan_node.h"
@@ -15,6 +16,7 @@
 #include "dreamdb/binder/bound/bound_describe_statement.h"
 #include "dreamdb/binder/bound/bound_show_statement.h"
 #include "dreamdb/binder/bound/bound_insert_statement.h"
+#include "dreamdb/catalog/catalog.h"
 
 namespace dreamdb
 {
@@ -60,6 +62,24 @@ public:
      * @return 执行结果
      */
     MutationResult execute(const BoundStatement & bound_statement);
+
+    /**
+     * @brief 获取 Catalog 引用（用于 Binder 和 Dispatcher）
+     * @return Catalog 引用
+     */
+    const Catalog & get_catalog() const noexcept;
+
+    /**
+     * @brief 获取可变 Catalog 引用（用于 Binder 和 Dispatcher）
+     * @return Catalog 引用
+     */
+    Catalog & get_catalog() noexcept;
+
+    /**
+     * @brief 获取当前数据库名称（用于 Binder）
+     * @return 当前数据库名称，如果没有选择数据库则返回空字符串
+     */
+    std::string get_current_database_name() const;
 
 private:
     /** Physical Planner 对应执行方法 */

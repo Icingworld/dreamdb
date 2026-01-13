@@ -1,8 +1,14 @@
 #include "dreamdb/evaluator/evaluator.h"
 
-#include "dreamdb/parser/ast/literal_expr.h"
-#include "dreamdb/parser/ast/identifier_expr.h"
-#include "dreamdb/parser/ast/binary_expr.h"
+#include "dreamdb/parser/ast/ast_literal_expression_node.h"
+#include "dreamdb/parser/ast/ast_column_reference_expression_node.h"
+#include "dreamdb/parser/ast/ast_binary_expression_node.h"
+#include "dreamdb/parser/ast/ast_unary_expression_node.h"
+#include "dreamdb/parser/ast/ast_like_expression_node.h"
+#include "dreamdb/parser/ast/ast_in_expression_node.h"
+#include "dreamdb/parser/ast/ast_between_expression_node.h"
+#include "dreamdb/parser/ast/ast_function_call_expression_node.h"
+#include "dreamdb/common/decimal.h"
 
 namespace dreamdb
 {
@@ -85,7 +91,7 @@ const std::string & EvaluateResult::get_error_message() const noexcept
 }
 
 EvaluateResult Evaluator::evaluate(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext & context,
     std::optional<FieldType> field_type
 ) const
@@ -96,36 +102,25 @@ EvaluateResult Evaluator::evaluate(
 
     // 根据表达式类型选择对应的评估方法
     EvaluateResult result;
-    switch (expr->get_type()) {
-        case AstNodeType::LITERAL_EXPR:
+    switch (expr->get_expression_type()) {
+        case AstExpressionNodeType::AST_EXPRESSION_LITERAL:
             return evaluate_literal(expr, field_type);
-            break;
-        case AstNodeType::IDENTIFIER_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_COLUMN_REFERENCE:
             return evaluate_identifier(expr, context);
-            break;
-        case AstNodeType::BINARY_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_BINARY:
             return evaluate_binary(expr, context);
-            break;
-        case AstNodeType::UNARY_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_UNARY:
             return evaluate_unary(expr, context);
-            break;
-        case AstNodeType::LIKE_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_LIKE:
             return evaluate_like(expr, context);
-            break;
-        case AstNodeType::IN_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_IN:
             return evaluate_in(expr, context);
-            break;
-        case AstNodeType::BETWEEN_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_BETWEEN:
             return evaluate_between(expr, context);
-            break;
-        case AstNodeType::NULL_EXPR:
-            return evaluate_null(expr, context);
-            break;
-        case AstNodeType::FUNCTION_CALL_EXPR:
+        case AstExpressionNodeType::AST_EXPRESSION_FUNCTION_CALL:
             return evaluate_function_call(expr, context);
-            break;
         default:
-            return EvaluateResult::make_error("Unsupported expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+            return EvaluateResult::make_error("Unsupported expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_expression_type())));
     }
 
     // 如果评估失败，直接返回
@@ -143,7 +138,7 @@ EvaluateResult Evaluator::evaluate(
 }
 
 std::optional<bool> Evaluator::evaluate_condition(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext & context
 ) const
 {
@@ -168,7 +163,7 @@ std::optional<bool> Evaluator::evaluate_condition(
 }
 
 EvaluateResult Evaluator::evaluate_literal(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     std::optional<FieldType> target_type
 ) const
 {
@@ -178,21 +173,20 @@ EvaluateResult Evaluator::evaluate_literal(
     }
 
     // 检查表达式类型
-    if (expr->get_type() != AstNodeType::LITERAL_EXPR) {
-        return EvaluateResult::make_error("Invalid literal expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+    if (expr->get_expression_type() != AstExpressionNodeType::AST_EXPRESSION_LITERAL) {
+        return EvaluateResult::make_error("Invalid literal expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_expression_type())));
     }
 
     // 获取字面量表达式
-    const LiteralExpr * literal = static_cast<const LiteralExpr *>(expr);
-    // 获取字面量类型和值
-    LiteralExpr::LiteralType literal_type = literal->get_literal_type();
-    const LiteralExpr::LiteralValue & literal_value = literal->get_literal_value();
+    const AstLiteralExpressionNode * literal = static_cast<const AstLiteralExpressionNode *>(expr);
+    // 获取字面量类型
+    AstLiteralType literal_type = literal->get_literal_type();
     
     // 根据字面量类型和目标类型进行转换
     switch (literal_type) {
-        case LiteralExpr::LiteralType::INTEGER: {
+        case AstLiteralType::AST_LITERAL_INTEGER: {
             // 读取整数值
-            std::int64_t int_val = std::get<std::int64_t>(literal_value);
+            std::int64_t int_val = literal->get_integer();
 
             // 如果有目标类型，进行类型转换
             if (target_type.has_value()) {
@@ -219,9 +213,9 @@ EvaluateResult Evaluator::evaluate_literal(
                 return EvaluateResult::make_success(FieldValue(int_val));
             }
         }
-        case LiteralExpr::LiteralType::FLOAT: {
+        case AstLiteralType::AST_LITERAL_FLOAT: {
             // 读取浮点数值
-            double float_val = std::get<double>(literal_value);
+            double float_val = literal->get_float();
 
             // 如果有目标类型，进行类型转换
             if (target_type.has_value()) {
@@ -246,21 +240,17 @@ EvaluateResult Evaluator::evaluate_literal(
                 return EvaluateResult::make_success(FieldValue(float_val));
             }
         }
-        case LiteralExpr::LiteralType::STRING: {
-            const std::string & str_val = std::get<std::string>(literal_value);
+        case AstLiteralType::AST_LITERAL_STRING: {
+            const std::string & str_val = literal->get_string();
             // 字符串直接返回，适用于 CHAR, VARCHAR, ENUM
             return EvaluateResult::make_success(FieldValue(str_val));
         }
-        case LiteralExpr::LiteralType::BOOLEAN: {
-            bool bool_val = std::get<bool>(literal_value);
+        case AstLiteralType::AST_LITERAL_BOOLEAN: {
+            bool bool_val = literal->get_boolean();
             return EvaluateResult::make_success(FieldValue(bool_val));
         }
-        case LiteralExpr::LiteralType::NULL_VALUE: {
+        case AstLiteralType::AST_LITERAL_NULL: {
             return EvaluateResult::make_success(FieldValue(Null()));
-        }
-        case LiteralExpr::LiteralType::VECTOR: {
-            const std::vector<float> & vec_val = std::get<std::vector<float>>(literal_value);
-            return EvaluateResult::make_success(FieldValue(vec_val));
         }
         default:
             return EvaluateResult::make_error("Unsupported literal type: " + std::to_string(static_cast<std::uint8_t>(literal_type)));
@@ -268,7 +258,7 @@ EvaluateResult Evaluator::evaluate_literal(
 }
 
 EvaluateResult Evaluator::evaluate_identifier(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext & context
 ) const
 {
@@ -278,8 +268,8 @@ EvaluateResult Evaluator::evaluate_identifier(
     }
 
     // 检查表达式类型
-    if (expr->get_type() != AstNodeType::IDENTIFIER_EXPR) {
-        return EvaluateResult::make_error("Invalid identifier expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+    if (expr->get_expression_type() != AstExpressionNodeType::AST_EXPRESSION_COLUMN_REFERENCE) {
+        return EvaluateResult::make_error("Invalid identifier expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_expression_type())));
     }
 
     // 检查上下文是否有效
@@ -287,40 +277,31 @@ EvaluateResult Evaluator::evaluate_identifier(
         return EvaluateResult::make_error("Invalid evaluator context: entity or collection is null");
     }
 
-    // 获取标识符表达式
-    const IdentifierExpr * identifier = static_cast<const IdentifierExpr *>(expr);
-    // 获取标识符类型和名称
-    IdentifierExpr::IdentifierType identifier_type = identifier->get_identifier_type();
-    const std::string & field_name = identifier->get_original_identifier();
+    // 获取列引用表达式
+    const AstColumnReferenceExpressionNode * column_ref = static_cast<const AstColumnReferenceExpressionNode *>(expr);
+    // 获取列名
+    const std::string & field_name = column_ref->get_column_name();
 
-    // 根据标识符类型和名称获取字段值
-    switch (identifier_type) {
-        // TODO: 支持集合名、别名、函数名
-        case IdentifierExpr::IdentifierType::COLUMN: {
-            // 从上下文中获取集合，查找字段
-            const Collection * collection = context.get_collection();
-            auto field_index = collection->get_field_index(field_name);
+    // 从上下文中获取集合，查找字段
+    const Collection * collection = context.get_collection();
+    auto field_index = collection->get_field_index(field_name);
 
-            if (!field_index.has_value()) {
-                return EvaluateResult::make_error("Unknown field: " + field_name);
-            }
+    if (!field_index.has_value()) {
+        return EvaluateResult::make_error("Unknown field: " + field_name);
+    }
 
-            // 从 Entity 中读取字段值
-            const Entity * entity = context.get_entity();
-            try {
-                const FieldValue & field_value = entity->get_value(field_index.value());
-                return EvaluateResult::make_success(field_value);
-            } catch (const std::out_of_range & e) {
-                return EvaluateResult::make_error("Field index out of range: " + std::string(e.what()));
-            }
-        }
-        default:
-            return EvaluateResult::make_error("Unsupported identifier type: " + std::to_string(static_cast<std::uint8_t>(identifier_type)));
+    // 从 Entity 中读取字段值
+    const Entity * entity = context.get_entity();
+    try {
+        const FieldValue & field_value = entity->get_value(field_index.value());
+        return EvaluateResult::make_success(field_value);
+    } catch (const std::out_of_range & e) {
+        return EvaluateResult::make_error("Field index out of range: " + std::string(e.what()));
     }
 }
 
 EvaluateResult Evaluator::evaluate_binary(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext & context
 ) const
 {
@@ -330,20 +311,20 @@ EvaluateResult Evaluator::evaluate_binary(
     }
 
     // 检查表达式类型
-    if (expr->get_type() != AstNodeType::BINARY_EXPR) {
-        return EvaluateResult::make_error("Invalid binary expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_type())));
+    if (expr->get_expression_type() != AstExpressionNodeType::AST_EXPRESSION_BINARY) {
+        return EvaluateResult::make_error("Invalid binary expression type: " + std::to_string(static_cast<std::uint8_t>(expr->get_expression_type())));
     }
 
     // 获取二元表达式
-    const BinaryExpr * binary = static_cast<const BinaryExpr *>(expr);
+    const AstBinaryExpressionNode * binary = static_cast<const AstBinaryExpressionNode *>(expr);
     // 获取二元表达式类型和操作数
-    BinaryExpr::OperatorType operator_type = binary->get_operator_type();
-    const AstNode * left_expr = binary->get_left();
-    const AstNode * right_expr = binary->get_right();
+    AstBinaryOperatorType operator_type = binary->get_operator_type();
+    const AstExpressionNode & left_expr = binary->get_left();
+    const AstExpressionNode & right_expr = binary->get_right();
 
     // 递归评估左右操作数
-    EvaluateResult left_result = evaluate(left_expr, context);
-    EvaluateResult right_result = evaluate(right_expr, context);
+    EvaluateResult left_result = evaluate(&left_expr, context);
+    EvaluateResult right_result = evaluate(&right_expr, context);
 
     // 如果左右操作数评估失败，返回错误
     if (!left_result.get_is_success() || !right_result.get_is_success()) {
@@ -357,11 +338,11 @@ EvaluateResult Evaluator::evaluate_binary(
     // 根据运算符类型进行计算
     switch (operator_type) {
         // 比较运算符
-        case BinaryExpr::OperatorType::DB_EQUAL:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_EQUAL:
             return EvaluateResult::make_success(FieldValue(compare_values_equal(left_value, right_value)));
-        case BinaryExpr::OperatorType::DB_NOT_EQUAL:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_NOT_EQUAL:
             return EvaluateResult::make_success(FieldValue(!compare_values_equal(left_value, right_value)));
-        case BinaryExpr::OperatorType::DB_GREATER_THAN: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_GREATER_THAN: {
             auto cmp = compare_values(left_value, right_value);
             if (cmp.has_value()) {
                 return EvaluateResult::make_success(FieldValue(cmp.value() > 0));
@@ -369,7 +350,7 @@ EvaluateResult Evaluator::evaluate_binary(
                 return EvaluateResult::make_error("Cannot compare values of incompatible types");
             }
         }
-        case BinaryExpr::OperatorType::DB_LESS_THAN: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_LESS_THAN: {
             auto cmp = compare_values(left_value, right_value);
             if (cmp.has_value()) {
                 return EvaluateResult::make_success(FieldValue(cmp.value() < 0));
@@ -377,7 +358,7 @@ EvaluateResult Evaluator::evaluate_binary(
                 return EvaluateResult::make_error("Cannot compare values of incompatible types");
             }
         }
-        case BinaryExpr::OperatorType::DB_GREATER_EQUAL: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_GREATER_EQUAL: {
             auto cmp = compare_values(left_value, right_value);
             if (cmp.has_value()) {
                 return EvaluateResult::make_success(FieldValue(cmp.value() >= 0));
@@ -385,7 +366,7 @@ EvaluateResult Evaluator::evaluate_binary(
                 return EvaluateResult::make_error("Cannot compare values of incompatible types");
             }
         }
-        case BinaryExpr::OperatorType::DB_LESS_EQUAL: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_LESS_EQUAL: {
             auto cmp = compare_values(left_value, right_value);
             if (cmp.has_value()) {
                 return EvaluateResult::make_success(FieldValue(cmp.value() <= 0));
@@ -394,22 +375,22 @@ EvaluateResult Evaluator::evaluate_binary(
             }
         }
         // 逻辑运算符
-        case BinaryExpr::OperatorType::DB_AND: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_AND: {
             bool left = field_value_to_bool(left_value);
             bool right = field_value_to_bool(right_value);
             return EvaluateResult::make_success(FieldValue(left && right));
         }
-        case BinaryExpr::OperatorType::DB_OR: {
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_OR: {
             bool left = field_value_to_bool(left_value);
             bool right = field_value_to_bool(right_value);
             return EvaluateResult::make_success(FieldValue(left || right));
         }
         // TODO: 算数运算符
-        case BinaryExpr::OperatorType::DB_PLUS:
-        case BinaryExpr::OperatorType::DB_MINUS:
-        case BinaryExpr::OperatorType::DB_MULTIPLY:
-        case BinaryExpr::OperatorType::DB_DIVIDE:
-        case BinaryExpr::OperatorType::DB_MODULO:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_PLUS:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_MINUS:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_MULTIPLY:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_DIVIDE:
+        case AstBinaryOperatorType::AST_BINARY_OPERATOR_MODULO:
             return EvaluateResult::make_error("Arithmetic operators not yet supported");
         default:
             return EvaluateResult::make_error("Unsupported binary operator: " + std::to_string(static_cast<std::uint8_t>(operator_type)));
@@ -417,7 +398,7 @@ EvaluateResult Evaluator::evaluate_binary(
 }
 
 EvaluateResult Evaluator::evaluate_unary(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
@@ -429,7 +410,7 @@ EvaluateResult Evaluator::evaluate_unary(
 }
 
 EvaluateResult Evaluator::evaluate_like(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
@@ -441,7 +422,7 @@ EvaluateResult Evaluator::evaluate_like(
 }
 
 EvaluateResult Evaluator::evaluate_in(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
@@ -453,7 +434,7 @@ EvaluateResult Evaluator::evaluate_in(
 }
 
 EvaluateResult Evaluator::evaluate_between(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
@@ -465,7 +446,7 @@ EvaluateResult Evaluator::evaluate_between(
 }
 
 EvaluateResult Evaluator::evaluate_null(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
@@ -477,7 +458,7 @@ EvaluateResult Evaluator::evaluate_null(
 }
 
 EvaluateResult Evaluator::evaluate_function_call(
-    const AstNode * expr,
+    const AstExpressionNode * expr,
     const EvaluatorContext &
 ) const
 {
