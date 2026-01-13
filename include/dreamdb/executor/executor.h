@@ -102,6 +102,63 @@ private:
     MutationResult execute_create(const BoundCreateStatement & create_statement);
 
     /**
+     * @brief 执行 CREATE DATABASE 语句
+     * @param database_name 数据库名称
+     * @param if_not_exists 如果已存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_create_database(const std::string & database_name, bool if_not_exists);
+
+    /**
+     * @brief 执行 CREATE COLLECTION 语句
+     * @param collection_name 集合名称
+     * @param column_definitions 列定义列表
+     * @param if_not_exists 如果已存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_create_collection(
+        const std::string & collection_name,
+        const std::vector<Field> & column_definitions,
+        bool if_not_exists
+    );
+
+    /**
+     * @brief 执行 CREATE INDEX 语句
+     * @param collection_id 集合 ID
+     * @param index_name 索引名称
+     * @param column_ids 列 ID 列表
+     * @param index_type 索引类型
+     * @param if_not_exists 如果已存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_create_index(
+        std::size_t collection_id,
+        const std::string & index_name,
+        const std::vector<std::size_t> & column_ids,
+        IndexType index_type,
+        bool if_not_exists
+    );
+
+    /**
+     * @brief 执行 CREATE VINDEX 语句
+     * @param collection_id 集合 ID
+     * @param vindex_name 向量索引名称
+     * @param column_id 列 ID
+     * @param vindex_type 向量索引类型
+     * @param with_clauses WITH 子句选项
+     * @param if_not_exists 如果已存在是否忽略错误
+     * @return 执行结果
+     */
+    MutationResult execute_create_vindex(
+        std::size_t collection_id,
+        const std::string & vindex_name,
+        std::size_t column_id,
+        VIndexType vindex_type,
+        const std::vector<std::pair<std::string, std::string>> & with_clauses,
+        bool if_not_exists
+    );
+
+    /**
      * @brief 执行 DROP 语句
      * @param drop_statement 绑定后的 DROP 语句
      * @return 执行结果
@@ -148,6 +205,48 @@ private:
      * @return 执行结果
      */
     MutationResult execute_alter(const BoundAlterStatement & alter_statement);
+
+    /**
+     * @brief 执行 ALTER ADD COLUMN 语句
+     * @param collection_id 集合 ID
+     * @param column_definition 列定义
+     * @return 执行结果
+     */
+    MutationResult execute_alter_add_column(std::size_t collection_id, const Field & column_definition);
+
+    /**
+     * @brief 执行 ALTER DROP COLUMN 语句
+     * @param collection_id 集合 ID
+     * @param column_id 列 ID
+     * @return 执行结果
+     */
+    MutationResult execute_alter_drop_column(std::size_t collection_id, std::size_t column_id);
+
+    /**
+     * @brief 执行 ALTER MODIFY COLUMN 语句
+     * @param collection_id 集合 ID
+     * @param column_id 列 ID
+     * @param new_definition 新的列定义
+     * @return 执行结果
+     */
+    MutationResult execute_alter_modify_column(
+        std::size_t collection_id,
+        std::size_t column_id,
+        const Field & new_definition
+    );
+
+    /**
+     * @brief 执行 ALTER RENAME COLUMN 语句
+     * @param collection_id 集合 ID
+     * @param column_id 列 ID
+     * @param new_name 新列名
+     * @return 执行结果
+     */
+    MutationResult execute_alter_rename_column(
+        std::size_t collection_id,
+        std::size_t column_id,
+        const std::string & new_name
+    );
 
     /**
      * @brief 执行 DESCRIBE 语句
