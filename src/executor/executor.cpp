@@ -9,6 +9,7 @@
 #include "dreamdb/schema/collection.h"
 #include "dreamdb/schema/index_meta.h"
 #include "dreamdb/schema/field.h"
+#include "dreamdb/schema/entity.h"
 #include "dreamdb/catalog/catalog.h"
 #include "dreamdb/catalog/catalog_database_entry.h"
 #include "dreamdb/catalog/catalog_collection_entry.h"
@@ -17,6 +18,9 @@
 #include "dreamdb/catalog/catalog_vindex_entry.h"
 #include "dreamdb/catalog/logical_type.h"
 #include "dreamdb/common/type.h"
+#include "dreamdb/expression/constant_expression.h"
+#include "dreamdb/evaluator/evaluator.h"
+#include "dreamdb/evaluator/evaluator_context.h"
 
 namespace dreamdb
 {
@@ -115,6 +119,29 @@ LogicalType field_to_logical_type(const Field & field)
     }
     
     return logical_type;
+}
+
+/**
+ * @brief 评估表达式获取字段值（用于 INSERT）
+ * @param expr 表达式
+ * @return 字段值，如果评估失败返回 std::nullopt
+ */
+std::optional<FieldValue> evaluate_expression_for_insert(const Expression * expr)
+{
+    if (!expr) {
+        return std::nullopt;
+    }
+    
+    // 对于常量表达式，直接获取值
+    if (expr->get_type() == ExpressionType::EXPRESSION_CONSTANT) {
+        const auto * const_expr = static_cast<const ConstantExpression *>(expr);
+        return const_expr->get_field_value();
+    }
+    
+    // 对于其他表达式，需要使用 Evaluator
+    // 但 INSERT 语句中的值应该是常量，所以这里简化处理
+    // 如果遇到非常量表达式，返回错误
+    return std::nullopt;
 }
 
 /**
@@ -1294,10 +1321,110 @@ MutationResult Executor::execute_alter_rename_column(
     return result;
 }
 
-MutationResult Executor::execute_insert(const BoundInsertStatement & /*insert_statement*/)
+MutationResult Executor::execute_insert(const BoundInsertStatement & insert_statement)
 {
-    // TODO: 实现 INSERT 执行逻辑
-    return MutationResult::make_failure("INSERT execution not implemented yet");
+    Catalog & catalog = database_manager_->get_catalog();
+    
+    // 查找包含该集合的数据库和集合
+    const CatalogDatabaseEntry * database_entry = nullptr;
+    const CatalogCollectionEntry * collection_entry = nullptr;
+    
+    // 遍历所有数据库查找集合
+    std::vector<std::string> database_names = catalog.get_database_names();
+    for (const auto & database_name : database_names) {
+        const CatalogDatabaseEntry * db_entry = catalog.get_database_entry(database_name);
+        if (!db_entry) {
+            continue;
+        }
+        
+        // 遍历该数据库的所有集合
+        std::vector<std::string> collection_names = db_entry->get_collection_names();
+        for (const auto & collection_name : collection_names) {
+            const CatalogCollectionEntry * coll_entry = db_entry->get_collection_entry(collection_name);
+            if (coll_entry && coll_entry->collection_id_ == insert_statement.collection_id) {
+                database_entry = db_entry;
+                collection_entry = coll_entry;
+                break;
+            }
+        }
+        
+        if (collection_entry) {
+            break;
+        }
+    }
+    
+    if (!collection_entry) {
+        return MutationResult::make_failure("Collection not found");
+    }
+    
+    // 从 Database 获取集合
+    Database * database = database_manager_->get_current_database();
+    if (!database || database->get_name() != database_entry->database_name_) {
+        // 如果当前数据库不匹配，需要找到对应的数据库
+        // 这里简化处理，假设集合在当前数据库中
+        return MutationResult::make_failure("Collection not in current database");
+    }
+    
+    Collection * collection = database->get_collection(collection_entry->collection_name_);
+    if (!collection) {
+        return MutationResult::make_failure("Collection not found in database");
+    }
+    
+    // 创建实体
+    Entity entity = collection->create_entity();
+    
+    // 获取集合的 schema 信息
+    const std::vector<Field> & schema = collection->get_schema();
+    
+    // 评估并设置每个插入项的值
+    for (const auto & item : insert_statement.insert_items) {
+        if (item.column_index >= schema.size()) {
+            return MutationResult::make_failure("Column index out of range");
+        }
+        
+        // 评估表达式获取字段值
+        std::optional<FieldValue> value = evaluate_expression_for_insert(item.value.get());
+        
+        if (!value.has_value()) {
+            return MutationResult::make_failure("Failed to evaluate expression for column " + std::to_string(item.column_index));
+        }
+        
+        // 检查类型兼容性（简化处理，这里假设类型已经由 Binder 验证）
+        // 设置实体字段值
+        entity.set_value(item.column_index, value.value());
+    }
+    
+    // 对于未指定的字段，如果字段允许 NULL，则设置为 NULL
+    // 如果字段不允许 NULL 且没有默认值，则返回错误
+    for (std::size_t i = 0; i < schema.size(); ++i) {
+        // 检查该字段是否在 insert_items 中
+        bool found = false;
+        for (const auto & item : insert_statement.insert_items) {
+            if (item.column_index == i) {
+                found = true;
+                break;
+            }
+        }
+        
+        if (!found) {
+            const Field & field = schema[i];
+            if (!field.get_is_nullable()) {
+                return MutationResult::make_failure("Column " + std::to_string(i) + " is not nullable and no value provided");
+            }
+            // 对于可空字段，如果未指定值，可以保持默认值（如果有）或设置为 NULL
+            // 这里简化处理，不设置值（Entity 创建时可能已有默认值）
+        }
+    }
+    
+    // 插入实体
+    MutationResult result = collection->insert(entity);
+    
+    if (result.is_success()) {
+        result.set_message("1 row inserted");
+        result.set_affected_count(1);
+    }
+    
+    return result;
 }
 
 } // namespace dreamdb
