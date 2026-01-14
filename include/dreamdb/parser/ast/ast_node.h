@@ -12,9 +12,11 @@ namespace dreamdb::parser::ast
 class AstNode
 {
 protected:
-    AstNode(std::size_t line = 0, std::size_t column = 0) noexcept;
+    AstNode(std::size_t line, std::size_t column) noexcept;
 
 public:
+    // Ast 语法树节点不允许拷贝，但允许移动，子节点自动继承基类的规则
+
     AstNode(const AstNode &) = delete;
 
     AstNode(AstNode &&) noexcept = default;

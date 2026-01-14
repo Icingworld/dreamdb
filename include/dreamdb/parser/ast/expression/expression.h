@@ -8,22 +8,22 @@
 namespace dreamdb::parser::ast
 {
 
+class AstExpressionVisitor;
+
 /**
  * @brief Ast 表达式类型
  */
 enum class AstExpressionType : std::uint8_t
 {
-    AST_EXPRESSION_LITERAL,           // 字面量表达式
-    AST_EXPRESSION_COLUMN_REFERENCE,  // 列引用表达式
-    AST_EXPRESSION_UNARY,             // 一元表达式
-    AST_EXPRESSION_BINARY,            // 二元表达式
-    AST_EXPRESSION_FUNCTION_CALL,     // 函数调用表达式
-    AST_EXPRESSION_PARAMETER,         // 参数表达式
-    AST_EXPRESSION_IN,                // IN 表达式
-    AST_EXPRESSION_BETWEEN,           // BETWEEN 表达式
-    AST_EXPRESSION_LIKE,              // LIKE 表达式
-    AST_EXPRESSION_VECTOR,            // 向量表达式
-    // 后续如需要，在这里可扩展：CAST | CASE WHEN | SUBQUERY 等表达式
+    Literal,           // 字面量表达式
+    ColumnReference,   // 列引用表达式
+    Unary,             // 一元表达式
+    Binary,            // 二元表达式
+    FunctionCall,      // 函数调用表达式
+    In,                // IN 表达式
+    Between,           // BETWEEN 表达式
+    Like,              // LIKE 表达式
+    Vector,            // 向量表达式
 };
 
 /**
@@ -33,28 +33,26 @@ enum class AstExpressionType : std::uint8_t
 class AstExpression : public AstNode
 {
 protected:
-    AstExpression(AstExpressionType expression_type, std::size_t line = 0, std::size_t column = 0) noexcept;
+    AstExpression(AstExpressionType type, std::size_t line, std::size_t column) noexcept;
 
 public:
-    AstExpression(const AstExpression &) = delete;
-
-    AstExpression(AstExpression &&) noexcept = default;
-
-    AstExpression & operator=(const AstExpression &) = delete;
-
-    AstExpression & operator=(AstExpression &&) noexcept = default;
-
     ~AstExpression() noexcept override = default;
 
 public:
     /**
-     * @brief 获取表达式节点类型
-     * @return 表达式节点类型
+     * @brief 获取表达式类型
+     * @return 表达式类型
      */
     AstExpressionType type() const noexcept;
 
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    virtual void accept(AstExpressionVisitor & visitor) const = 0;
+
 private:
-    AstExpressionType type_;    // Ast 表达式类型
+    AstExpressionType type_;    // 表达式类型
 };
 
 } // namespace dreamdb::parser::ast

@@ -3,9 +3,9 @@
 namespace dreamdb::parser::ast
 {
 
-AstExpression::AstExpression(AstExpressionType expression_type, std::size_t line, std::size_t column) noexcept
+AstExpression::AstExpression(AstExpressionType type, std::size_t line, std::size_t column) noexcept
     : AstNode(line, column)
-    , type_(expression_type)
+    , type_(type)
 {
 }
 
