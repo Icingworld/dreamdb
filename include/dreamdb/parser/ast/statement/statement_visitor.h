@@ -5,6 +5,7 @@ namespace dreamdb::parser::ast
 
 class AstCreateStatement;
 class AstDeleteStatement;
+class AstDropStatement;
 class AstInsertStatement;
 class AstSelectStatement;
 class AstUpdateStatement;
@@ -25,6 +26,8 @@ public:
     virtual void visit(const AstCreateStatement & statement) = 0;
 
     virtual void visit(const AstDeleteStatement & statement) = 0;
+
+    virtual void visit(const AstDropStatement & statement) = 0;
 
     virtual void visit(const AstInsertStatement & statement) = 0;
 
