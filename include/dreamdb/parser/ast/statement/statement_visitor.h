@@ -3,15 +3,15 @@
 namespace dreamdb::parser::ast
 {
 
-class CreateStatement;
-class DeleteStatement;
-class InsertStatement;
-class SelectStatement;
-class UpdateStatement;
-class UseStatement;
-class ShowStatement;
-class DescribeStatement;
-class AlterStatement;
+class AstCreateStatement;
+class AstDeleteStatement;
+class AstInsertStatement;
+class AstSelectStatement;
+class AstUpdateStatement;
+class AstUseStatement;
+class AstShowStatement;
+class AstDescribeStatement;
+class AstAlterStatement;
 
 /**
  * @brief 语句访问者基类
@@ -22,23 +22,23 @@ public:
     virtual ~AstStatementVisitor() noexcept = default;
 
 public:
-    virtual void visit(const CreateStatement & statement) = 0;
+    virtual void visit(const AstCreateStatement & statement) = 0;
 
-    virtual void visit(const DeleteStatement & statement) = 0;
+    virtual void visit(const AstDeleteStatement & statement) = 0;
 
-    virtual void visit(const InsertStatement & statement) = 0;
+    virtual void visit(const AstInsertStatement & statement) = 0;
 
-    virtual void visit(const SelectStatement & statement) = 0;
+    virtual void visit(const AstSelectStatement & statement) = 0;
 
-    virtual void visit(const UpdateStatement & statement) = 0;
+    virtual void visit(const AstUpdateStatement & statement) = 0;
 
-    virtual void visit(const UseStatement & statement) = 0;
+    virtual void visit(const AstUseStatement & statement) = 0;
 
-    virtual void visit(const ShowStatement & statement) = 0;
+    virtual void visit(const AstShowStatement & statement) = 0;
 
-    virtual void visit(const DescribeStatement & statement) = 0;
+    virtual void visit(const AstDescribeStatement & statement) = 0;
 
-    virtual void visit(const AlterStatement & statement) = 0;
+    virtual void visit(const AstAlterStatement & statement) = 0;
 };
 
 } // namespace dreamdb::parser::ast
