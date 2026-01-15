@@ -7,9 +7,9 @@
 
 #include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
-#include "dreamdb/parser/ast/ast_column_definition.h"
+#include "dreamdb/parser/ast/statement/column_definition.h"
 
-namespace dreamdb
+namespace dreamdb::parser
 {
 
 // 前向声明 AST 语句节点和表达式节点
@@ -39,19 +39,19 @@ public:
      * @brief 获取行号
      * @return 行号
      */
-    std::size_t get_line() const noexcept;
+    std::size_t line() const noexcept;
 
     /**
      * @brief 获取列号
      * @return 列号
      */
-    std::size_t get_column() const noexcept;
+    std::size_t column() const noexcept;
 
     /**
      * @brief 获取错误消息
      * @return 错误消息
      */
-    std::string get_message() const noexcept;
+    std::string message() const noexcept;
 
 private:
     std::size_t line_;
@@ -202,7 +202,7 @@ private:
      * @brief 解析单个列定义
      * @return 列定义
      */
-    AstColumnDefinition parse_column_definition();
+    ast::AstColumnDefinition parse_column_definition();
 
     /**
      * @brief 解析 IN 表达式
@@ -267,4 +267,4 @@ private:
     Token current_token_;               // 当前 Token
 };
 
-} // namespace dreamdb
+} // namespace dreamdb::parser

@@ -1,26 +1,26 @@
 #include "dreamdb/parser/parser.h"
 
-#include "dreamdb/parser/ast/ast_select_statement_node.h"
-#include "dreamdb/parser/ast/ast_insert_statement_node.h"
-#include "dreamdb/parser/ast/ast_update_statement_node.h"
-#include "dreamdb/parser/ast/ast_delete_statement_node.h"
-#include "dreamdb/parser/ast/ast_drop_statement_node.h"
-#include "dreamdb/parser/ast/ast_create_statement_node.h"
-#include "dreamdb/parser/ast/ast_alter_statement_node.h"
-#include "dreamdb/parser/ast/ast_use_statement_node.h"
-#include "dreamdb/parser/ast/ast_show_statement_node.h"
-#include "dreamdb/parser/ast/ast_describe_statement_node.h"
-#include "dreamdb/parser/ast/ast_binary_expression_node.h"
-#include "dreamdb/parser/ast/ast_unary_expression_node.h"
-#include "dreamdb/parser/ast/ast_in_expression_node.h"
-#include "dreamdb/parser/ast/ast_between_expression_node.h"
-#include "dreamdb/parser/ast/ast_like_expression_node.h"
-#include "dreamdb/parser/ast/ast_literal_expression_node.h"
-#include "dreamdb/parser/ast/ast_vector_expression_node.h"
-#include "dreamdb/parser/ast/ast_column_reference_expression_node.h"
-#include "dreamdb/parser/ast/ast_function_call_expression_node.h"
+#include "dreamdb/parser/ast/statement/select_statement.h"
+#include "dreamdb/parser/ast/statement/insert_statement.h"
+#include "dreamdb/parser/ast/statement/update_statement.h"
+#include "dreamdb/parser/ast/statement/delete_statement.h"
+#include "dreamdb/parser/ast/statement/drop_statement.h"
+#include "dreamdb/parser/ast/statement/create_statement.h"
+#include "dreamdb/parser/ast/statement/alter_statement.h"
+#include "dreamdb/parser/ast/statement/use_statement.h"
+#include "dreamdb/parser/ast/statement/show_statement.h"
+#include "dreamdb/parser/ast/statement/describe_statement.h"
+#include "dreamdb/parser/ast/expression/binary_expression.h"
+#include "dreamdb/parser/ast/expression/unary_expression.h"
+#include "dreamdb/parser/ast/expression/in_expression.h"
+#include "dreamdb/parser/ast/expression/between_expression.h"
+#include "dreamdb/parser/ast/expression/like_expression.h"
+#include "dreamdb/parser/ast/expression/literal_expression.h"
+#include "dreamdb/parser/ast/expression/vector_expression.h"
+#include "dreamdb/parser/ast/expression/column_reference_expression.h"
+#include "dreamdb/parser/ast/expression/function_call_expression.h"
 
-namespace dreamdb
+namespace dreamdb::parser
 {
 
 ParseException::ParseException(const std::string & message, std::size_t line, std::size_t column)
@@ -30,40 +30,40 @@ ParseException::ParseException(const std::string & message, std::size_t line, st
 {
 }
 
-std::size_t ParseException::get_line() const noexcept
+std::size_t ParseException::line() const noexcept
 {
     return line_;
 }
 
-std::size_t ParseException::get_column() const noexcept
+std::size_t ParseException::column() const noexcept
 {
     return column_;
 }
 
-std::string ParseException::get_message() const noexcept
+std::string ParseException::message() const noexcept
 {
     return std::string(what()) + " at line " + std::to_string(line_) + ", column " + std::to_string(column_);
 }
 
 Parser::Parser(const std::string & input)
     : lexer_(std::make_unique<Lexer>(input))
-    , current_token_(TokenType::DB_EOF)
+    , current_token_(Token(TokenType::EoF, "", 0, 0))
 {
 }
 
 Parser::Parser(std::unique_ptr<Lexer> lexer)
     : lexer_(std::move(lexer))
-    , current_token_(TokenType::DB_EOF)
+    , current_token_(Token(TokenType::EoF, "", 0, 0))
 {
 }
 
 std::unique_ptr<AstStatementNode> Parser::parse()
 {
     // 初始化：读取第一个 Token
-    current_token_ = lexer_->next_token();
+    current_token_ = lexer_->next();
 
     // 检查是否为空输入
-    if (check(TokenType::DB_EOF)) {
+    if (check(TokenType::EoF)) {
         // do nothing
         return nullptr;
     }
@@ -75,7 +75,7 @@ std::unique_ptr<AstStatementNode> Parser::parse()
     skip_semicolon();
 
     // 检查是否还有更多内容
-    if (!check(TokenType::DB_EOF)) {
+    if (!check(TokenType::EoF)) {
         error("Unexpected token");
         return nullptr;
     }
@@ -1836,4 +1836,4 @@ void Parser::error(const std::string & message)
     throw ParseException(message, current_token_.get_line(), current_token_.get_column());
 }
 
-} // namespace dreamdb
+} // namespace dreamdb::parser
