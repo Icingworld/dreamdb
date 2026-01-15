@@ -14,7 +14,7 @@ AstLikeExpression::AstLikeExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(AstExpressionType::Like, line, column)
+    : AstExpression(line, column)
     , left_(std::move(left))
     , pattern_(std::move(pattern))
     , is_not_(is_not)

@@ -13,7 +13,7 @@ AstAlterStatement::AstAlterStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(AstStatementNodeType::Alter, line, column)
+    : AstStatement(line, column)
     , collection_name_(std::move(collection_name))
     , operation_(std::move(operation))
 {

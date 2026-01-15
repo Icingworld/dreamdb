@@ -8,7 +8,7 @@ namespace dreamdb::parser::ast
 {
 
 AstUseStatement::AstUseStatement(std::string database_name, std::size_t line, std::size_t column)
-    : AstStatement(AstStatementNodeType::Use, line, column)
+    : AstStatement(line, column)
     , database_name_(database_name)
 {
     // 数据库名称不能为空

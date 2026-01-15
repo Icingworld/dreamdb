@@ -13,7 +13,7 @@ AstDropStatement::AstDropStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(AstStatementNodeType::Drop, line, column)
+    : AstStatement(line, column)
     , operation_(std::move(operation))
     , if_exists_(if_exists)
 {

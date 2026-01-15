@@ -25,7 +25,7 @@ AstCreateStatement::AstCreateStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(AstStatementNodeType::Create, line, column)
+    : AstStatement(line, column)
     , operation_(std::move(operation))
     , if_not_exists_(if_not_exists)
 {

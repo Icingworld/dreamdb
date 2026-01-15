@@ -14,7 +14,7 @@ AstColumnReferenceExpression::AstColumnReferenceExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(AstExpressionType::ColumnReference, line, column)
+    : AstExpression(line, column)
     , database_name_(std::move(database_name))
     , collection_name_(std::move(collection_name))
     , column_name_(std::move(column_name))

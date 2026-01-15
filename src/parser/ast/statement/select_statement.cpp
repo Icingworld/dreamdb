@@ -36,7 +36,7 @@ AstSelectStatement::AstSelectStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(AstStatementNodeType::Select, line, column)
+    : AstStatement(line, column)
     , collection_name_(std::move(collection_name))
     , select_items_(std::move(select_items))
     , where_(std::move(where))

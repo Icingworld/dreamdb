@@ -13,7 +13,7 @@ AstFunctionCallExpression::AstFunctionCallExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(AstExpressionType::FunctionCall, line, column)
+    : AstExpression(line, column)
     , function_name_(std::move(function_name))
     , arguments_(std::move(arguments))
 {

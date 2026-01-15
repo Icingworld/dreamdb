@@ -26,7 +26,7 @@ AstUpdateStatement::AstUpdateStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(AstStatementNodeType::Update, line, column)
+    : AstStatement(line, column)
     , collection_name_(std::move(collection_name))
     , assignments_(std::move(assignments))
     , where_(std::move(where))
