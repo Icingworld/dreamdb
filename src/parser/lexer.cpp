@@ -5,71 +5,72 @@
 #include <iterator>
 #include <algorithm>
 
-namespace dreamdb
+namespace dreamdb::parser
 {
 
 namespace // anonymous namespace
 {
 
 // 预初始化关键字表
+// 该表将在运行时初始化
 const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
-    {"SELECT", TokenType::DB_SELECT},
-    {"INSERT", TokenType::DB_INSERT},
-    {"DELETE", TokenType::DB_DELETE},
-    {"UPDATE", TokenType::DB_UPDATE},
-    {"CREATE", TokenType::DB_CREATE},
-    {"DROP", TokenType::DB_DROP},
-    {"USE", TokenType::DB_USE},
-    {"ALTER", TokenType::DB_ALTER},
-    {"SHOW", TokenType::DB_SHOW},
-    {"DESCRIBE", TokenType::DB_DESCRIBE},
-    {"DESC", TokenType::DB_DESC},
-    {"DATABASE", TokenType::DB_DATABASE},
-    {"COLLECTION", TokenType::DB_COLLECTION},
-    {"INDEX", TokenType::DB_INDEX},
-    {"VINDEX", TokenType::DB_VINDEX},
-    {"DATABASES", TokenType::DB_DATABASES},
-    {"COLLECTIONS", TokenType::DB_COLLECTIONS},
-    {"INDEXES", TokenType::DB_INDEXES},
-    {"VINDEXES", TokenType::DB_VINDEXES},
-    {"GROUP", TokenType::DB_GROUP},
-    {"BY", TokenType::DB_BY},
-    {"HAVING", TokenType::DB_HAVING},
-    {"ORDER", TokenType::DB_ORDER},
-    {"ASC", TokenType::DB_ASC},
-    {"LIMIT", TokenType::DB_LIMIT},
-    {"OFFSET", TokenType::DB_OFFSET},
-    {"IN", TokenType::DB_IN},
-    {"BETWEEN", TokenType::DB_BETWEEN},
-    {"LIKE", TokenType::DB_LIKE},
-    {"ADD", TokenType::DB_ADD},
-    {"MODIFY", TokenType::DB_MODIFY},
-    {"RENAME", TokenType::DB_RENAME},
-    {"COLUMN", TokenType::DB_COLUMN},
-    {"TO", TokenType::DB_TO},
-    {"PRIMARY", TokenType::DB_PRIMARY},
-    {"KEY", TokenType::DB_KEY},
-    {"UNIQUE", TokenType::DB_UNIQUE},
-    {"AUTO_INCREMENT", TokenType::DB_AUTO_INCREMENT},
-    {"DEFAULT", TokenType::DB_DEFAULT},
-    {"COMMENT", TokenType::DB_COMMENT},
-    {"USING", TokenType::DB_USING},
-    {"WITH", TokenType::DB_WITH},
-    {"FROM", TokenType::DB_FROM},
-    {"WHERE", TokenType::DB_WHERE},
-    {"INTO", TokenType::DB_INTO},
-    {"VALUES", TokenType::DB_VALUES},
-    {"SET", TokenType::DB_SET},
-    {"AND", TokenType::DB_AND},
-    {"OR", TokenType::DB_OR},
-    {"NOT", TokenType::DB_NOT},
-    {"AS", TokenType::DB_AS},
-    {"ON", TokenType::DB_ON},
-    {"IF", TokenType::DB_IF},
-    {"EXISTS", TokenType::DB_EXISTS},
-    {"NULL", TokenType::DB_NULL},
-    {"TRUE", TokenType::DB_TRUE},
-    {"FALSE", TokenType::DB_FALSE},
+    {"SELECT", TokenType::Select},
+    {"INSERT", TokenType::Insert},
+    {"DELETE", TokenType::Delete},
+    {"UPDATE", TokenType::Update},
+    {"CREATE", TokenType::Create},
+    {"DROP", TokenType::Drop},
+    {"USE", TokenType::Use},
+    {"ALTER", TokenType::Alter},
+    {"SHOW", TokenType::Show},
+    {"DESCRIBE", TokenType::Describe},
+    {"DESC", TokenType::Desc},
+    {"DATABASE", TokenType::Database},
+    {"COLLECTION", TokenType::Collection},
+    {"INDEX", TokenType::Index},
+    {"VINDEX", TokenType::VIndex},
+    {"DATABASES", TokenType::Databases},
+    {"COLLECTIONS", TokenType::Collections},
+    {"INDEXES", TokenType::Indexes},
+    {"VINDEXES", TokenType::VIndexes},
+    {"GROUP", TokenType::Group},
+    {"BY", TokenType::By},
+    {"HAVING", TokenType::Having},
+    {"ORDER", TokenType::Order},
+    {"ASC", TokenType::Asc},
+    {"LIMIT", TokenType::Limit},
+    {"OFFSET", TokenType::Offset},
+    {"IN", TokenType::In},
+    {"BETWEEN", TokenType::Between},
+    {"LIKE", TokenType::Like},
+    {"ADD", TokenType::Add},
+    {"MODIFY", TokenType::Modify},
+    {"RENAME", TokenType::Rename},
+    {"COLUMN", TokenType::Column},
+    {"TO", TokenType::To},
+    {"PRIMARY", TokenType::Primary},
+    {"KEY", TokenType::Key},
+    {"UNIQUE", TokenType::Unique},
+    {"AUTO_INCREMENT", TokenType::AutoIncrement},
+    {"DEFAULT", TokenType::Default},
+    {"COMMENT", TokenType::Comment},
+    {"USING", TokenType::Using},
+    {"WITH", TokenType::With},
+    {"FROM", TokenType::From},
+    {"WHERE", TokenType::Where},
+    {"INTO", TokenType::Into},
+    {"VALUES", TokenType::Values},
+    {"SET", TokenType::Set},
+    {"AND", TokenType::And},
+    {"OR", TokenType::Or},
+    {"NOT", TokenType::Not},
+    {"AS", TokenType::As},
+    {"ON", TokenType::On},
+    {"IF", TokenType::If},
+    {"EXISTS", TokenType::Exists},
+    {"NULL", TokenType::Null},
+    {"TRUE", TokenType::True},
+    {"FALSE", TokenType::False},
 };
 
 } // anonymous namespace
@@ -83,22 +84,17 @@ Lexer::Lexer(const std::string & input)
 {
 }
 
-std::size_t Lexer::get_position() const noexcept
-{
-    return position_;
-}
-
-std::size_t Lexer::get_line() const noexcept
+std::size_t Lexer::line() const noexcept
 {
     return line_;
 }
 
-std::size_t Lexer::get_column() const noexcept
+std::size_t Lexer::column() const noexcept
 {
     return column_;
 }
 
-Token Lexer::next_token()
+Token Lexer::next()
 {
     // 如果已经预读，直接返回预读的 Token 并清空预读
     if (peeked_token_.has_value()) {
@@ -107,13 +103,13 @@ Token Lexer::next_token()
         return token;
     }
 
-    return next_token_internal();
+    return next_internal();
 }
 
-const Token & Lexer::peek_token()
+const Token & Lexer::peek()
 {
     if (!peeked_token_.has_value()) {
-        peeked_token_ = next_token_internal();
+        peeked_token_ = next_internal();
     }
 
     return peeked_token_.value();
@@ -124,17 +120,17 @@ bool Lexer::has_more() const noexcept
     return position_ < input_.length();
 }
 
-Token Lexer::next_token_internal()
+Token Lexer::next_internal()
 {
     // 跳过空白字符
     skip_whitespace();
 
     // 检查是否到达末尾
     if (position_ >= input_.length()) {
-        return Token(TokenType::DB_EOF, std::nullopt, line_, column_);
+        return Token(TokenType::EoF, "", line_, column_);
     }
 
-    char current = peek();
+    char current = peek_char();
     std::size_t start_line = line_;
     std::size_t start_column = column_;
 
@@ -157,93 +153,81 @@ Token Lexer::next_token_internal()
     switch (current) {
         case '=':
             advance();
-            return Token(TokenType::DB_EQUAL, "=", start_line, start_column);
+            return Token(TokenType::Equal, "=", start_line, start_column);
         case '!':
             advance();
             if (match('=')) {
                 // !=
-                return Token(TokenType::DB_NOT_EQUAL, "!=", start_line, start_column);
+                return Token(TokenType::NotEqual, "!=", start_line, start_column);
             }
-            return Token(TokenType::DB_NOT, "!", start_line, start_column);
+            // 不支持单独的 ! 符号
+            return Token(TokenType::Error, std::string(1, current), start_line, start_column);
         case '<':
             advance();
             if (match('=')) {
                 // <=
-                return Token(TokenType::DB_LESS_EQUAL, "<=", start_line, start_column);
+                return Token(TokenType::LessEqual, "<=", start_line, start_column);
             }
             if (match('>')) {
                 // <>
-                return Token(TokenType::DB_NOT_EQUAL, "<>", start_line, start_column);
+                return Token(TokenType::NotEqual, "<>", start_line, start_column);
             }
-            return Token(TokenType::DB_LESS_THAN, "<", start_line, start_column);
+            return Token(TokenType::LessThan, "<", start_line, start_column);
         case '>':
             advance();
             if (match('=')) {
-                return Token(TokenType::DB_GREATER_EQUAL, ">=", start_line, start_column);
+                return Token(TokenType::GreaterEqual, ">=", start_line, start_column);
             }
-            return Token(TokenType::DB_GREATER_THAN, ">", start_line, start_column);
+            return Token(TokenType::GreaterThan, ">", start_line, start_column);
         case '+':
             advance();
-            return Token(TokenType::DB_PLUS, "+", start_line, start_column);
+            return Token(TokenType::Plus, "+", start_line, start_column);
         case '-':
             advance();
-            return Token(TokenType::DB_MINUS, "-", start_line, start_column);
+            return Token(TokenType::Minus, "-", start_line, start_column);
         case '*':
             advance();
-            return Token(TokenType::DB_STAR, "*", start_line, start_column);
+            return Token(TokenType::Star, "*", start_line, start_column);
         case '/':
             advance();
-            return Token(TokenType::DB_SLASH, "/", start_line, start_column);
+            return Token(TokenType::Slash, "/", start_line, start_column);
         case '%':
             advance();
-            return Token(TokenType::DB_MODULO, "%", start_line, start_column);
+            return Token(TokenType::Modulo, "%", start_line, start_column);
         case ',':
             advance();
-            return Token(TokenType::DB_COMMA, ",", start_line, start_column);
+            return Token(TokenType::Comma, ",", start_line, start_column);
         case ';':
             advance();
-            return Token(TokenType::DB_SEMICOLON, ";", start_line, start_column);
+            return Token(TokenType::Semicolon, ";", start_line, start_column);
         case '.':
             advance();
-            return Token(TokenType::DB_DOT, ".", start_line, start_column);
+            return Token(TokenType::Dot, ".", start_line, start_column);
         case '(':
             advance();
-            return Token(TokenType::DB_LEFT_PAREN, "(", start_line, start_column);
+            return Token(TokenType::LeftParen, "(", start_line, start_column);
         case ')':
             advance();
-            return Token(TokenType::DB_RIGHT_PAREN, ")", start_line, start_column);
+            return Token(TokenType::RightParen, ")", start_line, start_column);
         case '[':
             advance();
-            return Token(TokenType::DB_LEFT_BRACKET, "[", start_line, start_column);
+            return Token(TokenType::LeftBracket, "[", start_line, start_column);
         case ']':
             advance();
-            return Token(TokenType::DB_RIGHT_BRACKET, "]", start_line, start_column);
+            return Token(TokenType::RightBracket, "]", start_line, start_column);
         default:
             // 未知字符
             char unknown = advance();
-            return Token(TokenType::DB_ERROR, std::string(1, unknown), start_line, start_column);
+            return Token(TokenType::Error, std::string(1, unknown), start_line, start_column);
     }
 }
 
 void Lexer::skip_whitespace()
 {
     while (position_ < input_.length()) {
-        char c = peek();
-        if (c == ' ' || c == '\t') {
+        char c = peek_char();
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             advance();
-            ++column_;
-        } else if (c == '\n') {
-            advance();
-            ++line_;
-            column_ = 1;
-        } else if (c == '\r') {
-            advance();
-            // Windows 换行符 \r\n，跳过 \r
-            if (peek() == '\n') {
-                advance();
-            }
-            ++line_;
-            column_ = 1;
         } else {
             break;
         }
@@ -257,21 +241,20 @@ Token Lexer::read_identifier_or_keyword()
     std::size_t start_column = column_;
 
     // 读取连续的字母、数字、下划线
-    while (position_ < input_.length() && is_alnum(peek())) {
+    while (position_ < input_.length() && is_alnum(peek_char())) {
         advance();
-        ++column_;
     }
 
     std::string text = input_.substr(start, position_ - start);
 
     // 检查是否为关键字
     TokenType type = keyword_to_token_type(text);
-    if (type != TokenType::DB_IDENTIFIER) {
-        return Token(type, "", start_line, start_column);
+    if (type != TokenType::Identifier) {
+        return Token(type, text, start_line, start_column);
     }
 
     // 是标识符
-    return Token(TokenType::DB_IDENTIFIER, text, start_line, start_column);
+    return Token(TokenType::Identifier, text, start_line, start_column);
 }
 
 Token Lexer::read_number()
@@ -279,48 +262,42 @@ Token Lexer::read_number()
     std::size_t start = position_;
     std::size_t start_line = line_;
     std::size_t start_column = column_;
-    
+
     bool is_float = false;
 
     // 读取整数部分
-    while (position_ < input_.length() && is_digit(peek())) {
+    while (position_ < input_.length() && is_digit(peek_char())) {
         advance();
-        ++column_;
     }
 
     // 检查是否有小数点（浮点数）
-    if (peek() == '.' && position_ + 1 < input_.length() && is_digit(input_[position_ + 1])) {
+    if (peek_char() == '.' && position_ + 1 < input_.length() && is_digit(input_[position_ + 1])) {
         is_float = true;
         advance(); // 跳过小数点
-        ++column_;
-        
+
         // 读取小数部分
-        while (position_ < input_.length() && is_digit(peek())) {
+        while (position_ < input_.length() && is_digit(peek_char())) {
             advance();
-            ++column_;
         }
     }
 
     // 支持科学计数法（可选）
-    if (position_ < input_.length() && (peek() == 'e' || peek() == 'E')) {
+    if (position_ < input_.length() && (peek_char() == 'e' || peek_char() == 'E')) {
         std::size_t save_pos = position_;
         std::size_t save_column = column_;
-        
+
         advance(); // 跳过 e 或 E
-        ++column_;
-        
+
         // 可选的符号
-        if (peek() == '+' || peek() == '-') {
+        if (peek_char() == '+' || peek_char() == '-') {
             advance();
-            ++column_;
         }
-        
+
         // 必须有数字
-        if (is_digit(peek())) {
+        if (is_digit(peek_char())) {
             is_float = true; // 科学计数法总是浮点数
-            while (position_ < input_.length() && is_digit(peek())) {
+            while (position_ < input_.length() && is_digit(peek_char())) {
                 advance();
-                ++column_;
             }
         } else {
             // 不是科学计数法，回退
@@ -330,7 +307,7 @@ Token Lexer::read_number()
     }
 
     std::string text = input_.substr(start, position_ - start);
-    TokenType type = is_float ? TokenType::DB_FLOAT_LITERAL : TokenType::DB_INTEGER_LITERAL;
+    TokenType type = is_float ? TokenType::FloatLiteral : TokenType::IntegerLiteral;
     return Token(type, text, start_line, start_column);
 }
 
@@ -339,14 +316,13 @@ Token Lexer::read_string()
     std::size_t start_line = line_;
     std::size_t start_column = column_;
     char quote = advance(); // 跳过开始引号
-    ++column_;
 
     std::string value;
     bool escaped = false;
 
     while (position_ < input_.length()) {
-        char c = peek();
-        
+        char c = peek_char();
+
         if (escaped) {
             // 处理转义字符
             switch (c) {
@@ -386,25 +362,21 @@ Token Lexer::read_string()
             }
             escaped = false;
             advance();
-            ++column_;  // 转义序列占两个字符位置（\ 和转义字符），但 \ 的列号已在之前更新
         } else if (c == '\\') {
             escaped = true;
             advance();
-            ++column_;  // \ 字符的列号
         } else if (c == quote) {
             advance(); // 跳过结束引号
-            ++column_;
-            return Token(TokenType::DB_STRING_LITERAL, value, start_line, start_column);
+            return Token(TokenType::StringLiteral, value, start_line, start_column);
         } else if (c == '\n' || c == '\r') {
-            return Token(TokenType::DB_ERROR, "Unterminated string literal", start_line, start_column);
+            return Token(TokenType::Error, "Unterminated string literal", start_line, start_column);
         } else {
             value += c;
             advance();
-            ++column_;
         }
     }
 
-    return Token(TokenType::DB_ERROR, "Unterminated string literal", start_line, start_column);
+    return Token(TokenType::Error, "Unterminated string literal", start_line, start_column);
 }
 
 bool Lexer::is_alpha(char c) const noexcept
@@ -422,7 +394,7 @@ bool Lexer::is_alnum(char c) const noexcept
     return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
 }
 
-char Lexer::peek() const
+char Lexer::peek_char() const
 {
     if (position_ >= input_.length()) {
         return '\0';
@@ -435,14 +407,30 @@ char Lexer::advance()
     if (position_ >= input_.length()) {
         return '\0';
     }
-    return input_[position_++];
+
+    char c = input_[position_++];
+
+    if (c == '\n') {
+        ++line_;
+        column_ = 1;
+    } else if (c == '\r') {
+        // Windows CRLF：如果下一字符是 '\n'，一并吞掉
+        if (position_ < input_.length() && input_[position_] == '\n') {
+            ++position_;
+        }
+        ++line_;
+        column_ = 1;
+    } else {
+        ++column_;
+    }
+
+    return c;
 }
 
 bool Lexer::match(char expected)
 {
-    if (peek() == expected) {
+    if (peek_char() == expected) {
         advance();
-        ++column_;
         return true;
     }
     return false;
@@ -452,7 +440,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
 {
     std::string upper_keyword;
     upper_keyword.reserve(keyword.size());  // 预分配空间
-    
+
     std::transform(keyword.begin(), keyword.end(),  std::back_inserter(upper_keyword), 
         [](unsigned char c) {
             return static_cast<char>(std::toupper(c));
@@ -464,7 +452,7 @@ TokenType Lexer::keyword_to_token_type(const std::string & keyword) const
         return it->second;
     }
 
-    return TokenType::DB_IDENTIFIER;
+    return TokenType::Identifier;
 }
 
-} // namespace dreamdb
+} // namespace dreamdb::parser

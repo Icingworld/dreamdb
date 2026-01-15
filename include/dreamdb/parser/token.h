@@ -4,7 +4,7 @@
 #include <string>
 #include <optional>
 
-namespace dreamdb
+namespace dreamdb::parser
 {
 
 /**
@@ -14,99 +14,99 @@ namespace dreamdb
 enum class TokenType : std::uint8_t
 {
     // 结束标记
-    DB_EOF,                // 结束标记
+    EoF,                // 结束标记
 
     // 关键字
-    DB_SELECT,             // SELECT
-    DB_INSERT,             // INSERT
-    DB_DELETE,             // DELETE
-    DB_UPDATE,             // UPDATE
-    DB_CREATE,             // CREATE
-    DB_DROP,               // DROP
-    DB_USE,                // USE
-    DB_ALTER,              // ALTER
-    DB_SHOW,               // SHOW
-    DB_DESCRIBE,           // DESCRIBE
-    DB_DESC,               // DESC
+    Select,             // SELECT
+    Insert,             // INSERT
+    Delete,             // DELETE
+    Update,             // UPDATE
+    Create,             // CREATE
+    Drop,               // DROP
+    Use,                // USE
+    Alter,              // ALTER
+    Show,               // SHOW
+    Describe,           // DESCRIBE
+    Desc,               // DESC
 
-    DB_DATABASE,           // DATABASE
-    DB_COLLECTION,         // COLLECTION
-    DB_INDEX,              // INDEX
-    DB_VINDEX,             // VINDEX
-    DB_DATABASES,          // DATABASES
-    DB_COLLECTIONS,        // COLLECTIONS
-    DB_INDEXES,            // INDEXES
-    DB_VINDEXES,           // VINDEXES
-    DB_GROUP,              // GROUP
-    DB_BY,                 // BY
-    DB_HAVING,             // HAVING
-    DB_ORDER,              // ORDER
-    DB_ASC,                // ASC
-    DB_LIMIT,              // LIMIT
-    DB_OFFSET,             // OFFSET
-    DB_IN,                 // IN
-    DB_BETWEEN,            // BETWEEN
-    DB_LIKE,               // LIKE
+    Database,           // DATABASE
+    Collection,         // COLLECTION
+    Index,              // INDEX
+    VIndex,             // VINDEX
+    Databases,          // DATABASES
+    Collections,        // COLLECTIONS
+    Indexes,            // INDEXES
+    VIndexes,           // VINDEXES
+    Group,              // GROUP
+    By,                 // BY
+    Having,             // HAVING
+    Order,              // ORDER
+    Asc,                // ASC
+    Limit,              // LIMIT
+    Offset,             // OFFSET
+    In,                 // IN
+    Between,            // BETWEEN
+    Like,               // LIKE
 
-    DB_ADD,                // ADD
-    DB_MODIFY,             // MODIFY
-    DB_RENAME,             // RENAME
-    DB_COLUMN,             // COLUMN
-    DB_TO,                 // TO
-    DB_PRIMARY,            // PRIMARY
-    DB_KEY,                // KEY
-    DB_UNIQUE,             // UNIQUE
-    DB_AUTO_INCREMENT,     // AUTO_INCREMENT
-    DB_DEFAULT,            // DEFAULT
-    DB_COMMENT,            // COMMENT
-    DB_USING,              // USING
-    DB_WITH,               // WITH
-    DB_FROM,               // FROM
-    DB_WHERE,              // WHERE
-    DB_INTO,               // INTO
-    DB_VALUES,             // VALUES
-    DB_SET,                // SET
-    DB_AND,                // AND
-    DB_OR,                 // OR
-    DB_NOT,                // NOT
-    DB_AS,                 // AS
-    DB_ON,                 // ON
-    DB_IF,                 // IF
-    DB_EXISTS,             // EXISTS
-    DB_NULL,               // NULL
-    DB_TRUE,               // TRUE
-    DB_FALSE,              // FALSE
+    Add,                // ADD
+    Modify,             // MODIFY
+    Rename,             // RENAME
+    Column,             // COLUMN
+    To,                 // TO
+    Primary,            // PRIMARY
+    Key,                // KEY
+    Unique,             // UNIQUE
+    AutoIncrement,      // AUTO_INCREMENT
+    Default,            // DEFAULT
+    Comment,            // COMMENT
+    Using,              // USING
+    With,               // WITH
+    From,               // FROM
+    Where,              // WHERE
+    Into,               // INTO
+    Values,             // VALUES
+    Set,                // SET
+    And,                // AND
+    Or,                 // OR
+    Not,                // NOT
+    As,                 // AS
+    On,                 // ON
+    If,                 // IF
+    Exists,             // EXISTS
+    Null,               // NULL
+    True,               // TRUE
+    False,              // FALSE
 
     // 标识符
-    DB_IDENTIFIER,         // 表名、字段名、数据类型等
-    DB_STRING_LITERAL,     // 字符串字面量
-    DB_INTEGER_LITERAL,    // 整数字面量
-    DB_FLOAT_LITERAL,      // 浮点数字面量
+    Identifier,         // 表名、字段名、数据类型等
+    StringLiteral,      // 字符串字面量
+    IntegerLiteral,     // 整数字面量
+    FloatLiteral,       // 浮点数字面量
 
     // 运算符
-    DB_EQUAL,              // =
-    DB_NOT_EQUAL,          // != 和 <>
-    DB_LESS_THAN,          // <
-    DB_GREATER_THAN,       // >
-    DB_LESS_EQUAL,         // <=
-    DB_GREATER_EQUAL,      // >=
-    DB_PLUS,               // +
-    DB_MINUS,              // -
-    DB_STAR,               // *
-    DB_SLASH,              // /
-    DB_MODULO,             // %
+    Equal,              // =
+    NotEqual,           // != 或 <>
+    LessThan,           // <
+    GreaterThan,        // >
+    LessEqual,          // <=
+    GreaterEqual,       // >=
+    Plus,               // +
+    Minus,              // -
+    Star,               // *
+    Slash,              // /
+    Modulo,             // %
 
     /** 分隔符 */
-    DB_COMMA,              // ,
-    DB_SEMICOLON,          // ;
-    DB_DOT,                // .
-    DB_LEFT_PAREN,         // (
-    DB_RIGHT_PAREN,        // )
-    DB_LEFT_BRACKET,       // [
-    DB_RIGHT_BRACKET,      // ]
+    Comma,              // ,
+    Semicolon,          // ;
+    Dot,                // .
+    LeftParen,          // (
+    RightParen,         // )
+    LeftBracket,        // [
+    RightBracket,       // ]
 
     // 错误
-    DB_ERROR               // 错误
+    Error               // 错误
 };
 
 /**
@@ -116,7 +116,12 @@ enum class TokenType : std::uint8_t
 class Token
 {
 public:
-    Token(TokenType type, std::optional<std::string> value = std::nullopt, std::size_t line = 0, std::size_t column = 0);
+    Token(
+        TokenType type,
+        std::string value,
+        std::size_t line = 0,
+        std::size_t column = 0
+    );
 
     Token(const Token &) = default;
 
@@ -133,37 +138,31 @@ public:
      * @brief 获取 Token 类型
      * @return Token 类型
      */
-    TokenType get_type() const noexcept;
+    TokenType type() const noexcept;
 
     /**
      * @brief 获取 Token 值
      * @return Token 值
      */
-    const std::string & get_value() const;
+    const std::string & value() const noexcept;
 
     /**
      * @brief 获取行号
      * @return 所在行号
      */
-    std::size_t get_line() const noexcept;
+    std::size_t line() const noexcept;
 
     /**
      * @brief 获取列号
      * @return 所在列号
      */
-    std::size_t get_column() const noexcept;
-
-    /**
-     * @brief 是否存在值
-     * @return 是否存在值
-     */
-    bool has_value() const noexcept;
+    std::size_t column() const noexcept;
 
 private:
     TokenType type_;                    // Token 类型
-    std::optional<std::string> value_;  // Token 值，仅仅在标识符类型时有效
+    std::string value_;                 // Token 值
     std::size_t line_;                  // 所在行号
     std::size_t column_;                // 所在列号
 };
 
-} // namespace dreamdb
+} // namespace dreamdb::parser
