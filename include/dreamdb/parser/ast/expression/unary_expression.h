@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <string>
 #include <memory>
 
 #include "dreamdb/parser/ast/expression/expression.h"
@@ -22,7 +23,7 @@ enum class AstUnaryOperatorType : std::uint8_t
 /**
  * @brief 一元表达式节点
  */
-class AstUnaryExpression : public AstExpression
+class AstUnaryExpression final : public AstExpression
 {
 public:
     AstUnaryExpression(AstUnaryOperatorType type, std::unique_ptr<AstExpression> operand, std::size_t line, std::size_t column);

@@ -12,7 +12,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief DESCRIBE 语句节点
  */
-class AstDescribeStatement : public AstStatement
+class AstDescribeStatement final : public AstStatement
 {
 public:
     AstDescribeStatement(std::string collection_name, std::size_t line, std::size_t column);

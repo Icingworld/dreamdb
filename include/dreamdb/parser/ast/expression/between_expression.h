@@ -11,7 +11,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief BETWEEN 表达式节点
  */
-class AstBetweenExpression : public AstExpression
+class AstBetweenExpression final : public AstExpression
 {
 public:
     AstBetweenExpression(

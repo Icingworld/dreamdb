@@ -14,7 +14,7 @@ class AstExpression;
 /**
  * @brief DELETE 语句
  */
-class AstDeleteStatement : public AstStatement
+class AstDeleteStatement final : public AstStatement
 {
 public:
     AstDeleteStatement(

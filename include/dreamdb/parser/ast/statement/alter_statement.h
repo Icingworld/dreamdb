@@ -55,7 +55,7 @@ using AstAlterStatementOperation = std::variant<
 /**
  * @brief ALTER 语句
  */
-class AstAlterStatement : public AstStatement
+class AstAlterStatement final : public AstStatement
 {
 public:
     AstAlterStatement(

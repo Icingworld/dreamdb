@@ -75,7 +75,7 @@ using AstCreateStatementOperation = std::variant<
 /**
  * @brief CREATE 语句
  */
-class AstCreateStatement : public AstStatement
+class AstCreateStatement final : public AstStatement
 {
 public:
     AstCreateStatement(

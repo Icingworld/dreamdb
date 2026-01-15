@@ -14,7 +14,7 @@ namespace dreamdb::parser::ast
  * @details 用于表示 SQL 中的向量表达式，例如: [1.0, 2.0, 3.0]
  *          向量元素可以是任意表达式
  */
-class AstVectorExpression : public AstExpression
+class AstVectorExpression final : public AstExpression
 {
 public:
     AstVectorExpression(

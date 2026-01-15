@@ -37,7 +37,7 @@ enum class AstBinaryOperatorType : std::uint8_t
 /**
  * @brief 二元表达式
  */
-class AstBinaryExpression : public AstExpression
+class AstBinaryExpression final : public AstExpression
 {
 public:
     AstBinaryExpression(

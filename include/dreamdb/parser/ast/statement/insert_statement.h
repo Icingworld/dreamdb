@@ -15,7 +15,7 @@ class AstExpression;
 /**
  * @brief INSERT 语句
  */
-class AstInsertStatement : public AstStatement
+class AstInsertStatement final : public AstStatement
 {
 public:
     AstInsertStatement(

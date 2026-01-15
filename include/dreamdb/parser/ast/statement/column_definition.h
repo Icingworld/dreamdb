@@ -28,7 +28,7 @@ enum class AstColumnModifier : std::uint8_t
 /**
  * @brief 列定义
  */
-class AstColumnDefinition
+class AstColumnDefinition final
 {
 public:
     AstColumnDefinition(

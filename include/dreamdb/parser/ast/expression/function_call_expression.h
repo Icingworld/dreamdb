@@ -14,7 +14,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief 函数调用表达式
  */
-class AstFunctionCallExpression : public AstExpression
+class AstFunctionCallExpression final : public AstExpression
 {
 public:
     AstFunctionCallExpression(

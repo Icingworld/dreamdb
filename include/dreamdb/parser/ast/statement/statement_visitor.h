@@ -23,9 +23,13 @@ public:
     virtual ~AstStatementVisitor() noexcept = default;
 
 public:
+    virtual void visit(const AstAlterStatement & statement) = 0;
+
     virtual void visit(const AstCreateStatement & statement) = 0;
 
     virtual void visit(const AstDeleteStatement & statement) = 0;
+
+    virtual void visit(const AstDescribeStatement & statement) = 0;
 
     virtual void visit(const AstDropStatement & statement) = 0;
 
@@ -33,15 +37,11 @@ public:
 
     virtual void visit(const AstSelectStatement & statement) = 0;
 
+    virtual void visit(const AstShowStatement & statement) = 0;
+
     virtual void visit(const AstUpdateStatement & statement) = 0;
 
     virtual void visit(const AstUseStatement & statement) = 0;
-
-    virtual void visit(const AstShowStatement & statement) = 0;
-
-    virtual void visit(const AstDescribeStatement & statement) = 0;
-
-    virtual void visit(const AstAlterStatement & statement) = 0;
 };
 
 } // namespace dreamdb::parser::ast

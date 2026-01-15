@@ -12,7 +12,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief IN 表达式节点
  */
-class AstInExpression : public AstExpression
+class AstInExpression final : public AstExpression
 {
 public:
     AstInExpression(

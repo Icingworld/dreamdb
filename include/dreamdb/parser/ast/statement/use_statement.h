@@ -12,7 +12,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief USE 语句节点
  */
-class AstUseStatement : public AstStatement
+class AstUseStatement final : public AstStatement
 {
 public:
     AstUseStatement(std::string database_name, std::size_t line, std::size_t column);

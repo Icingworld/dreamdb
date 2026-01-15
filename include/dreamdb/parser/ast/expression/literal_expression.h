@@ -26,7 +26,7 @@ using AstLiteralValue = std::variant<
 /**
  * @brief 字面量表达式
  */
-class AstLiteralExpression : public AstExpression
+class AstLiteralExpression final : public AstExpression
 {
 private:
     AstLiteralExpression(AstLiteralValue value, std::size_t line, std::size_t column);

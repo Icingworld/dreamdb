@@ -11,7 +11,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief LIKE 表达式节点
  */
-class AstLikeExpression : public AstExpression
+class AstLikeExpression final : public AstExpression
 {
 public:
     AstLikeExpression(

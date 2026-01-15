@@ -54,7 +54,7 @@ using AstDropStatementOperation = std::variant<
 /**
  * @brief DROP 语句
  */
-class AstDropStatement : public AstStatement
+class AstDropStatement final : public AstStatement
 {
 public:
     AstDropStatement(

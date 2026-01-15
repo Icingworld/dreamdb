@@ -26,7 +26,7 @@ struct AstUpdateAssignment
 /**
  * @brief UPDATE 语句
  */
-class AstUpdateStatement : public AstStatement
+class AstUpdateStatement final : public AstStatement
 {
 public:
     AstUpdateStatement(

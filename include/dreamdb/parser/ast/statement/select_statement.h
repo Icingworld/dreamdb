@@ -55,7 +55,7 @@ struct AstOrderByItem
 /**
  * @brief SELECT 语句
  */
-class AstSelectStatement : public AstStatement
+class AstSelectStatement final : public AstStatement
 {
 public:
     AstSelectStatement(

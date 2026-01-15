@@ -54,7 +54,7 @@ using AstShowStatementOperation = std::variant<
 /**
  * @brief SHOW 语句
  */
-class AstShowStatement : public AstStatement
+class AstShowStatement final : public AstStatement
 {
 public:
     AstShowStatement(AstShowStatementOperation operation, std::size_t line, std::size_t column);

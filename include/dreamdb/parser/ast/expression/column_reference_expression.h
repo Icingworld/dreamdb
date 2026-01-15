@@ -13,7 +13,7 @@ namespace dreamdb::parser::ast
 /**
  * @brief 列引用表达式
  */
-class AstColumnReferenceExpression : public AstExpression
+class AstColumnReferenceExpression final : public AstExpression
 {
 private:
     AstColumnReferenceExpression(
