@@ -5,12 +5,13 @@
 #include <string>
 #include <stdexcept>
 
-#include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/token.h"
 #include "dreamdb/parser/ast/statement/column_definition.h"
 
 namespace dreamdb::parser
 {
+
+class Lexer;
 
 namespace ast
 {
@@ -81,7 +82,7 @@ public:
 
     Parser & operator=(Parser &&) noexcept = default;
 
-    ~Parser() noexcept = default;
+    ~Parser() noexcept;
 
 public:
     /**
@@ -231,6 +232,32 @@ private:
      * @return LIKE 表达式节点
      */
     std::unique_ptr<ast::AstExpression> parse_like_expression(std::unique_ptr<ast::AstExpression> left, bool is_not);
+
+    /**
+     * @brief 解析函数调用表达式
+     * @param line 行号
+     * @param column 列号
+     * @param function_name 函数名
+     * @return 函数调用表达式节点
+     */
+    std::unique_ptr<ast::AstExpression> parse_function_call_expression(
+        std::size_t line,
+        std::size_t column,
+        const std::string & function_name
+    );
+
+    /**
+     * @brief 解析列引用表达式
+     * @param line 行号
+     * @param column 列号
+     * @param first_part 第一个标识符部分
+     * @return 列引用表达式节点
+     */
+    std::unique_ptr<ast::AstExpression> parse_column_reference_expression(
+        std::size_t line,
+        std::size_t column,
+        const std::string & first_part
+    );
 
     // ========== 语法分析辅助方法 ==========
 

@@ -26,7 +26,7 @@ public:
         std::size_t column
     );
 
-    ~AstInsertStatement() noexcept override = default;
+    ~AstInsertStatement() noexcept override;
 
 public:
     /**

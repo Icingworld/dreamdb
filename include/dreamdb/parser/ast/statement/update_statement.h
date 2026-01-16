@@ -37,7 +37,7 @@ public:
         std::size_t column
     );
 
-    ~AstUpdateStatement() noexcept override = default;
+    ~AstUpdateStatement() noexcept override;
 
 public:
     /**

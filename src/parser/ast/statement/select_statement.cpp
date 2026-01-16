@@ -58,6 +58,8 @@ AstSelectStatement::AstSelectStatement(
     }
 }
 
+AstSelectStatement::~AstSelectStatement() noexcept = default;
+
 std::unique_ptr<AstSelectStatement> AstSelectStatement::create(
     std::string collection_name,
     std::vector<AstSelectItem> select_items,

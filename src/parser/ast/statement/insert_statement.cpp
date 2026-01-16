@@ -32,6 +32,8 @@ AstInsertStatement::AstInsertStatement(
     }
 }
 
+AstInsertStatement::~AstInsertStatement() noexcept = default;
+
 std::unique_ptr<AstInsertStatement> AstInsertStatement::create(
     std::string collection_name,
     std::vector<std::string> column_names,

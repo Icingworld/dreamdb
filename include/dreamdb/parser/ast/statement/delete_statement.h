@@ -24,7 +24,7 @@ public:
         std::size_t column
     );
 
-    ~AstDeleteStatement() noexcept override = default;
+    ~AstDeleteStatement() noexcept override;
 
 public:
     /**

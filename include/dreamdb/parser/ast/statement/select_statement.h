@@ -71,7 +71,7 @@ public:
         std::size_t column
     );
 
-    ~AstSelectStatement() noexcept override = default;
+    ~AstSelectStatement() noexcept override;
 
 public:
     /**

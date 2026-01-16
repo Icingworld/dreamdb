@@ -44,6 +44,8 @@ AstUpdateStatement::AstUpdateStatement(
     }
 }
 
+AstUpdateStatement::~AstUpdateStatement() noexcept = default;
+
 std::unique_ptr<AstUpdateStatement> AstUpdateStatement::create(
     std::string collection_name,
     std::vector<AstUpdateAssignment> assignments,

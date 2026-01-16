@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "dreamdb/parser/lexer.h"
 #include "dreamdb/parser/ast/statement/select_statement.h"
 #include "dreamdb/parser/ast/statement/insert_statement.h"
 #include "dreamdb/parser/ast/statement/update_statement.h"
@@ -58,6 +59,8 @@ Parser::Parser(std::unique_ptr<Lexer> lexer)
     , current_token_(Token(TokenType::EoF, "", 0, 0))
 {
 }
+
+Parser::~Parser() noexcept = default;
 
 std::unique_ptr<ast::AstStatement> Parser::parse()
 {
@@ -1403,292 +1406,287 @@ std::unique_ptr<ast::AstExpression> Parser::parse_unary_expression()
 
 std::unique_ptr<ast::AstExpression> Parser::parse_primary_expression()
 {
-    // 字面量解析
-    if (check(TokenType::IntegerLiteral)) {
-        // 获取整数字面量值
-        std::string value_str = current_token_.get_value();
-        
-        // 消耗整数字面量
-        advance();
-        
-        // 解析为整数
-        try {
-            std::int64_t int_value = std::stoll(value_str);
-            return AstLiteralExpressionNode::create_integer(int_value);
-        } catch (...) {
-            error("Invalid integer literal");
-            return nullptr;
+    // 根据当前 Token 类型进行不同的解析
+    switch (current_token_.type()) {
+        // 字面量解析
+        case TokenType::IntegerLiteral: {
+            // 获取整数字面量值和位置信息
+            std::string value_str = current_token_.value();
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
+
+            // 消耗整数字面量
+            advance();
+
+            // 解析为整数
+            try {
+                std::int64_t int_value = std::stoll(value_str);
+                return ast::AstLiteralExpression::create_integer(int_value, line, column);
+            } catch (...) {
+                error("Invalid integer literal");
+            }
         }
-    }
+        case TokenType::FloatLiteral: {
+            // 获取浮点数字面量值和位置信息
+            std::string value_str = current_token_.value();
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
 
-    if (check(TokenType::FloatLiteral)) {
-        // 获取浮点数字面量值
-        std::string value_str = current_token_.get_value();
-        
-        // 消耗浮点数字面量
-        advance();
-        
-        // 解析为浮点数
-        try {
-            double float_value = std::stod(value_str);
-            return AstLiteralExpressionNode::create_float(float_value);
-        } catch (...) {
-            error("Invalid float literal");
-            return nullptr;
+            // 消耗浮点数字面量
+            advance();
+
+            // 解析为浮点数
+            try {
+                double float_value = std::stod(value_str);
+                return ast::AstLiteralExpression::create_float(float_value, line, column);
+            } catch (...) {
+                error("Invalid float literal");
+            }
         }
-    }
+        case TokenType::StringLiteral: {
+            // 获取字符串字面量值和位置信息
+            std::string value = current_token_.value();
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
 
-    if (check(TokenType::StringLiteral)) {
-        // 获取字符串字面量位置信息
-        std::string value = current_token_.get_value();
-        
-        // 消耗字符串字面量
-        advance();
-        
-        return AstLiteralExpressionNode::create_string(value);
-    }
+            // 消耗字符串字面量
+            advance();
 
-    if (check(TokenType::True)) {
-        // 消耗 TRUE 关键字
-        advance();
-        return AstLiteralExpressionNode::create_boolean(true);
-    }
+            return ast::AstLiteralExpression::create_string(value, line, column);
+        }
+        case TokenType::True: {
+            // 获取位置信息
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
 
-    if (check(TokenType::False)) {
-        // 消耗 FALSE 关键字
-        advance();
-        return AstLiteralExpressionNode::create_boolean(false);
-    }
+            // 消耗 TRUE 关键字
+            advance();
+            return ast::AstLiteralExpression::create_boolean(true, line, column);
+        }
+        case TokenType::False: {
+            // 获取位置信息
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
 
-    if (check(TokenType::Null)) {
-        // 消耗 NULL 关键字
-        advance();
-        return AstLiteralExpressionNode::create_null();
-    }
+            // 消耗 FALSE 关键字
+            advance();
+            return ast::AstLiteralExpression::create_boolean(false, line, column);
+        }
+        case TokenType::Null: {
+            // 获取位置信息
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
 
-    // 标识符解析，包括列引用和函数调用
-    if (check(TokenType::Identifier)) {
-        // 获取标识符位置信息
-        std::size_t line = current_token_.line();
-        std::size_t column = current_token_.column();
+            // 消耗 NULL 关键字
+            advance();
+            return ast::AstLiteralExpression::create_null(line, column);
+        }
+        // 标识符解析（列引用或函数调用）
+        case TokenType::Identifier: {
+            // 获取标识符位置信息
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
+            std::string identifier = current_token_.value();
 
-        // 检查下一个 Token 是否为 (
-        // 注意 peek 不会移动 Token，检查完后当前 Token 仍然是标识符
-        if (lexer_->peek_token().get_type() == TokenType::LeftParen) {
-            // 解析为函数调用
-            // 创建函数调用表达式节点
-            auto function_call_expression = std::make_unique<AstFunctionCallExpressionNode>(line, column);
-
-            // 获取函数名
-            std::string function_name = current_token_.get_value();
             // 消耗标识符
             advance();
 
-            // 设置函数名
-            function_call_expression->set_function_name(function_name);
+            // 检查下一个 Token 是否为 (，判断是否为函数调用
+            // 注意 peek() 不会移动 Token，检查完后当前 Token 仍然是标识符之后的下一个 Token
+            if (check(TokenType::LeftParen)) {
+                // 解析为函数调用
+                return parse_function_call_expression(line, column, identifier);
+            }
 
-            // 期望 (
-            consume(TokenType::LeftParen, "Expected '(' after function name");
+            // 不是函数调用，解析为列引用
+            return parse_column_reference_expression(line, column, identifier);
+        }
+        // 括号表达式解析
+        case TokenType::LeftParen: {
+            // 消耗 (
+            advance();
 
-            // 解析函数参数
-            // 如果下一个 Token 是 )，则没有参数
-            if (!check(TokenType::RightParen)) {
+            // 解析括号中的表达式
+            auto expression = parse_expression();
+
+            // 期望 )
+            consume(TokenType::RightParen, "Expected ')' after expression");
+            return expression;
+        }
+        // 向量表达式解析
+        case TokenType::LeftBracket: {
+            // 获取向量表达式位置信息
+            std::size_t line = current_token_.line();
+            std::size_t column = current_token_.column();
+
+            // 消耗 [
+            advance();
+
+            // 解析向量元素
+            std::vector<std::unique_ptr<ast::AstExpression>> elements;
+
+            // 如果下一个 Token 不是 ]，则解析元素
+            if (!check(TokenType::RightBracket)) {
                 do {
-                    auto argument = parse_expression();
-                    if (argument == nullptr) {
-                        error("Expected expression in function arguments");
-                        return nullptr;
-                    }
-                    function_call_expression->add_argument(std::move(argument));
+                    auto element = parse_expression();
+
+                    elements.push_back(std::move(element));
                 } while (match(TokenType::Comma));
             }
 
-            // 期望 )
-            consume(TokenType::RightParen, "Expected ')' after function arguments");
-            
-            // 函数调用表达式解析完成
-            return function_call_expression;
+            // 期望 ]
+            consume(TokenType::RightBracket, "Expected ']' after vector elements");
+
+            // 创建向量表达式节点
+            return ast::AstVectorExpression::create(std::move(elements), line, column);
         }
+        default:
+            // 如果都不匹配，返回错误
+            error("Expected primary expression");
+            return nullptr;
+    }
+}
 
-        // 不是函数调用，创建列引用表达式节点
-        auto column_ref = std::make_unique<AstColumnReferenceExpressionNode>(line, column);
+std::unique_ptr<ast::AstExpression> Parser::parse_function_call_expression(
+    std::size_t line,
+    std::size_t column,
+    const std::string & function_name
+)
+{
+    // 期望 (
+    consume(TokenType::LeftParen, "Expected '(' after function name");
 
-        // 解析可能的 database.collection.column 格式
-        std::string first_part = current_token_.get_value();
+    // 解析函数参数
+    std::vector<std::unique_ptr<ast::AstExpression>> arguments;
+
+    // 如果下一个 Token 不是 )，则解析参数
+    if (!check(TokenType::RightParen)) {
+        do {
+            auto argument = parse_expression();
+
+            arguments.push_back(std::move(argument));
+        } while (match(TokenType::Comma));
+    }
+
+    // 期望 )
+    consume(TokenType::RightParen, "Expected ')' after function arguments");
+
+    // 创建函数调用表达式节点
+    return ast::AstFunctionCallExpression::create(function_name, std::move(arguments), line, column);
+}
+
+// 解析列引用表达式的辅助函数
+std::unique_ptr<ast::AstExpression> Parser::parse_column_reference_expression(
+    std::size_t line,
+    std::size_t column,
+    const std::string & first_part
+)
+{
+    // 检查是否有 . 符号，解析可能的 database.collection.column 格式
+    if (match(TokenType::Dot)) {
+        // 有 . 符号，可能是 database.collection 或 collection.column
+        if (!check(TokenType::Identifier)) {
+            error("Expected identifier after '.'");
+        }
+        std::string second_part = current_token_.value();
         advance();
 
         if (match(TokenType::Dot)) {
-            // 有 . 符号，可能是 database.collection 或 collection.column
+            // 三个部分：database.collection.column
             if (!check(TokenType::Identifier)) {
-                error("Expected identifier after '.'");
-                return nullptr;
+                error("Expected identifier after second '.'");
             }
-            std::string second_part = current_token_.get_value();
+            std::string third_part = current_token_.value();
             advance();
-
-            if (match(TokenType::Dot)) {
-                // 三个部分：database.collection.column
-                if (!check(TokenType::Identifier)) {
-                    error("Expected identifier after second '.'");
-                    return nullptr;
-                }
-                column_ref->set_database_name(first_part);
-                column_ref->set_collection_name(second_part);
-                column_ref->set_column_name(current_token_.get_value());
-                advance();
-            } else {
-                // 两个部分：collection.column
-                column_ref->set_collection_name(first_part);
-                column_ref->set_column_name(second_part);
-            }
+            return ast::AstColumnReferenceExpression::create(first_part, second_part, third_part, line, column);
         } else {
-            // 只有一个部分：column
-            column_ref->set_column_name(first_part);
+            // 两个部分：collection.column
+            return ast::AstColumnReferenceExpression::create(first_part, second_part, line, column);
         }
-
-        return column_ref;
+    } else {
+        // 只有一个部分：column
+        return ast::AstColumnReferenceExpression::create(first_part, line, column);
     }
-
-    // 括号表达式解析
-    if (match(TokenType::LeftParen)) {
-        // 解析括号中的表达式
-        auto expression = parse_expression();
-        if (expression == nullptr) {
-            error("Expected expression after '('");
-            return nullptr;
-        }
-
-        // 期望 )
-        consume(TokenType::RightParen, "Expected ')' after expression");
-        return expression;
-    }
-
-    // 向量解析
-    if (check(TokenType::LeftBracket)) {
-        // 获取向量表达式位置信息
-        std::size_t line = current_token_.line();
-        std::size_t column = current_token_.column();
-
-        // 消耗 [
-        advance();
-
-        // 创建向量表达式节点
-        auto vector_expression = std::make_unique<AstVectorExpressionNode>(line, column);
-
-        // 如果下一个 Token 是 ]，则向量值为空
-        if (match(TokenType::RightBracket)) {
-            return vector_expression;
-        }
-
-        // 解析向量元素
-        do {
-            auto element = parse_expression();
-            if (element == nullptr) {
-                error("Expected expression in vector");
-                return nullptr;
-            }
-            vector_expression->add_element(std::move(element));
-        } while (match(TokenType::Comma));
-
-        // 期望 ]
-        consume(TokenType::RightBracket, "Expected ']' after vector elements");
-
-        // 向量表达式解析完成
-        return vector_expression;
-    }
-
-    // 如果都不匹配，返回错误
-    error("Expected primary expression");
-    return nullptr;
 }
 
-AstColumnDefinition Parser::parse_column_definition()
+ast::AstColumnDefinition Parser::parse_column_definition()
 {
-    AstColumnDefinition column_definition;
-
     // 解析列名
     if (!check(TokenType::Identifier)) {
-        error("Expected column_name after '('");
-        return AstColumnDefinition();
+        error("Expected column_name");
     }
-    std::string column_name = current_token_.get_value();
-    // 消耗标识符
+    std::string column_name = current_token_.value();
     advance();
-    column_definition.set_name(column_name);
 
-    // 解析类型
+    // 解析类型名
     if (!check(TokenType::Identifier)) {
         error("Expected type_name after column_name");
-        return AstColumnDefinition();
     }
-    std::string type_name = current_token_.get_value();
-    // 消耗标识符
+    std::string type_name = current_token_.value();
     advance();
-    // 设置类型名
-    column_definition.set_type_name(type_name);
 
-    // 查看是否有参数列表起始字符 (
+    // 解析类型参数列表（如果有）
+    std::vector<std::unique_ptr<ast::AstExpression>> arguments;
     if (match(TokenType::LeftParen)) {
-        do {
-            // 解析参数
-            auto argument = parse_expression();
-            // 添加参数
-            column_definition.add_argument(std::move(argument));
-        } while (match(TokenType::Comma));
-
+        // 如果下一个 Token 不是 )，则解析参数
+        if (!check(TokenType::RightParen)) {
+            do {
+                auto argument = parse_expression();
+                arguments.push_back(std::move(argument));
+            } while (match(TokenType::Comma));
+        }
         // 期望 )
-        consume(TokenType::RightParen, "Expected ')' after arguments");
+        consume(TokenType::RightParen, "Expected ')' after type arguments");
     }
 
-    // 解析列约束，列约束可以以任意顺序出现
+    // 解析列修饰符，列修饰符可以以任意顺序出现
+    std::vector<ast::AstColumnModifier> modifiers;
+    std::unique_ptr<ast::AstExpression> default_value = nullptr;
+
     while (true) {
         if (match(TokenType::Not)) {
             // 解析 NOT NULL
             consume(TokenType::Null, "Expected NULL after NOT");
-            // 添加 NOT NULL 修饰符
-            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_NOT_NULL);
+            modifiers.push_back(ast::AstColumnModifier::NotNull);
         } else if (match(TokenType::Primary)) {
             // 解析 PRIMARY KEY
-            // 期望 KEY
             consume(TokenType::Key, "Expected KEY after PRIMARY");
-            // 添加 PRIMARY KEY 修饰符
-            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_PRIMARY_KEY);
+            modifiers.push_back(ast::AstColumnModifier::PrimaryKey);
         } else if (match(TokenType::AutoIncrement)) {
             // 解析 AUTO_INCREMENT
-            // 添加 AUTO_INCREMENT 修饰符
-            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_AUTO_INCREMENT);
+            modifiers.push_back(ast::AstColumnModifier::AutoIncrement);
         } else if (match(TokenType::Unique)) {
             // 解析 UNIQUE
-            // 添加 UNIQUE 修饰符
-            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_UNIQUE);
+            modifiers.push_back(ast::AstColumnModifier::Unique);
         } else if (match(TokenType::Default)) {
-            // 解析默认值表达式
-            auto default_value = parse_expression();
-            // 添加 DEFAULT 修饰符
-            column_definition.add_modifier(AstColumnModifier::AST_COLUMN_MODIFIER_DEFAULT);
-            // 添加默认值表达式
-            column_definition.add_default_value(std::move(default_value));
+            // 解析 DEFAULT 默认值表达式
+            default_value = parse_expression();
+            modifiers.push_back(ast::AstColumnModifier::Default);
         } else {
-            // 没有更多约束了
+            // 没有更多修饰符了
             break;
         }
     }
 
-    // 检查是否存在 COMMENT
+    // 解析可选的 COMMENT
+    std::optional<std::string> comment = std::nullopt;
     if (match(TokenType::Comment)) {
-        // 解析 COMMENT
         if (!check(TokenType::StringLiteral)) {
             error("Expected string_literal after COMMENT");
-            return AstColumnDefinition();
         }
-        std::string comment = current_token_.get_value();
-        // 消耗字符串
+        comment = current_token_.value();
         advance();
-        // 设置 COMMENT
-        column_definition.set_comment(comment);
     }
 
-    return column_definition;
+    // 创建并返回列定义对象
+    return ast::AstColumnDefinition(
+        std::move(column_name),
+        std::move(type_name),
+        std::move(arguments),
+        std::move(modifiers),
+        std::move(default_value),
+        comment
+    );
 }
 
 std::unique_ptr<ast::AstExpression> Parser::parse_in_expression(std::unique_ptr<ast::AstExpression> left, bool is_not)
@@ -1700,34 +1698,31 @@ std::unique_ptr<ast::AstExpression> Parser::parse_in_expression(std::unique_ptr<
     // 消耗 IN 关键字
     advance();
 
-    // 创建 IN 表达式节点
-    auto in_expression = std::make_unique<AstInExpressionNode>(line, column);
-    in_expression->set_left(std::move(left));
-    in_expression->set_is_not(is_not);
-
     // 期望 (
     consume(TokenType::LeftParen, "Expected '(' after IN");
 
     // 解析 IN 表达式值列表
-    while (true) {
-        // 解析 IN 表达式值
-        auto value = parse_expression();
-        if (value == nullptr) {
-            error("Expected expression after IN");
-            return nullptr;
-        }
-        // 添加 IN 表达式值
-        in_expression->add_value(std::move(value));
-        if (!match(TokenType::Comma)) {
-            break;
-        }
+    std::vector<std::unique_ptr<ast::AstExpression>> values;
+
+    // 如果下一个 Token 不是 )，则解析值
+    if (!check(TokenType::RightParen)) {
+        do {
+            auto value = parse_expression();
+            values.push_back(std::move(value));
+        } while (match(TokenType::Comma));
     }
 
     // 期望 )
-    consume(TokenType::RightParen, "Expected ')' after IN");
+    consume(TokenType::RightParen, "Expected ')' after IN values");
 
-    // IN 表达式解析完成
-    return in_expression;
+    // 创建并返回 IN 表达式节点
+    return ast::AstInExpression::create(
+        std::move(left),
+        std::move(values),
+        is_not,
+        line,
+        column
+    );
 }
 
 std::unique_ptr<ast::AstExpression> Parser::parse_between_expression(std::unique_ptr<ast::AstExpression> left, bool is_not)
@@ -1739,34 +1734,24 @@ std::unique_ptr<ast::AstExpression> Parser::parse_between_expression(std::unique
     // 消耗 BETWEEN 关键字
     advance();
 
-    // 创建 BETWEEN 表达式节点
-    auto between_expression = std::make_unique<AstBetweenExpressionNode>(line, column);
-    between_expression->set_left(std::move(left));
-    between_expression->set_is_not(is_not);
-
-    // 解析 BETWEEN 表达式左值
-    auto left_value = parse_expression();
-    if (left_value == nullptr) {
-        error("Expected expression after BETWEEN");
-        return nullptr;
-    }
-    // 添加 BETWEEN 表达式左值
-    between_expression->set_start(std::move(left_value));
+    // 解析 BETWEEN 表达式的起始值
+    auto start = parse_expression();
 
     // 期望 AND
-    consume(TokenType::And, "Expected AND after BETWEEN");
+    consume(TokenType::And, "Expected AND after BETWEEN start value");
 
-    // 解析 BETWEEN 表达式右值
-    auto right_value = parse_expression();
-    if (right_value == nullptr) {
-        error("Expected expression after AND");
-        return nullptr;
-    }
-    // 添加 BETWEEN 表达式右值
-    between_expression->set_end(std::move(right_value));
+    // 解析 BETWEEN 表达式的结束值
+    auto end = parse_expression();
 
-    // BETWEEN 表达式解析完成
-    return between_expression;
+    // 创建并返回 BETWEEN 表达式节点
+    return ast::AstBetweenExpression::create(
+        std::move(left),
+        std::move(start),
+        std::move(end),
+        is_not,
+        line,
+        column
+    );
 }
 
 std::unique_ptr<ast::AstExpression> Parser::parse_like_expression(std::unique_ptr<ast::AstExpression> left, bool is_not)
@@ -1778,27 +1763,22 @@ std::unique_ptr<ast::AstExpression> Parser::parse_like_expression(std::unique_pt
     // 消耗 LIKE 关键字
     advance();
 
-    // 创建 LIKE 表达式节点
-    auto like_expression = std::make_unique<AstLikeExpressionNode>(line, column);
-    like_expression->set_left(std::move(left));
-    like_expression->set_is_not(is_not);
-
-    // 解析 LIKE 表达式模式
+    // 解析 LIKE 表达式的模式
     auto pattern = parse_expression();
-    if (pattern == nullptr) {
-        error("Expected expression after LIKE");
-        return nullptr;
-    }
-    // 添加 LIKE 表达式模式
-    like_expression->set_pattern(std::move(pattern));
 
-    // LIKE 表达式解析完成
-    return like_expression;
+    // 创建并返回 LIKE 表达式节点
+    return ast::AstLikeExpression::create(
+        std::move(left),
+        std::move(pattern),
+        is_not,
+        line,
+        column
+    );
 }
 
 Token Parser::advance()
 {
-    current_token_ = lexer_->next_token();
+    current_token_ = lexer_->next();
     return current_token_;
 }
 
@@ -1813,7 +1793,7 @@ bool Parser::match(TokenType type)
 
 bool Parser::check(TokenType type) const
 {
-    return current_token_.get_type() == type;
+    return current_token_.type() == type;
 }
 
 void Parser::consume(TokenType type, const std::string & message)
@@ -1822,7 +1802,6 @@ void Parser::consume(TokenType type, const std::string & message)
         advance();
     } else {
         error(message);
-        return;
     }
 }
 

@@ -68,8 +68,8 @@ struct AstCreateVIndex
 using AstCreateStatementOperation = std::variant<
     AstCreateDatabase,         // CREATE DATABASE 语句操作
     AstCreateCollection,       // CREATE COLLECTION 语句操作
-    AstCreateIndex,           // CREATE INDEX 语句操作
-    AstCreateVIndex           // CREATE VINDEX 语句操作
+    AstCreateIndex,            // CREATE INDEX 语句操作
+    AstCreateVIndex            // CREATE VINDEX 语句操作
 >;
 
 /**
@@ -85,7 +85,7 @@ public:
         std::size_t column
     );
 
-    ~AstCreateStatement() noexcept override = default;
+    ~AstCreateStatement() noexcept override;
 
 public:
     /**

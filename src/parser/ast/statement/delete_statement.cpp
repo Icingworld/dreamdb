@@ -22,6 +22,8 @@ AstDeleteStatement::AstDeleteStatement(
     assert(!collection_name_.empty());
 }
 
+AstDeleteStatement::~AstDeleteStatement() noexcept = default;
+
 std::unique_ptr<AstDeleteStatement> AstDeleteStatement::create(
     std::string collection_name,
     std::unique_ptr<AstExpression> where,
