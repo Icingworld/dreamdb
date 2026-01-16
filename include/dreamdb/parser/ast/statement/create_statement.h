@@ -50,7 +50,7 @@ struct AstCreateIndex
     std::string index_name;                    // 索引名称
     std::string collection_name;               // 集合名称
     std::vector<std::string> column_names;     // 列名列表
-    std::string index_type;                    // 索引类型
+    std::optional<std::string> index_type;     // 索引类型
 };
 
 /**
@@ -61,7 +61,7 @@ struct AstCreateVIndex
     std::string vindex_name;                          // 向量索引名称
     std::string collection_name;                      // 集合名称
     std::string column_name;                          // 列名
-    std::string vindex_type;                          // 向量索引类型
+    std::optional<std::string> vindex_type;           // 向量索引类型
     std::vector<AstVIndexWithOption> with_clauses;    // WITH 子句列表
 };
 

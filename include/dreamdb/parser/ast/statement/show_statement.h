@@ -23,7 +23,7 @@ struct AstShowDatabases
  */
 struct AstShowCollections
 {
-    std::optional<std::string> database_name;  // 可选的数据库名称
+    std::optional<std::string> database_name = std::nullopt;  // 可选的数据库名称
 };
 
 /**
@@ -32,7 +32,7 @@ struct AstShowCollections
 struct AstShowIndexes
 {
     std::string collection_name;               // 集合名称
-    std::optional<std::string> database_name;  // 可选的数据库名称
+    std::optional<std::string> database_name = std::nullopt;  // 可选的数据库名称
 };
 
 /**
@@ -41,7 +41,7 @@ struct AstShowIndexes
 struct AstShowVIndexes
 {
     std::string collection_name;               // 集合名称
-    std::optional<std::string> database_name;  // 可选的数据库名称
+    std::optional<std::string> database_name = std::nullopt;  // 可选的数据库名称
 };
 
 using AstShowStatementOperation = std::variant<

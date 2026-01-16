@@ -16,7 +16,7 @@ namespace dreamdb::parser::ast
  */
 struct AstAlterAddColumn
 {
-    AstColumnDefinition column;  // 列定义
+    AstColumnDefinition column_definition;  // 列定义
 };
 
 /**
@@ -32,7 +32,6 @@ struct AstAlterDropColumn
  */
 struct AstAlterModifyColumn
 {
-    std::string column_name;           // 列名
     AstColumnDefinition new_definition; // 新的列定义
 };
 

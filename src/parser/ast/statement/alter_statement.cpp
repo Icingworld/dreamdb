@@ -29,8 +29,6 @@ AstAlterStatement::AstAlterStatement(
             // 列名不能为空
             assert(!op.column_name.empty());
         } else if constexpr (std::is_same_v<T, AstAlterModifyColumn>) {
-            // 列名不能为空
-            assert(!op.column_name.empty());
             // 列定义已经通过构造函数验证
         } else if constexpr (std::is_same_v<T, AstAlterRenameColumn>) {
             // 旧列名不能为空

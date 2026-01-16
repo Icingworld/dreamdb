@@ -12,9 +12,13 @@
 namespace dreamdb::parser
 {
 
-// 前向声明 AST 语句节点和表达式节点
-class AstStatementNode;
-class AstExpressionNode;
+namespace ast
+{
+
+class AstStatement;
+class AstExpression;
+
+} // namespace ast
 
 /**
  * @brief 语法分析异常
@@ -85,7 +89,7 @@ public:
      * @return AST 语句节点
      * @throws ParseException 如果解析失败
      */
-    std::unique_ptr<AstStatementNode> parse();
+    std::unique_ptr<ast::AstStatement> parse();
 
 private:
     // ========== 语句解析 ==========
@@ -94,57 +98,57 @@ private:
      * @brief 解析单个语句
      * @return 语句节点
      */
-    std::unique_ptr<AstStatementNode> parse_statement();
+    std::unique_ptr<ast::AstStatement> parse_statement();
 
     /**
      * @brief 解析 SELECT 语句
      */
-    std::unique_ptr<AstStatementNode> parse_select_statement();
+    std::unique_ptr<ast::AstStatement> parse_select_statement();
 
     /**
      * @brief 解析 INSERT 语句
      */
-    std::unique_ptr<AstStatementNode> parse_insert_statement();
+    std::unique_ptr<ast::AstStatement> parse_insert_statement();
 
     /**
      * @brief 解析 UPDATE 语句
      */
-    std::unique_ptr<AstStatementNode> parse_update_statement();
+    std::unique_ptr<ast::AstStatement> parse_update_statement();
 
     /**
      * @brief 解析 DELETE 语句
      */
-    std::unique_ptr<AstStatementNode> parse_delete_statement();
+    std::unique_ptr<ast::AstStatement> parse_delete_statement();
 
     /**
      * @brief 解析 CREATE 语句
      */
-    std::unique_ptr<AstStatementNode> parse_create_statement();
+    std::unique_ptr<ast::AstStatement> parse_create_statement();
 
     /**
      * @brief 解析 DROP 语句
      */
-    std::unique_ptr<AstStatementNode> parse_drop_statement();
+    std::unique_ptr<ast::AstStatement> parse_drop_statement();
 
     /**
      * @brief 解析 USE 语句
      */
-    std::unique_ptr<AstStatementNode> parse_use_statement();
+    std::unique_ptr<ast::AstStatement> parse_use_statement();
 
     /**
      * @brief 解析 ALTER 语句
      */
-    std::unique_ptr<AstStatementNode> parse_alter_statement();
+    std::unique_ptr<ast::AstStatement> parse_alter_statement();
 
     /**
      * @brief 解析 SHOW 语句
      */
-    std::unique_ptr<AstStatementNode> parse_show_statement();
+    std::unique_ptr<ast::AstStatement> parse_show_statement();
 
     /**
      * @brief 解析 DESCRIBE 语句
      */
-    std::unique_ptr<AstStatementNode> parse_describe_statement();
+    std::unique_ptr<ast::AstStatement> parse_describe_statement();
 
     // ========== 表达式解析 ==========
 
@@ -152,49 +156,49 @@ private:
      * @brief 解析表达式（顶层入口）
      * @return 表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_expression();
+    std::unique_ptr<ast::AstExpression> parse_expression();
 
     /**
      * @brief 解析或表达式
      * @return 或表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_or_expression();
+    std::unique_ptr<ast::AstExpression> parse_or_expression();
 
     /**
      * @brief 解析与表达式
      * @return 与表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_and_expression();
+    std::unique_ptr<ast::AstExpression> parse_and_expression();
 
     /**
      * @brief 解析比较表达式
      * @return 比较表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_comparison_expression();
+    std::unique_ptr<ast::AstExpression> parse_comparison_expression();
 
     /**
      * @brief 解析加法表达式
      * @return 加法表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_additive_expression();
+    std::unique_ptr<ast::AstExpression> parse_additive_expression();
 
     /**
      * @brief 解析乘法表达式
      * @return 乘法表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_multiplicative_expression();
+    std::unique_ptr<ast::AstExpression> parse_multiplicative_expression();
 
     /**
      * @brief 解析一元表达式
      * @return 一元表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_unary_expression();
+    std::unique_ptr<ast::AstExpression> parse_unary_expression();
 
     /**
      * @brief 解析主表达式
      * @return 主表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_primary_expression();
+    std::unique_ptr<ast::AstExpression> parse_primary_expression();
 
     /** ========== 表达式解析辅助方法 ========== */
 
@@ -210,7 +214,7 @@ private:
      * @param is_not 是否为 NOT IN
      * @return IN 表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_in_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+    std::unique_ptr<ast::AstExpression> parse_in_expression(std::unique_ptr<ast::AstExpression> left, bool is_not);
 
     /**
      * @brief 解析 BETWEEN 表达式
@@ -218,7 +222,7 @@ private:
      * @param is_not 是否为 NOT BETWEEN
      * @return BETWEEN 表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_between_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+    std::unique_ptr<ast::AstExpression> parse_between_expression(std::unique_ptr<ast::AstExpression> left, bool is_not);
 
     /**
      * @brief 解析 LIKE 表达式
@@ -226,7 +230,7 @@ private:
      * @param is_not 是否为 NOT LIKE
      * @return LIKE 表达式节点
      */
-    std::unique_ptr<AstExpressionNode> parse_like_expression(std::unique_ptr<AstExpressionNode> left, bool is_not);
+    std::unique_ptr<ast::AstExpression> parse_like_expression(std::unique_ptr<ast::AstExpression> left, bool is_not);
 
     // ========== 语法分析辅助方法 ==========
 

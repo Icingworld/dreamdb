@@ -66,11 +66,11 @@ void AstStatementFormatter::visit(const AstAlterStatement & statement)
 
         if constexpr (std::is_same_v<T, AstAlterAddColumn>) {
             oss_ << "ADD COLUMN ";
-            format_column_definition(op.column);
+            format_column_definition(op.column_definition);
         } else if constexpr (std::is_same_v<T, AstAlterDropColumn>) {
             oss_ << "DROP COLUMN " << op.column_name;
         } else if constexpr (std::is_same_v<T, AstAlterModifyColumn>) {
-            oss_ << "MODIFY COLUMN " << op.column_name << " ";
+            oss_ << "MODIFY COLUMN ";
             format_column_definition(op.new_definition);
         } else if constexpr (std::is_same_v<T, AstAlterRenameColumn>) {
             oss_ << "RENAME COLUMN " << op.old_name << " TO " << op.new_name;
@@ -121,22 +121,28 @@ void AstStatementFormatter::visit(const AstCreateStatement & statement)
                     oss_ << ", ";
                 }
             }
-            oss_ << ") USING " << op.index_type;
+            oss_ << ")";
+            if (op.index_type.has_value()) {
+                oss_ << " USING " << *op.index_type;
+            }
         } else if constexpr (std::is_same_v<T, AstCreateVIndex>) {
             if (if_not_exists) {
                 oss_ << "VINDEX IF NOT EXISTS ";
             } else {
                 oss_ << "VINDEX ";
             }
-            oss_ << op.vindex_name << " ON " << op.collection_name << "." << op.column_name
-                << " USING " << op.vindex_type;
-            if (!op.with_clauses.empty()) {
-                oss_ << " WITH ";
-                for (std::size_t i = 0; i < op.with_clauses.size(); ++i) {
-                    oss_ << op.with_clauses[i].key << " = "
-                        << expression_formatter_.format(*op.with_clauses[i].value);
-                    if (i < op.with_clauses.size() - 1) {
-                        oss_ << ", ";
+            oss_ << op.vindex_name << " ON " << op.collection_name << "." << op.column_name;
+            if (op.vindex_type.has_value()) {
+                oss_ << " USING " << *op.vindex_type;
+                // 格式化 WITH 子句
+                if (!op.with_clauses.empty()) {
+                    oss_ << " WITH ";
+                    for (std::size_t i = 0; i < op.with_clauses.size(); ++i) {
+                        oss_ << op.with_clauses[i].key << " = "
+                            << expression_formatter_.format(*op.with_clauses[i].value);
+                        if (i < op.with_clauses.size() - 1) {
+                            oss_ << ", ";
+                        }
                     }
                 }
             }
@@ -169,15 +175,17 @@ void AstStatementFormatter::visit(const AstDropStatement & statement)
         using T = std::decay_t<decltype(op)>;
 
         if constexpr (std::is_same_v<T, AstDropDatabase>) {
-            oss_ << "DATABASE " << op.database_name;
+            oss_ << "DATABASE ";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
+            oss_ << op.database_name;
         } else if constexpr (std::is_same_v<T, AstDropCollection>) {
-            oss_ << "COLLECTION " << op.collection_name;
+            oss_ << "COLLECTION ";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
+            oss_ << op.collection_name;
         } else if constexpr (std::is_same_v<T, AstDropIndex>) {
             oss_ << "INDEX ";
             if (if_exists) {
@@ -313,12 +321,12 @@ void AstStatementFormatter::visit(const AstShowStatement & statement)
         } else if constexpr (std::is_same_v<T, AstShowIndexes>) {
             oss_ << "SHOW INDEXES FROM " << op.collection_name;
             if (op.database_name.has_value()) {
-                oss_ << " IN " << op.database_name.value();
+                oss_ << " FROM " << op.database_name.value();
             }
         } else if constexpr (std::is_same_v<T, AstShowVIndexes>) {
             oss_ << "SHOW VINDEXES FROM " << op.collection_name;
             if (op.database_name.has_value()) {
-                oss_ << " IN " << op.database_name.value();
+                oss_ << " FROM " << op.database_name.value();
             }
         }
     }, operation);
