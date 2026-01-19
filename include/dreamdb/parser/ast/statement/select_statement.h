@@ -27,7 +27,7 @@ struct AstSelectStarItem
  */
 struct AstSelectExpressionItem
 {
-    AstSelectExpressionItem(std::unique_ptr<AstExpression> expression, std::string alias = "");
+    AstSelectExpressionItem(std::unique_ptr<AstExpression> expression, std::optional<std::string> alias = std::nullopt);
 
     std::unique_ptr<AstExpression> expression;  // 表达式
     std::optional<std::string> alias;           // 可选别名

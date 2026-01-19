@@ -138,7 +138,7 @@ std::unique_ptr<ast::AstStatement> Parser::parse_select_statement()
             auto expr = parse_expression();
 
             // 解析可选的别名
-            std::string alias;
+            std::optional<std::string> alias = std::nullopt;
             if (match(TokenType::As)) {
                 // 解析别名
                 if (!check(TokenType::Identifier)) {

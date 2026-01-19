@@ -136,7 +136,7 @@ void AstStatementFormatter::visit(const AstCreateStatement & statement)
                 oss_ << " USING " << *op.vindex_type;
                 // 格式化 WITH 子句
                 if (!op.with_clauses.empty()) {
-                    oss_ << " WITH ";
+                    oss_ << " WITH (";
                     for (std::size_t i = 0; i < op.with_clauses.size(); ++i) {
                         oss_ << op.with_clauses[i].key << " = "
                             << expression_formatter_.format(*op.with_clauses[i].value);
@@ -144,6 +144,7 @@ void AstStatementFormatter::visit(const AstCreateStatement & statement)
                             oss_ << ", ";
                         }
                     }
+                    oss_ << ")";
                 }
             }
         }
@@ -175,29 +176,29 @@ void AstStatementFormatter::visit(const AstDropStatement & statement)
         using T = std::decay_t<decltype(op)>;
 
         if constexpr (std::is_same_v<T, AstDropDatabase>) {
-            oss_ << "DATABASE ";
+            oss_ << "DATABASE";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
-            oss_ << op.database_name;
+            oss_ << " " << op.database_name;
         } else if constexpr (std::is_same_v<T, AstDropCollection>) {
-            oss_ << "COLLECTION ";
+            oss_ << "COLLECTION";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
-            oss_ << op.collection_name;
+            oss_ << " " << op.collection_name;
         } else if constexpr (std::is_same_v<T, AstDropIndex>) {
-            oss_ << "INDEX ";
+            oss_ << "INDEX";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
-            oss_ << op.index_name << " ON " << op.collection_name;
+            oss_ << " " << op.index_name << " ON " << op.collection_name;
         } else if constexpr (std::is_same_v<T, AstDropVIndex>) {
-            oss_ << "VINDEX ";
+            oss_ << "VINDEX";
             if (if_exists) {
                 oss_ << " IF EXISTS";
             }
-            oss_ << op.vindex_name << " ON " << op.collection_name;
+            oss_ << " " << op.vindex_name << " ON " << op.collection_name;
         }
     }, operation);
 }

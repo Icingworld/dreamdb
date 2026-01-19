@@ -8,7 +8,7 @@
 namespace dreamdb::parser::ast
 {
 
-AstSelectExpressionItem::AstSelectExpressionItem(std::unique_ptr<AstExpression> expression, std::string alias)
+AstSelectExpressionItem::AstSelectExpressionItem(std::unique_ptr<AstExpression> expression, std::optional<std::string> alias)
     : expression(std::move(expression))
     , alias(std::move(alias))
 {

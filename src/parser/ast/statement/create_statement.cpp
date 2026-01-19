@@ -52,9 +52,6 @@ AstCreateStatement::AstCreateStatement(
 
             // 列名列表不能为空
             assert(!op.column_names.empty());
-
-            // 索引类型不能为空
-            assert(op.index_type.has_value());
         } else if constexpr (std::is_same_v<T, AstCreateVIndex>) {
             // 向量索引名称不能为空
             assert(!op.vindex_name.empty());
@@ -64,9 +61,6 @@ AstCreateStatement::AstCreateStatement(
 
             // 列名不能为空
             assert(!op.column_name.empty());
-
-            // 向量索引类型不能为空
-            assert(op.vindex_type.has_value());
         } else {
             // 不会到达这里
             assert(false);
