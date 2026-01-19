@@ -74,11 +74,12 @@ Error: Unknown database 'database_name'
 **语法**
 
 ```sql
-CREATE DATABASE <database_name>;
+CREATE DATABASE [IF NOT EXISTS] <database_name>;
 ```
 
 **参数说明**
 
+- `IF NOT EXISTS`：可选，如果数据库已存在则不报错
 - `database_name`：要创建的数据库名称
 
 **可能的响应**
@@ -102,11 +103,12 @@ Error: Database 'database_name' already exists
 **语法**
 
 ```sql
-DROP DATABASE <database_name>;
+DROP DATABASE [IF EXISTS] <database_name>;
 ```
 
 **参数说明**
 
+- `IF EXISTS`：可选，如果数据库不存在则不报错
 - `database_name`：要删除的数据库名称
 
 **可能的响应**
@@ -158,7 +160,7 @@ No databases found
 **语法**
 
 ```sql
-CREATE COLLECTION <collection_name> (
+CREATE COLLECTION [IF NOT EXISTS] <collection_name> (
     <field1_name> <field1_type> [constraint1],
     [...]
 );
@@ -166,10 +168,17 @@ CREATE COLLECTION <collection_name> (
 
 **参数说明**
 
+- `IF NOT EXISTS`：可选，如果集合已存在则不报错
 - `collection_name`：要创建的集合名称
 - `field1_name`：字段名称
 - `field1_type`：字段类型
-- `constraint1`：字段约束，可选值为`UNIQUE`、`NOT NULL`、`PRIMARY KEY`等
+- `constraint1`：字段约束，可选值为：
+  - `NOT NULL`：字段不允许为空
+  - `PRIMARY KEY`：主键约束
+  - `AUTO_INCREMENT`：自增字段
+  - `UNIQUE`：唯一约束
+  - `DEFAULT <value>`：默认值约束
+  - `COMMENT '<comment>'`：字段注释
 
 **可能的响应**
 
@@ -192,11 +201,12 @@ Error: Collection 'collection_name' already exists
 **语法**
 
 ```sql
-DROP COLLECTION <collection_name>;
+DROP COLLECTION [IF EXISTS] <collection_name>;
 ```
 
 **参数说明**
 
+- `IF EXISTS`：可选，如果集合不存在则不报错
 - `collection_name`：要删除的集合名称
 
 **可能的响应**
@@ -220,8 +230,12 @@ Error: Unknown collection 'collection_name'
 **语法**
 
 ```sql
-SHOW COLLECTIONS;
+SHOW COLLECTIONS [FROM <database_name>];
 ```
+
+**参数说明**
+
+- `FROM database_name`：可选，指定要列出集合的数据库名称；如果不指定，则列出当前数据库的集合
 
 **可能的响应**
 
@@ -246,7 +260,7 @@ No collections found
 **语法**
 
 ```sql
-{DESCRIBE | DESC} COLLECTION <collection_name>;
+{DESCRIBE | DESC} <collection_name>;
 ```
 
 **参数说明**
@@ -303,7 +317,13 @@ RENAME COLUMN <old_column_name> TO <new_column_name>;
 - `new_column_type`：新的字段类型
 - `old_column_name`：原字段名称
 - `new_column_name`：新字段名称
-- `constraints`：字段约束，可选值为`UNIQUE`、`NOT NULL`、`PRIMARY KEY`等
+- `constraints`：字段约束，可选值为：
+  - `NOT NULL`：字段不允许为空
+  - `PRIMARY KEY`：主键约束
+  - `AUTO_INCREMENT`：自增字段
+  - `UNIQUE`：唯一约束
+  - `DEFAULT <value>`：默认值约束
+  - `COMMENT '<comment>'`：字段注释
 
 **示例**
 
@@ -401,17 +421,18 @@ Error: Cannot drop primary key column 'column_name'
 **语法**
 
 ```sql
-CREATE INDEX <index_name>
-ON <collection_name> (<field_name>)
-[USING BTREE | HASH];
+CREATE INDEX [IF NOT EXISTS] <index_name>
+ON <collection_name> (<field_name> [, <field_name> ...])
+[USING <index_type>];
 ```
 
 **参数说明**
 
+- `IF NOT EXISTS`：可选，如果索引已存在则不报错
 - `index_name`：索引名称，必须唯一
 - `collection_name`：集合名称
-- `field_name`：要建立索引的标量字段名（不能是`vector`类型的字段）
-- `USING BTREE | HASH`：可选，指定索引类型，默认为`BTREE`
+- `field_name`：要建立索引的标量字段名（不能是`vector`类型的字段），支持多个字段
+- `USING index_type`：可选，指定索引类型（如`BTREE`、`HASH`等），默认为`BTREE`
 
 **可能的响应**
 
@@ -434,11 +455,12 @@ Error: Index 'index_name' already exists
 **语法**
 
 ```sql
-DROP INDEX <index_name> ON <collection_name>;
+DROP INDEX [IF EXISTS] <index_name> ON <collection_name>;
 ```
 
 **参数说明**
 
+- `IF EXISTS`：可选，如果索引不存在则不报错
 - `index_name`：要删除的索引名称
 - `collection_name`：要删除的集合名称
 
@@ -463,12 +485,13 @@ Error: Unknown index 'index_name'
 **语法**
 
 ```sql
-SHOW INDEXES FROM <collection_name>;
+SHOW INDEXES FROM <collection_name> [FROM <database_name>];
 ```
 
 **参数说明**
 
 - `collection_name`：要列出的集合名称
+- `FROM database_name`：可选，指定集合所在的数据库名称
 
 **可能的响应**
 
@@ -495,27 +518,28 @@ No indexes found
 **语法**
 
 ```sql
-CREATE VINDEX <vindex_name>
+CREATE VINDEX [IF NOT EXISTS] <vindex_name>
 ON <collection_name> (<field_name>)
-[USING FLAT | IVF_FLAT | HNSW]
+[USING <vindex_type>]
 [WITH (
-    nlist = <nlist>,
-    M = <M>,
-    ef_construction = <ef_construction>,
-    metric = <metric>
+    <key1> = <value1>,
+    <key2> = <value2>,
+    ...
 )];
 ```
 
 **参数说明**
 
+- `IF NOT EXISTS`：可选，如果向量索引已存在则不报错
 - `vindex_name`：向量索引名称，必须唯一
 - `collection_name`：集合名称
 - `field_name`：要建立索引的向量字段名（必须是`vector`类型的字段）
-- `USING FLAT | IVF_FLAT | HNSW`：可选，指定索引类型，默认为`FLAT`
-- `nlist`：可选，指定`IVF_FLAT`索引的`nlist`参数
-- `M`：可选，指定`HNSW`索引的`M`参数
-- `ef_construction`：可选，指定`HNSW`索引的`ef_construction`参数
-- `metric`：可选，指定索引的距离度量方式，默认为`L2`
+- `USING vindex_type`：可选，指定索引类型（如`FLAT`、`IVF_FLAT`、`HNSW`等），默认为`FLAT`
+- `WITH (key = value, ...)`：可选，指定索引参数，参数以键值对形式提供，例如：
+  - `nlist = <nlist>`：指定`IVF_FLAT`索引的`nlist`参数
+  - `M = <M>`：指定`HNSW`索引的`M`参数
+  - `ef_construction = <ef_construction>`：指定`HNSW`索引的`ef_construction`参数
+  - `metric = <metric>`：指定索引的距离度量方式，默认为`L2`
 
 **可能的响应**
 
@@ -538,11 +562,12 @@ Error: Vindex 'vindex_name' already exists
 **语法**
 
 ```sql
-DROP VINDEX <vindex_name> ON <collection_name>;
+DROP VINDEX [IF EXISTS] <vindex_name> ON <collection_name>;
 ```
 
 **参数说明**
 
+- `IF EXISTS`：可选，如果向量索引不存在则不报错
 - `vindex_name`：要删除的向量索引名称
 - `collection_name`：要删除的集合名称
 
@@ -567,12 +592,13 @@ Error: Unknown vindex 'vindex_name'
 **语法**
 
 ```sql
-SHOW VINDEXES FROM <collection_name>;
+SHOW VINDEXES FROM <collection_name> [FROM <database_name>];
 ```
 
 **参数说明**
 
 - `collection_name`：要列出的集合名称
+- `FROM database_name`：可选，指定集合所在的数据库名称
 
 **可能的响应**
 
@@ -677,9 +703,7 @@ Error: Unknown collection 'collection_name'
 ```sql
 UPDATE <collection_name>
 SET <field1> = <value1> [, <field2> = <value2> ...]
-[WHERE <condition>]
-[ORDER BY <field> [ASC | DESC]]
-[LIMIT <limit>];
+[WHERE <condition>];
 ```
 
 **参数说明**
@@ -690,8 +714,6 @@ SET <field1> = <value1> [, <field2> = <value2> ...]
   - 支持更新向量字段，向量值格式为数组，例如 `[0.1, 0.2, 0.3]`
   - 支持更新主键字段（如果用户定义了主键）
 - `WHERE condition`：可选，更新条件表达式；仅支持基于标量字段的条件
-- `ORDER BY <field> [ASC | DESC]`：可选，指定更新时的记录排序（多用于配合 `LIMIT`）
-- `LIMIT <limit>`：可选，限制本次最多更新的记录条数
 
 **示例**
 
@@ -728,14 +750,6 @@ WHERE category = 'Electronics';
 UPDATE products
 SET id = 'new_id_001'
 WHERE id = 'old_id_001';
-```
-
-- 限制更新数量
-```sql
-UPDATE products
-SET status = 'archived'
-ORDER BY created_at ASC
-LIMIT 100;
 ```
 
 **注意事项**
@@ -781,17 +795,13 @@ Error: Unknown collection 'collection_name'
 
 ```sql
 DELETE FROM <collection_name>
-[WHERE <condition>]
-[ORDER BY <field> [ASC | DESC]]
-[LIMIT <limit>];
+[WHERE <condition>];
 ```
 
 **参数说明**
 
 - `collection_name`：要删除数据的集合名称
-- `WHERE condition`：可选，删除条件表达式；仅支持基于标量字段的条件
-- `ORDER BY <field> [ASC | DESC]`：可选，指定删除时的记录排序（多用于配合 `LIMIT`）
-- `LIMIT <limit>`：可选，限制本次最多删除的记录条数；未指定时，将删除所有满足条件的记录
+- `WHERE condition`：可选，删除条件表达式；仅支持基于标量字段的条件；未指定时，将删除所有记录
 
 **示例**
 
@@ -804,14 +814,6 @@ DELETE FROM products WHERE id = 1;
 ```sql
 DELETE FROM products
 WHERE status = 'archived';
-```
-
-- 按时间顺序删除部分旧数据
-```sql
-DELETE FROM products
-WHERE status = 'inactive'
-ORDER BY created_at ASC
-LIMIT 100;
 ```
 
 **可能的响应**
@@ -848,7 +850,8 @@ FROM <collection_name>
 [GROUP BY <column> [, <column> ...]]
 [HAVING <condition>]
 [ORDER BY <column> [ASC | DESC] [, <column> [ASC | DESC] ...]]
-[LIMIT <limit>];
+[LIMIT <limit>]
+[OFFSET <offset>];
 ```
 
 **参数说明**
@@ -889,6 +892,9 @@ FROM <collection_name>
 - `LIMIT limit`：可选，限制返回的最大行数
   - 适用于分页查询或限制结果集大小
   - 通常与 `ORDER BY` 配合使用，确保结果的确定性
+- `OFFSET offset`：可选，指定跳过的行数
+  - 通常与 `LIMIT` 配合使用实现分页查询
+  - 例如 `LIMIT 10 OFFSET 20` 表示跳过前20行，返回接下来的10行
 
 **示例**
 
@@ -960,6 +966,15 @@ FROM products
 WHERE category = 'Electronics'
 ORDER BY price DESC
 LIMIT 10;
+```
+
+- 分页查询（使用 LIMIT 和 OFFSET）
+```sql
+SELECT id, name, price
+FROM products
+WHERE category = 'Electronics'
+ORDER BY price DESC
+LIMIT 10 OFFSET 20;
 ```
 
 - 查询向量字段

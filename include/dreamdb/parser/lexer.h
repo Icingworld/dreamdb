@@ -6,7 +6,7 @@
 
 #include "dreamdb/parser/token.h"
 
-namespace dreamdb
+namespace dreamdb::parser
 {
 
 /**
@@ -18,14 +18,6 @@ class Lexer
 public:
     explicit Lexer(const std::string & input);
 
-    Lexer(const Lexer &) = default;
-
-    Lexer(Lexer &&) = default;
-
-    Lexer & operator=(const Lexer &) = default;
-
-    Lexer & operator=(Lexer &&) = default;
-
     ~Lexer() noexcept = default;
 
 public:
@@ -33,13 +25,13 @@ public:
      * @brief 获取下一个 Token
      * @return 下一个 Token，如果到达末尾返回 EOF
      */
-    Token next_token();
+    Token next();
 
     /**
      * @brief 不移动位置，查看下一个 Token
      * @return 下一个 Token
      */
-    const Token & peek_token();
+    const Token & peek();
 
     /**
      * @brief 检查是否还有更多 Token
@@ -48,29 +40,23 @@ public:
     bool has_more() const noexcept;
 
     /**
-     * @brief 获取当前位置
-     * @return 当前位置
-     */
-    std::size_t get_position() const noexcept;
-
-    /**
      * @brief 获取当前行号
      * @return 行号
      */
-    std::size_t get_line() const noexcept;
+    std::size_t line() const noexcept;
 
     /**
      * @brief 获取当前列号
      * @return 列号
      */
-    std::size_t get_column() const noexcept;
+    std::size_t column() const noexcept;
 
 private:
     /**
      * @brief 直接获取下一个 Token，不经过预读
      * @return 下一个 Token，如果到达末尾返回 EOF
      */
-    Token next_token_internal();
+    Token next_internal();
 
     /**
      * @brief 跳过空白字符，如空格、制表符、换行等
@@ -113,7 +99,7 @@ private:
     /**
      * @brief 获取当前字符（不移动位置）
      */
-    char peek() const;
+    char peek_char() const;
 
     /**
      * @brief 获取当前字符并移动到下一个
@@ -138,4 +124,4 @@ private:
     std::optional<Token> peeked_token_; // 预读的 Token
 };
 
-} // namespace dreamdb
+} // namespace dreamdb::parser

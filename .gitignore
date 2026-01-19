@@ -78,3 +78,6 @@ _deps/
 # Protobuf
 *.pb.cc
 *.pb.h
+
+# Cmake
+local.cmake
