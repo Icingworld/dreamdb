@@ -26,8 +26,6 @@ enum class LogicalTypeId : std::uint8_t
 struct LogicalType
 {
     LogicalTypeId id;        // 逻辑类型ID
-    std::size_t width;       // 宽度，如向量维度
-    // TODO: 添加其他字段
 };
 
 } // namespace dreamdb::common

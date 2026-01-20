@@ -1,15 +1,15 @@
-#include "dreamdb/parser/ast/debug/expression_formatter.h"
+﻿#include "dreamdb/parser/ast/debug/expression_formatter.h"
 
 #include "dreamdb/parser/ast/expression/expression.h"
-#include "dreamdb/parser/ast/expression/literal_expression.h"
-#include "dreamdb/parser/ast/expression/column_reference_expression.h"
-#include "dreamdb/parser/ast/expression/unary_expression.h"
-#include "dreamdb/parser/ast/expression/binary_expression.h"
-#include "dreamdb/parser/ast/expression/function_call_expression.h"
-#include "dreamdb/parser/ast/expression/in_expression.h"
-#include "dreamdb/parser/ast/expression/between_expression.h"
-#include "dreamdb/parser/ast/expression/like_expression.h"
-#include "dreamdb/parser/ast/expression/vector_expression.h"
+#include "dreamdb/parser/ast/expression/literal.h"
+#include "dreamdb/parser/ast/expression/column_reference.h"
+#include "dreamdb/parser/ast/expression/unary.h"
+#include "dreamdb/parser/ast/expression/binary.h"
+#include "dreamdb/parser/ast/expression/function_call.h"
+#include "dreamdb/parser/ast/expression/in.h"
+#include "dreamdb/parser/ast/expression/between.h"
+#include "dreamdb/parser/ast/expression/like.h"
+#include "dreamdb/parser/ast/expression/vector.h"
 
 namespace dreamdb::parser::ast
 {

@@ -1,4 +1,4 @@
-#include "dreamdb/executor/executor.h"
+﻿#include "dreamdb/executor/executor.h"
 
 #include <algorithm>
 #include <sstream>
@@ -18,9 +18,9 @@
 #include "dreamdb/catalog/catalog_vindex_entry.h"
 #include "dreamdb/catalog/logical_type.h"
 #include "dreamdb/common/type.h"
-#include "dreamdb/expression/constant_expression.h"
-#include "dreamdb/expression/column_reference_expression.h"
-#include "dreamdb/expression/binary_expression.h"
+#include "dreamdb/expression/constant.h"
+#include "dreamdb/expression/column_reference.h"
+#include "dreamdb/expression/binary.h"
 #include "dreamdb/evaluator/evaluator.h"
 #include "dreamdb/evaluator/evaluator_context.h"
 #include "dreamdb/planner/physical_planner/select/physical_seq_scan_node.h"
@@ -29,7 +29,7 @@
 #include "dreamdb/planner/physical_planner/select/physical_aggregate_node.h"
 #include "dreamdb/planner/physical_planner/select/physical_sort_node.h"
 #include "dreamdb/planner/physical_planner/select/physical_limit_offset_node.h"
-#include "dreamdb/expression/function_expression.h"
+#include "dreamdb/expression/function.h"
 #include <unordered_map>
 
 namespace dreamdb

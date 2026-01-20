@@ -1,20 +1,20 @@
-#include "dreamdb/parser/ast/debug/statement_formatter.h"
+﻿#include "dreamdb/parser/ast/debug/statement_formatter.h"
 
 #include <sstream>
 
 #include "dreamdb/parser/ast/debug/expression_formatter.h"
 #include "dreamdb/parser/ast/statement/statement.h"
-#include "dreamdb/parser/ast/statement/alter_statement.h"
+#include "dreamdb/parser/ast/statement/alter.h"
 #include "dreamdb/parser/ast/statement/column_definition.h"
-#include "dreamdb/parser/ast/statement/create_statement.h"
-#include "dreamdb/parser/ast/statement/delete_statement.h"
-#include "dreamdb/parser/ast/statement/describe_statement.h"
-#include "dreamdb/parser/ast/statement/drop_statement.h"
-#include "dreamdb/parser/ast/statement/insert_statement.h"
-#include "dreamdb/parser/ast/statement/select_statement.h"
-#include "dreamdb/parser/ast/statement/show_statement.h"
-#include "dreamdb/parser/ast/statement/update_statement.h"
-#include "dreamdb/parser/ast/statement/use_statement.h"
+#include "dreamdb/parser/ast/statement/create.h"
+#include "dreamdb/parser/ast/statement/delete.h"
+#include "dreamdb/parser/ast/statement/describe.h"
+#include "dreamdb/parser/ast/statement/drop.h"
+#include "dreamdb/parser/ast/statement/insert.h"
+#include "dreamdb/parser/ast/statement/select.h"
+#include "dreamdb/parser/ast/statement/show.h"
+#include "dreamdb/parser/ast/statement/update.h"
+#include "dreamdb/parser/ast/statement/use.h"
 
 namespace dreamdb::parser::ast
 {
