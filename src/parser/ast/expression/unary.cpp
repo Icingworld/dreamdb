@@ -13,7 +13,7 @@ AstUnaryExpression::AstUnaryExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::Unary, line, column)
     , type_(type)
     , operand_(std::move(operand))
 {

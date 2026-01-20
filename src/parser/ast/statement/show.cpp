@@ -8,7 +8,7 @@ namespace dreamdb::parser::ast
 {
 
 AstShowStatement::AstShowStatement(AstShowStatementOperation operation, std::size_t line, std::size_t column)
-    : AstStatement(line, column)
+    : AstStatement(AstStatementType::Show, line, column)
     , operation_(std::move(operation))
 {
     std::visit([](auto & op) {

@@ -14,7 +14,7 @@ AstInExpression::AstInExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::In, line, column)
     , left_(std::move(left))
     , values_(std::move(values))
     , is_not_(is_not)

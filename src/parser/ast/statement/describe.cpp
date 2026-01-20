@@ -12,7 +12,7 @@ AstDescribeStatement::AstDescribeStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(line, column)
+    : AstStatement(AstStatementType::Describe, line, column)
     , collection_name_(collection_name)
 {
     // 集合名称不能为空

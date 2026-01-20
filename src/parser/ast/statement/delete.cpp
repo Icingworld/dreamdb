@@ -14,7 +14,7 @@ AstDeleteStatement::AstDeleteStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(line, column)
+    : AstStatement(AstStatementType::Delete, line, column)
     , collection_name_(std::move(collection_name))
     , where_(std::move(where))
 {

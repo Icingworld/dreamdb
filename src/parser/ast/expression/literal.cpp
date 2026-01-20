@@ -6,7 +6,7 @@ namespace dreamdb::parser::ast
 {
 
 AstLiteralExpression::AstLiteralExpression(AstLiteralValue value, std::size_t line, std::size_t column)
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::Literal, line, column)
     , value_(std::move(value))
 {
 }

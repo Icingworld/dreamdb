@@ -14,7 +14,7 @@ AstBinaryExpression::AstBinaryExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::Binary, line, column)
     , type_(type)
     , left_(std::move(left))
     , right_(std::move(right))

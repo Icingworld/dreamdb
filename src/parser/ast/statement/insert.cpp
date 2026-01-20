@@ -15,7 +15,7 @@ AstInsertStatement::AstInsertStatement(
     std::size_t line,
     std::size_t column
 )
-    : AstStatement(line, column)
+    : AstStatement(AstStatementType::Insert, line, column)
     , collection_name_(std::move(collection_name))
     , column_names_(std::move(column_names))
     , values_(std::move(values))

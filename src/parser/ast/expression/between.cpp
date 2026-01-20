@@ -15,7 +15,7 @@ AstBetweenExpression::AstBetweenExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::Between, line, column)
     , left_(std::move(left))
     , start_(std::move(start))
     , end_(std::move(end))

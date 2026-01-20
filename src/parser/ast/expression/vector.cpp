@@ -12,7 +12,7 @@ AstVectorExpression::AstVectorExpression(
     std::size_t line,
     std::size_t column
 )
-    : AstExpression(line, column)
+    : AstExpression(AstExpressionType::Vector, line, column)
     , elements_(std::move(elements))
 {
     // 向量表达式必须有至少一个元素
