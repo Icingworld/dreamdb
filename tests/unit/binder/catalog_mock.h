@@ -34,6 +34,20 @@ public:
     );
 
     MOCK_METHOD(
+        std::optional<dreamdb::common::index_id_t>,
+        resolve_index,
+        (const dreamdb::common::collection_id_t collection_id, const std::string & index_name),
+        (const, override)
+    );
+
+    MOCK_METHOD(
+        std::optional<dreamdb::common::vindex_id_t>,
+        resolve_vindex,
+        (const dreamdb::common::collection_id_t collection_id, const std::string & vindex_name),
+        (const, override)
+    );
+
+    MOCK_METHOD(
         std::vector<dreamdb::catalog::column_info_t>,
         get_columns,
         (const dreamdb::common::collection_id_t collection_id),

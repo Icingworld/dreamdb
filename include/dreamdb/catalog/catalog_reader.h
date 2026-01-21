@@ -51,6 +51,28 @@ public:
     ) const = 0;
 
     /**
+     * @brief 解析索引名称
+     * @param collection_id 集合 ID
+     * @param index_name 索引名称
+     * @return 索引 ID
+     */
+    virtual std::optional<dreamdb::common::index_id_t> resolve_index(
+        const dreamdb::common::collection_id_t collection_id,
+        const std::string & index_name
+    ) const = 0;
+
+    /**
+     * @brief 解析向量索引名称
+     * @param collection_id 集合 ID
+     * @param vindex_name 向量索引名称
+     * @return 向量索引 ID
+     */
+    virtual std::optional<dreamdb::common::vindex_id_t> resolve_vindex(
+        const dreamdb::common::collection_id_t collection_id,
+        const std::string & vindex_name
+    ) const = 0;
+
+    /**
      * @brief 获取集合所有列信息
      * @param collection_id 集合 ID
      * @return 列信息列表

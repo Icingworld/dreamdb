@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstddef>
-
 #include "dreamdb/binder/bound/expression/expression.h"
 #include "dreamdb/common/ids.h"
 #include "dreamdb/common/logical_type.h"

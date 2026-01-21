@@ -74,15 +74,6 @@ public:
 
 private:
     /**
-     * @brief 绑定表达式
-     * @param expression AST 表达式节点
-     * @return 绑定后的表达式
-     */
-    std::unique_ptr<bound::BoundExpression> bind_expression(
-        const dreamdb::parser::ast::AstExpression & expression
-    );
-
-    /**
      * @brief 绑定 ALTER 语句
      * @param alter_statement AstAlterStatement 语句节点引用
      * @return 绑定后的语句指针
@@ -170,6 +161,15 @@ private:
      */
     std::unique_ptr<bound::BoundStatement> bind_use_statement(
         const dreamdb::parser::ast::AstUseStatement & use_statement
+    );
+
+    /**
+     * @brief 绑定表达式
+     * @param expression AST 表达式节点
+     * @return 绑定后的表达式
+     */
+    std::unique_ptr<bound::BoundExpression> bind_expression(
+        const dreamdb::parser::ast::AstExpression & expression
     );
 
 private:

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <cstddef>
-#include <string>
 #include <variant>
+#include <optional>
 
 #include "dreamdb/binder/bound/statement/statement.h"
 #include "dreamdb/common/ids.h"
@@ -17,7 +16,7 @@ class BoundStatementVisitor;
  */
 struct BoundDropDatabase
 {
-    dreamdb::common::database_id_t database_id;  // 数据库 ID
+    std::optional<dreamdb::common::database_id_t> database_id;  // 数据库 ID
 };
 
 /**
@@ -25,7 +24,7 @@ struct BoundDropDatabase
  */
 struct BoundDropCollection
 {
-    dreamdb::common::collection_id_t collection_id;  // 集合 ID
+    std::optional<dreamdb::common::collection_id_t> collection_id;  // 集合 ID
 };
 
 /**
@@ -33,7 +32,7 @@ struct BoundDropCollection
  */
 struct BoundDropIndex
 {
-    dreamdb::common::index_id_t index_id;  // 索引 ID
+    std::optional<dreamdb::common::index_id_t> index_id;  // 索引 ID
 };
 
 /**
@@ -41,7 +40,7 @@ struct BoundDropIndex
  */
 struct BoundDropVIndex
 {
-    dreamdb::common::vindex_id_t vindex_id;  // 向量索引 ID
+    std::optional<dreamdb::common::vindex_id_t> vindex_id;  // 向量索引 ID
 };
 
 using BoundDropOperation = std::variant<
@@ -57,7 +56,7 @@ using BoundDropOperation = std::variant<
 class BoundDropStatement final : public BoundStatement
 {
 public:
-    explicit BoundDropStatement(BoundDropOperation operation, bool if_exists);
+    explicit BoundDropStatement(BoundDropOperation operation);
 
     ~BoundDropStatement() noexcept override = default;
 
@@ -70,19 +69,12 @@ public:
 
 public:
     /**
-     * @brief 获取是否存在性检查
-     * @return 是否存在性检查
-     */
-    bool if_exists() const noexcept;
-
-    /**
      * @brief 获取删除操作
      * @return 删除操作
      */
     const BoundDropOperation & operation() const noexcept;
 
 private:
-    bool if_exists_;                // 是否存在性检查
     BoundDropOperation operation_;  // 删除操作
 };
 
