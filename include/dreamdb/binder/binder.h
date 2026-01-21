@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <string>
+#include <optional>
+
+#include <dreamdb/common/ids.h>
 
 namespace dreamdb::catalog
 {
@@ -38,6 +41,16 @@ class BoundStatement;
 class BoundExpression;
 
 } // namespace bound
+
+/**
+ * @brief 绑定器上下文
+ * @details 该上下文只是暂时用于测试 Binder，后续将替换为真正的上下文管理器
+ */
+struct BinderContext
+{
+    std::optional<std::string> current_database_name;                    // 当前数据库名称
+    std::optional<dreamdb::common::database_id_t> current_database_id;   // 当前数据库 ID
+};
 
 /**
  * @brief 绑定器
@@ -161,6 +174,7 @@ private:
 
 private:
     const dreamdb::catalog::Catalog & catalog_;   // 表结构元数据目录
+    BinderContext context_;                       // 绑定器上下文
 };
 
 } // namespace dreamdb::binder

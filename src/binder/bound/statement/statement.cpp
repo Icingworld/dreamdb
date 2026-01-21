@@ -4,13 +4,13 @@ namespace dreamdb::binder::bound
 {
 
 BoundStatement::BoundStatement(BoundStatementType type) noexcept
-    : type_(type)
+    : statement_type_(type)
 {
 }
 
-BoundStatementType BoundStatement::type() const noexcept
+BoundStatementType BoundStatement::statement_type() const noexcept
 {
-    return type_;
+    return statement_type_;
 }
 
 } // namespace dreamdb::binder::bound

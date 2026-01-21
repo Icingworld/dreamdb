@@ -31,6 +31,7 @@ namespace dreamdb::binder
 
 Binder::Binder(const dreamdb::catalog::Catalog & catalog)
     : catalog_(catalog)
+    , context_({std::nullopt, std::nullopt})
 {
 }
 
@@ -107,14 +108,85 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_describe_statement(
     const dreamdb::parser::ast::AstDescribeStatement & describe_statement
 )
 {
-    return nullptr;
+    // 获取集合名称
+    const std::string & collection_name = describe_statement.collection_name();
+
+    // 检查当前数据库是否存在
+    // TODO: 删除上下文测试代码，当前数据库将在 CommandExecutor 中设置
+    if (!context_.current_database_id.has_value()) {
+        throw std::runtime_error("Current database not set");
+    }
+
+    // 检查集合是否存在
+    auto collection_id = catalog_.resolve_collection(context_.current_database_id.value(), collection_name);
+    if (!collection_id.has_value()) {
+        throw std::runtime_error("Collection " + collection_name + " not found");
+    }
+
+    // 创建 BoundDescribe 语句
+    return std::make_unique<bound::BoundDescribeStatement>(collection_id.value());
 }
 
 std::unique_ptr<bound::BoundStatement> Binder::bind_drop_statement(
     const dreamdb::parser::ast::AstDropStatement & drop_statement
 )
 {
-    return nullptr;
+    // 获取操作
+    auto & ast_operation = drop_statement.operation();
+    return std::visit([this, &drop_statement](auto & op) {
+        using T = std::decay_t<decltype(op)>;
+
+        if constexpr (std::is_same_v<T, dreamdb::parser::ast::AstDropDatabase>) {
+            // 获取数据库名称
+            const std::string & database_name = op.database_name;
+
+            // TODO: 通过 if exists 判断是否需要报错
+
+            // 检查数据库是否存在
+            auto database_id = catalog_.resolve_database(database_name);
+            if (!database_id.has_value()) {
+                throw std::runtime_error("Database " + database_name + " not found");
+            }
+
+            // 创建 BoundDropDatabase 操作
+            bound::BoundDropDatabase bound_operation;
+            bound_operation.database_id = database_id.value();
+
+            // 创建 BoundDropStatement 语句
+            return std::make_unique<bound::BoundDropStatement>(
+                std::move(bound_operation),
+                drop_statement.if_exists()
+            );
+        } else if constexpr (std::is_same_v<T, dreamdb::parser::ast::AstDropCollection>) {
+            // 获取集合名称
+            const std::string & collection_name = op.collection_name;
+
+            // 检查当前数据库是否存在
+            if (!context_.current_database_id.has_value()) {
+                throw std::runtime_error("Current database not set");
+            }
+
+            // 检查集合是否存在
+            auto collection_id = catalog_.resolve_collection(context_.current_database_id.value(), collection_name);
+            if (!collection_id.has_value()) {
+                throw std::runtime_error("Collection " + collection_name + " not found");
+            }
+
+            // 创建 BoundDropCollection 操作
+            bound::BoundDropCollection bound_operation;
+            bound_operation.collection_id = collection_id.value();
+
+            // 创建 BoundDropStatement 语句
+            return std::make_unique<bound::BoundDropStatement>(
+                std::move(bound_operation),
+                drop_statement.if_exists()
+            );
+        } else if constexpr (std::is_same_v<T, dreamdb::parser::ast::AstDropIndex>) {
+            return std::unique_ptr<bound::BoundStatement>(nullptr);
+        } else if constexpr (std::is_same_v<T, dreamdb::parser::ast::AstDropVIndex>) {
+            return std::unique_ptr<bound::BoundStatement>(nullptr);
+        }
+    }, ast_operation);
 }
 
 std::unique_ptr<bound::BoundStatement> Binder::bind_insert_statement(
@@ -157,6 +229,11 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_use_statement(
     if (!database_id.has_value()) {
         throw std::runtime_error("Database " + database_name + " not found");
     }
+
+    // 更新上下文
+    // TODO: 删除上下文测试代码，更新上下文将在 CommandExecutor 中进行
+    context_.current_database_name = database_name;
+    context_.current_database_id = database_id.value();
 
     // 创建 BoundUse 语句
     return std::make_unique<bound::BoundUseStatement>(database_id.value());

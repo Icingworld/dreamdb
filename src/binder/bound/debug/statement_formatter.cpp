@@ -1,6 +1,7 @@
 #include "dreamdb/binder/bound/debug/statement_formatter.h"
 
 #include "dreamdb/binder/bound/statement/statement.h"
+#include "dreamdb/binder/bound/statement/describe.h"
 #include "dreamdb/binder/bound/statement/use.h"
 
 namespace dreamdb::binder::bound
@@ -40,8 +41,7 @@ void BoundStatementFormatter::visit(const BoundDeleteStatement & delete_statemen
 
 void BoundStatementFormatter::visit(const BoundDescribeStatement & describe_statement)
 {
-    // TODO: 实现 BoundDescribeStatement 格式化
-    (void)describe_statement;
+    oss_ << "DESCRIBE collection_id:" << describe_statement.collection_id();
 }
 
 void BoundStatementFormatter::visit(const BoundDropStatement & drop_statement)
