@@ -1,6 +1,6 @@
 ﻿#include "dreamdb/parser/ast/expression/literal.h"
 
-#include "dreamdb/parser/ast/expression/expression_visitor.h"
+#include "dreamdb/parser/ast/expression/visitor.h"
 
 namespace dreamdb::parser::ast
 {

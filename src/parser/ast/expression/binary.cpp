@@ -2,20 +2,20 @@
 
 #include <cassert>
 
-#include "dreamdb/parser/ast/expression/expression_visitor.h"
+#include "dreamdb/parser/ast/expression/visitor.h"
 
 namespace dreamdb::parser::ast
 {
 
 AstBinaryExpression::AstBinaryExpression(
-    AstBinaryOperatorType type,
+    AstBinaryOperatorType binary_type,
     std::unique_ptr<AstExpression> left,
     std::unique_ptr<AstExpression> right,
     std::size_t line,
     std::size_t column
 )
     : AstExpression(AstExpressionType::Binary, line, column)
-    , type_(type)
+    , binary_type_(binary_type)
     , left_(std::move(left))
     , right_(std::move(right))
 {
@@ -27,7 +27,7 @@ AstBinaryExpression::AstBinaryExpression(
 }
 
 std::unique_ptr<AstBinaryExpression> AstBinaryExpression::create(
-    AstBinaryOperatorType type,
+    AstBinaryOperatorType binary_type,
     std::unique_ptr<AstExpression> left,
     std::unique_ptr<AstExpression> right,
     std::size_t line,
@@ -35,13 +35,13 @@ std::unique_ptr<AstBinaryExpression> AstBinaryExpression::create(
 )
 {
     return std::make_unique<AstBinaryExpression>(
-        type, std::move(left), std::move(right), line, column
+        binary_type, std::move(left), std::move(right), line, column
     );
 }
 
-AstBinaryOperatorType AstBinaryExpression::type() const noexcept
+AstBinaryOperatorType AstBinaryExpression::binary_type() const noexcept
 {
-    return type_;
+    return binary_type_;
 }
 
 const AstExpression & AstBinaryExpression::left() const noexcept

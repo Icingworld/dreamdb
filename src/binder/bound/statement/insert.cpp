@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -13,6 +15,11 @@ BoundInsertStatement::BoundInsertStatement(
     , collection_id_(collection_id)
     , insert_items_(std::move(insert_items))
 {
+}
+
+void BoundInsertStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 dreamdb::common::collection_id_t BoundInsertStatement::collection_id() const noexcept

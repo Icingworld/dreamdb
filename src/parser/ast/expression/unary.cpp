@@ -2,19 +2,19 @@
 
 #include <cassert>
 
-#include "dreamdb/parser/ast/expression/expression_visitor.h"
+#include "dreamdb/parser/ast/expression/visitor.h"
 
 namespace dreamdb::parser::ast
 {
 
 AstUnaryExpression::AstUnaryExpression(
-    AstUnaryOperatorType type,
+    AstUnaryOperatorType unary_type,
     std::unique_ptr<AstExpression> operand,
     std::size_t line,
     std::size_t column
 )
     : AstExpression(AstExpressionType::Unary, line, column)
-    , type_(type)
+    , unary_type_(unary_type)
     , operand_(std::move(operand))
 {
     // 操作数不能为空
@@ -22,20 +22,20 @@ AstUnaryExpression::AstUnaryExpression(
 }
 
 std::unique_ptr<AstUnaryExpression> AstUnaryExpression::create(
-    AstUnaryOperatorType type,
+    AstUnaryOperatorType unary_type,
     std::unique_ptr<AstExpression> operand,
     std::size_t line,
     std::size_t column
 )
 {
     return std::make_unique<AstUnaryExpression>(
-        type, std::move(operand), line, column
+        unary_type, std::move(operand), line, column
     );
 }
 
-AstUnaryOperatorType AstUnaryExpression::type() const noexcept
+AstUnaryOperatorType AstUnaryExpression::unary_type() const noexcept
 {
-    return type_;
+    return unary_type_;
 }
 
 const AstExpression & AstUnaryExpression::operand() const noexcept

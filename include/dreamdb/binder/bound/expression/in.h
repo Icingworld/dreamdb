@@ -10,6 +10,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 绑定后的 IN 表达式
  */
@@ -50,6 +52,12 @@ public:
      * @return 是否为 NOT IN
      */
     bool is_not() const noexcept;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    void accept(BoundExpressionVisitor & visitor) const override;
 
 private:
     std::unique_ptr<BoundExpression> left_;                             // 左侧表达式

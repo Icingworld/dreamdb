@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -33,6 +35,11 @@ const BoundExpression & BoundLikeExpression::pattern() const noexcept
 bool BoundLikeExpression::is_not() const noexcept
 {
     return is_not_;
+}
+
+void BoundLikeExpression::accept(BoundExpressionVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

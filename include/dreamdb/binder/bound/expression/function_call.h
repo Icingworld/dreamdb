@@ -10,6 +10,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 绑定后的函数调用表达式
  */
@@ -50,6 +52,12 @@ public:
      * @return 是否为聚合函数
      */
     bool is_aggregate() const noexcept;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    void accept(BoundExpressionVisitor & visitor) const override;
 
 private:
     std::string function_name_;                                      // 函数名称

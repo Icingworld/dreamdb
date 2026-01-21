@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -34,6 +36,11 @@ const BoundExpression & BoundBinaryExpression::left() const noexcept
 const BoundExpression & BoundBinaryExpression::right() const noexcept
 {
     return *right_;
+}
+
+void BoundBinaryExpression::accept(BoundExpressionVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

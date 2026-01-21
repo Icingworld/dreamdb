@@ -6,7 +6,7 @@ if(NOT DREAMDB_BUILD_TESTS)
     return()
 endif()
 
-# 添加测试目录
+# 添加 parser 测试目录
 add_executable(unit_parser_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/parser/use_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/parser/describe_test.cpp
@@ -22,8 +22,22 @@ add_executable(unit_parser_tests
 
 target_link_libraries(unit_parser_tests PRIVATE
     dreamdb
-    gtest
-    gtest_main
+    GTest::gtest
+    GTest::gtest_main
 )
 
 add_test(NAME unit_parser_tests COMMAND unit_parser_tests)
+
+# 添加 binder 测试目录
+add_executable(unit_binder_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/binder/use_test.cpp
+)
+
+target_link_libraries(unit_binder_tests PRIVATE
+    dreamdb
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+)
+
+add_test(NAME unit_binder_tests COMMAND unit_binder_tests)

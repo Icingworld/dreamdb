@@ -1,9 +1,11 @@
 #include "dreamdb/binder/bound/expression/column_reference.h"
 
+#include "dreamdb/binder/bound/expression/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
-ColumnReferenceExpression::ColumnReferenceExpression(
+BoundColumnReferenceExpression::BoundColumnReferenceExpression(
     dreamdb::common::column_id_t column_id,
     dreamdb::common::LogicalType logical_type
 ) noexcept
@@ -12,9 +14,14 @@ ColumnReferenceExpression::ColumnReferenceExpression(
 {
 }
 
-dreamdb::common::column_id_t ColumnReferenceExpression::column_id() const noexcept
+dreamdb::common::column_id_t BoundColumnReferenceExpression::column_id() const noexcept
 {
     return column_id_;
+}
+
+void BoundColumnReferenceExpression::accept(BoundExpressionVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

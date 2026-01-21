@@ -9,6 +9,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 绑定后的 DELETE 语句
  */
@@ -18,6 +20,13 @@ public:
     explicit BoundDeleteStatement(dreamdb::common::collection_id_t collection_id, std::unique_ptr<BoundExpression> where);
 
     ~BoundDeleteStatement() noexcept override = default;
+
+public:
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    void accept(BoundStatementVisitor & visitor) const override;
 
 public:
     /**

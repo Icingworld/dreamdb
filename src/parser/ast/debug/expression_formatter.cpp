@@ -50,9 +50,9 @@ std::string AstExpressionFormatter::format(const AstExpression & expression)
     return oss_.str();
 }
 
-void AstExpressionFormatter::visit(const AstLiteralExpression & expression)
+void AstExpressionFormatter::visit(const AstLiteralExpression & literal_expression)
 {
-    const AstLiteralValue & value = expression.value();
+    const AstLiteralValue & value = literal_expression.value();
     std::visit([this](const auto & val) {
         using T = std::decay_t<decltype(val)>;
 
@@ -70,46 +70,46 @@ void AstExpressionFormatter::visit(const AstLiteralExpression & expression)
     }, value);
 }
 
-void AstExpressionFormatter::visit(const AstColumnReferenceExpression & expression)
+void AstExpressionFormatter::visit(const AstColumnReferenceExpression & column_reference_expression)
 {
     // 格式化三段式列名
-    if (expression.database_name().has_value()) {
-        oss_ << expression.database_name().value() << ".";
+    if (column_reference_expression.database_name().has_value()) {
+        oss_ << column_reference_expression.database_name().value() << ".";
     }
-    if (expression.collection_name().has_value()) {
-        oss_ << expression.collection_name().value() << ".";
+    if (column_reference_expression.collection_name().has_value()) {
+        oss_ << column_reference_expression.collection_name().value() << ".";
     }
-    oss_ << expression.column_name();
+    oss_ << column_reference_expression.column_name();
 }
 
-void AstExpressionFormatter::visit(const AstUnaryExpression & expression)
+void AstExpressionFormatter::visit(const AstUnaryExpression & unary_expression)
 {
-    switch (expression.type()) {
+    switch (unary_expression.unary_type()) {
         case AstUnaryOperatorType::Not:
             oss_ << "NOT ";
-            expression.operand().accept(*this);
+            unary_expression.operand().accept(*this);
             break;
         case AstUnaryOperatorType::Minus:
             oss_ << "-";
-            expression.operand().accept(*this);
+            unary_expression.operand().accept(*this);
             break;
         case AstUnaryOperatorType::Plus:
             oss_ << "+";
-            expression.operand().accept(*this);
+            unary_expression.operand().accept(*this);
             break;
         default:
-            oss_ << "UNKNOWN UNARY OPERATOR: " << static_cast<std::uint8_t>(expression.type());
+            oss_ << "UNKNOWN UNARY OPERATOR: " << static_cast<std::uint8_t>(unary_expression.unary_type());
             break;
     }
 }
 
-void AstExpressionFormatter::visit(const AstBinaryExpression & expression)
+void AstExpressionFormatter::visit(const AstBinaryExpression & binary_expression)
 {
     oss_ << "(";
-    expression.left().accept(*this);
+    binary_expression.left().accept(*this);
     oss_ << " ";
 
-    switch (expression.type()) {
+    switch (binary_expression.binary_type()) {
         case AstBinaryOperatorType::Plus:
             oss_ << "+";
             break;
@@ -150,22 +150,22 @@ void AstExpressionFormatter::visit(const AstBinaryExpression & expression)
             oss_ << "OR";
             break;
         default:
-            oss_ << "UNKNOWN BINARY OPERATOR: " << static_cast<std::uint8_t>(expression.type());
+            oss_ << "UNKNOWN BINARY OPERATOR: " << static_cast<std::uint8_t>(binary_expression.binary_type());
             break;
     }
 
     oss_ << " ";
-    expression.right().accept(*this);
+    binary_expression.right().accept(*this);
     oss_ << ")";
 }
 
-void AstExpressionFormatter::visit(const AstFunctionCallExpression & expression)
+void AstExpressionFormatter::visit(const AstFunctionCallExpression & function_call_expression)
 {
-    oss_ << expression.function_name() << "(";
+    oss_ << function_call_expression.function_name() << "(";
 
-    for (std::size_t i = 0; i < expression.argument_count(); ++i) {
-        expression.argument_at(i).accept(*this);
-        if (i < expression.argument_count() - 1) {
+    for (std::size_t i = 0; i < function_call_expression.argument_count(); ++i) {
+        function_call_expression.argument_at(i).accept(*this);
+        if (i < function_call_expression.argument_count() - 1) {
             oss_ << ", ";
         }
     }
@@ -173,19 +173,19 @@ void AstExpressionFormatter::visit(const AstFunctionCallExpression & expression)
     oss_ << ")";
 }
 
-void AstExpressionFormatter::visit(const AstInExpression & expression)
+void AstExpressionFormatter::visit(const AstInExpression & in_expression)
 {
-    expression.left().accept(*this);
-    if (expression.is_not()) {
+    in_expression.left().accept(*this);
+    if (in_expression.is_not()) {
         oss_ << " NOT IN (";
     } else {
         oss_ << " IN (";
     }
 
     // 格式化值表达式列表
-    for (std::size_t i = 0; i < expression.value_count(); ++i) {
-        expression.value_at(i).accept(*this);
-        if (i < expression.value_count() - 1) {
+    for (std::size_t i = 0; i < in_expression.value_count(); ++i) {
+        in_expression.value_at(i).accept(*this);
+        if (i < in_expression.value_count() - 1) {
             oss_ << ", ";
         }
     }
@@ -193,41 +193,41 @@ void AstExpressionFormatter::visit(const AstInExpression & expression)
     oss_ << ")";
 }
 
-void AstExpressionFormatter::visit(const AstBetweenExpression & expression)
+void AstExpressionFormatter::visit(const AstBetweenExpression & between_expression)
 {
-    expression.left().accept(*this);
-    if (expression.is_not()) {
+    between_expression.left().accept(*this);
+    if (between_expression.is_not()) {
         oss_ << " NOT BETWEEN ";
     } else {
         oss_ << " BETWEEN ";
     }
 
     // 格式化起始值表达式
-    expression.start().accept(*this);
+    between_expression.start().accept(*this);
     oss_ << " AND ";
     // 格式化结束值表达式
-    expression.end().accept(*this);
+    between_expression.end().accept(*this);
 }
 
-void AstExpressionFormatter::visit(const AstLikeExpression & expression)
+void AstExpressionFormatter::visit(const AstLikeExpression & like_expression)
 {
-    expression.left().accept(*this);
-    if (expression.is_not()) {
+    like_expression.left().accept(*this);
+    if (like_expression.is_not()) {
         oss_ << " NOT LIKE ";
     } else {
         oss_ << " LIKE ";
     }
 
-    expression.pattern().accept(*this);
+    like_expression.pattern().accept(*this);
 }
 
-void AstExpressionFormatter::visit(const AstVectorExpression & expression)
+void AstExpressionFormatter::visit(const AstVectorExpression & vector_expression)
 {
     oss_ << "[";
 
-    for (std::size_t i = 0; i < expression.element_count(); ++i) {
-        expression.element_at(i).accept(*this);
-        if (i < expression.element_count() - 1) {
+    for (std::size_t i = 0; i < vector_expression.element_count(); ++i) {
+        vector_expression.element_at(i).accept(*this);
+        if (i < vector_expression.element_count() - 1) {
             oss_ << ", ";
         }
     }

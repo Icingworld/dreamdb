@@ -11,6 +11,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 添加字段操作（绑定后）
  */
@@ -64,6 +66,13 @@ public:
     );
 
     ~BoundAlterStatement() noexcept override = default;
+
+public:
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    void accept(BoundStatementVisitor & visitor) const override;
 
 public:
     /**

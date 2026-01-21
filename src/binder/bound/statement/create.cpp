@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -42,6 +44,11 @@ BoundCreateStatement::BoundCreateStatement(
             // TODO: 验证 VIndexType 和 WITH 子句选项是否对应
         }
     }, create_operation_);
+}
+
+void BoundCreateStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 bool BoundCreateStatement::if_not_exists() const noexcept

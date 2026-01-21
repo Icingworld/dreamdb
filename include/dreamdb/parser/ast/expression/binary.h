@@ -41,7 +41,7 @@ class AstBinaryExpression final : public AstExpression
 {
 public:
     AstBinaryExpression(
-        AstBinaryOperatorType type,
+        AstBinaryOperatorType binary_type,
         std::unique_ptr<AstExpression> left,
         std::unique_ptr<AstExpression> right,
         std::size_t line,
@@ -53,7 +53,7 @@ public:
 public:
     /**
      * @brief 创建二元表达式
-     * @param type 二元运算符类型
+     * @param binary_type 二元运算符类型
      * @param left 左操作数表达式
      * @param right 右操作数表达式
      * @param line 行号
@@ -61,7 +61,7 @@ public:
      * @return 二元表达式
      */
     static std::unique_ptr<AstBinaryExpression> create(
-        AstBinaryOperatorType type,
+        AstBinaryOperatorType binary_type,
         std::unique_ptr<AstExpression> left,
         std::unique_ptr<AstExpression> right,
         std::size_t line,
@@ -73,7 +73,7 @@ public:
      * @brief 获取二元运算符类型
      * @return 运算符类型
      */
-    AstBinaryOperatorType type() const noexcept;
+    AstBinaryOperatorType binary_type() const noexcept;
 
     /**
      * @brief 获取左操作数
@@ -94,7 +94,7 @@ public:
     void accept(AstExpressionVisitor & visitor) const override;
 
 private:
-    AstBinaryOperatorType type_;            // 二元运算符类型
+    AstBinaryOperatorType binary_type_;     // 二元运算符类型
     std::unique_ptr<AstExpression> left_;   // 左操作数表达式
     std::unique_ptr<AstExpression> right_;  // 右操作数表达式
 };

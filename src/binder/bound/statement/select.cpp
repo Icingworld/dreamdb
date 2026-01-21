@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -25,6 +27,11 @@ BoundSelectStatement::BoundSelectStatement(
     , limit_(limit)
     , offset_(offset)
 {
+}
+
+void BoundSelectStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 dreamdb::common::collection_id_t BoundSelectStatement::collection_id() const noexcept

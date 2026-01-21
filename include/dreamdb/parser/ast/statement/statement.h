@@ -34,7 +34,7 @@ enum class AstStatementType : std::uint8_t
 class AstStatement : public AstNode
 {
 protected:
-    AstStatement(AstStatementType type, std::size_t line, std::size_t column) noexcept;
+    AstStatement(AstStatementType statement_type, std::size_t line, std::size_t column) noexcept;
 
 public:
     ~AstStatement() noexcept override = default;
@@ -44,7 +44,7 @@ public:
      * @brief 获取语句类型
      * @return 语句类型
      */
-    AstStatementType type() const noexcept;
+    AstStatementType statement_type() const noexcept;
 
     /**
      * @brief 接受语句访问者
@@ -53,7 +53,7 @@ public:
     virtual void accept(AstStatementVisitor & visitor) const = 0;
 
 private:
-    AstStatementType type_;    // 语句类型
+    AstStatementType statement_type_;    // 语句类型
 };
 
 } // namespace dreamdb::parser::ast

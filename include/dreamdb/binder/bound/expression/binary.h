@@ -9,6 +9,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 绑定后的二元运算符类型
  */
@@ -67,6 +69,12 @@ public:
      * @return 右操作数表达式
      */
     const BoundExpression & right() const noexcept;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    void accept(BoundExpressionVisitor & visitor) const override;
 
 private:
     BoundBinaryOperatorType operator_type_;            // 二元运算符类型

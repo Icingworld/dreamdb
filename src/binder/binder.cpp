@@ -36,7 +36,7 @@ Binder::Binder(const dreamdb::catalog::Catalog & catalog)
 
 std::unique_ptr<bound::BoundStatement> Binder::bind(const dreamdb::parser::ast::AstStatement & statement)
 {
-    switch (statement.type()) {
+    switch (statement.statement_type()) {
         case dreamdb::parser::ast::AstStatementType::Alter:
             return bind_alter_statement(
                 static_cast<const dreamdb::parser::ast::AstAlterStatement &>(statement)

@@ -1,5 +1,7 @@
 #include "dreamdb/binder/bound/statement/alter.h"
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -21,6 +23,11 @@ dreamdb::common::collection_id_t BoundAlterStatement::collection_id() const noex
 const BoundAlterOperation & BoundAlterStatement::alter_operation() const noexcept
 {
     return alter_operation_;
+}
+
+void BoundAlterStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

@@ -9,15 +9,17 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 字段引用表达式
  */
-class ColumnReferenceExpression final : public BoundExpression
+class BoundColumnReferenceExpression final : public BoundExpression
 {
 public:
-    explicit ColumnReferenceExpression(dreamdb::common::column_id_t column_id, dreamdb::common::LogicalType logical_type) noexcept;
+    explicit BoundColumnReferenceExpression(dreamdb::common::column_id_t column_id, dreamdb::common::LogicalType logical_type) noexcept;
 
-    ~ColumnReferenceExpression() noexcept override = default;
+    ~BoundColumnReferenceExpression() noexcept override = default;
 
 public:
     /**
@@ -25,6 +27,12 @@ public:
      * @return 列 ID
      */
     dreamdb::common::column_id_t column_id() const noexcept;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    void accept(BoundExpressionVisitor & visitor) const override;
 
 private:
     dreamdb::common::column_id_t column_id_;  // 列 ID

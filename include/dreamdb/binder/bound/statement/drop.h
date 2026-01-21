@@ -10,6 +10,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 删除数据库操作
  */
@@ -58,6 +60,13 @@ public:
     explicit BoundDropStatement(BoundDropOperation operation, bool if_exists);
 
     ~BoundDropStatement() noexcept override = default;
+
+public:
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    void accept(BoundStatementVisitor & visitor) const override;
 
 public:
     /**

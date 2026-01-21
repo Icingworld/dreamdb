@@ -3,15 +3,15 @@
 namespace dreamdb::parser::ast
 {
 
-AstStatement::AstStatement(AstStatementType type, std::size_t line, std::size_t column) noexcept
+AstStatement::AstStatement(AstStatementType statement_type, std::size_t line, std::size_t column) noexcept
     : AstNode(line, column)
-    , type_(type)
+    , statement_type_(statement_type)
 {
 }
 
-AstStatementType AstStatement::type() const noexcept
+AstStatementType AstStatement::statement_type() const noexcept
 {
-    return type_;
+    return statement_type_;
 }
 
 } // namespace dreamdb::parser::ast

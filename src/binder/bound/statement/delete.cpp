@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -13,6 +15,11 @@ BoundDeleteStatement::BoundDeleteStatement(
     , collection_id_(collection_id)
     , where_(std::move(where))
 {
+}
+
+void BoundDeleteStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 dreamdb::common::collection_id_t BoundDeleteStatement::collection_id() const noexcept

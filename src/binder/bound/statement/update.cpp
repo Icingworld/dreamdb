@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -23,6 +25,11 @@ BoundUpdateStatement::BoundUpdateStatement(
         assert(update_item.column_reference != nullptr);
         assert(update_item.value != nullptr);
     }
+}
+
+void BoundUpdateStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 dreamdb::common::collection_id_t BoundUpdateStatement::collection_id() const noexcept

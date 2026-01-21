@@ -56,11 +56,11 @@ std::string AstStatementFormatter::format(const AstStatement & statement)
     return oss_.str();
 }
 
-void AstStatementFormatter::visit(const AstAlterStatement & statement)
+void AstStatementFormatter::visit(const AstAlterStatement & alter_statement)
 {
-    oss_ << "ALTER COLLECTION " << statement.collection_name() << " ";
+    oss_ << "ALTER COLLECTION " << alter_statement.collection_name() << " ";
 
-    const AstAlterStatementOperation & operation = statement.operation();
+    const AstAlterStatementOperation & operation = alter_statement.operation();
     std::visit([this](const auto & op) {
         using T = std::decay_t<decltype(op)>;
 
@@ -78,12 +78,12 @@ void AstStatementFormatter::visit(const AstAlterStatement & statement)
     }, operation);
 }
 
-void AstStatementFormatter::visit(const AstCreateStatement & statement)
+void AstStatementFormatter::visit(const AstCreateStatement & create_statement)
 {
     oss_ << "CREATE ";
 
-    const AstCreateStatementOperation & operation = statement.operation();
-    bool if_not_exists = statement.if_not_exists();
+    const AstCreateStatementOperation & operation = create_statement.operation();
+    bool if_not_exists = create_statement.if_not_exists();
     std::visit([if_not_exists, this](const auto & op) {
         using T = std::decay_t<decltype(op)>;
 
@@ -151,27 +151,27 @@ void AstStatementFormatter::visit(const AstCreateStatement & statement)
     }, operation);
 }
 
-void AstStatementFormatter::visit(const AstDeleteStatement & statement)
+void AstStatementFormatter::visit(const AstDeleteStatement & delete_statement)
 {
-    oss_ << "DELETE FROM " << statement.collection_name();
+    oss_ << "DELETE FROM " << delete_statement.collection_name();
 
     // 格式化 WHERE 子句
-    if (statement.has_where()) {
-        oss_ << " WHERE " << expression_formatter_.format(statement.where_ref());
+    if (delete_statement.has_where()) {
+        oss_ << " WHERE " << expression_formatter_.format(delete_statement.where_ref());
     }
 }
 
-void AstStatementFormatter::visit(const AstDescribeStatement & statement)
+void AstStatementFormatter::visit(const AstDescribeStatement & describe_statement)
 {
-    oss_ << "DESCRIBE " << statement.collection_name();
+    oss_ << "DESCRIBE " << describe_statement.collection_name();
 }
 
-void AstStatementFormatter::visit(const AstDropStatement & statement)
+void AstStatementFormatter::visit(const AstDropStatement & drop_statement)
 {
     oss_ << "DROP ";
 
-    const AstDropStatementOperation & operation = statement.operation();
-    bool if_exists = statement.if_exists();
+    const AstDropStatementOperation & operation = drop_statement.operation();
+    bool if_exists = drop_statement.if_exists();
     std::visit([if_exists, this](const auto & op) {
         using T = std::decay_t<decltype(op)>;
 
@@ -203,16 +203,16 @@ void AstStatementFormatter::visit(const AstDropStatement & statement)
     }, operation);
 }
 
-void AstStatementFormatter::visit(const AstInsertStatement & statement)
+void AstStatementFormatter::visit(const AstInsertStatement & insert_statement)
 {
-    oss_ << "INSERT INTO " << statement.collection_name();
+    oss_ << "INSERT INTO " << insert_statement.collection_name();
 
     // 格式化列名列表
-    if (statement.has_column_names()) {
+    if (insert_statement.has_column_names()) {
         oss_ << " (";
-        for (std::size_t i = 0; i < statement.column_name_count(); ++i) {
-            oss_ << statement.column_name_at(i);
-            if (i < statement.column_name_count() - 1) {
+        for (std::size_t i = 0; i < insert_statement.column_name_count(); ++i) {
+            oss_ << insert_statement.column_name_at(i);
+            if (i < insert_statement.column_name_count() - 1) {
                 oss_ << ", ";
             }
         }
@@ -221,22 +221,22 @@ void AstStatementFormatter::visit(const AstInsertStatement & statement)
 
     // 格式化值列表
     oss_ << " VALUES (";
-    for (std::size_t i = 0; i < statement.value_count(); ++i) {
-        oss_ << expression_formatter_.format(statement.value_at(i));
-        if (i < statement.value_count() - 1) {
+    for (std::size_t i = 0; i < insert_statement.value_count(); ++i) {
+        oss_ << expression_formatter_.format(insert_statement.value_at(i));
+        if (i < insert_statement.value_count() - 1) {
             oss_ << ", ";
         }
     }
     oss_ << ")";
 }
 
-void AstStatementFormatter::visit(const AstSelectStatement & statement)
+void AstStatementFormatter::visit(const AstSelectStatement & select_statement)
 {
     oss_ << "SELECT ";
 
     // 格式化 SELECT 投影列表
-    for (std::size_t i = 0; i < statement.select_item_count(); ++i) {
-        const AstSelectItem & select_item = statement.select_item_at(i);
+    for (std::size_t i = 0; i < select_statement.select_item_count(); ++i) {
+        const AstSelectItem & select_item = select_statement.select_item_at(i);
 
         std::visit([this](const auto & item) {
             using T = std::decay_t<decltype(item)>;
@@ -251,64 +251,64 @@ void AstStatementFormatter::visit(const AstSelectStatement & statement)
             }
         }, select_item);
 
-        if (i < statement.select_item_count() - 1) {
+        if (i < select_statement.select_item_count() - 1) {
             oss_ << ", ";
         }
     }
 
     // 格式化 FROM 子句
-    oss_ << " FROM " << statement.collection_name();
+    oss_ << " FROM " << select_statement.collection_name();
 
     // 格式化 WHERE 子句
-    if (statement.has_where()) {
-        oss_ << " WHERE " << expression_formatter_.format(statement.where_ref());
+    if (select_statement.has_where()) {
+        oss_ << " WHERE " << expression_formatter_.format(select_statement.where_ref());
     }
 
     // 格式化 GROUP BY 子句
-    if (statement.group_by_count() > 0) {
+    if (select_statement.group_by_count() > 0) {
         oss_ << " GROUP BY ";
-        for (std::size_t i = 0; i < statement.group_by_count(); ++i) {
-            oss_ << expression_formatter_.format(statement.group_by_at(i));
-            if (i < statement.group_by_count() - 1) {
+        for (std::size_t i = 0; i < select_statement.group_by_count(); ++i) {
+            oss_ << expression_formatter_.format(select_statement.group_by_at(i));
+            if (i < select_statement.group_by_count() - 1) {
                 oss_ << ", ";
             }
         }
     }
 
     // 格式化 HAVING 子句
-    if (statement.has_having()) {
-        oss_ << " HAVING " << expression_formatter_.format(statement.having_ref());
+    if (select_statement.has_having()) {
+        oss_ << " HAVING " << expression_formatter_.format(select_statement.having_ref());
     }
 
     // 格式化 ORDER BY 子句
-    if (statement.order_by_item_count() > 0) {
+    if (select_statement.order_by_item_count() > 0) {
         oss_ << " ORDER BY ";
-        for (std::size_t i = 0; i < statement.order_by_item_count(); ++i) {
-            const AstOrderByItem & order_by_item = statement.order_by_item_at(i);
+        for (std::size_t i = 0; i < select_statement.order_by_item_count(); ++i) {
+            const AstOrderByItem & order_by_item = select_statement.order_by_item_at(i);
             oss_ << expression_formatter_.format(*order_by_item.expression);
             if (order_by_item.direction == Direction::ASC) {
                 oss_ << " ASC";
             } else if (order_by_item.direction == Direction::DESC) {
                 oss_ << " DESC";
             }
-            if (i < statement.order_by_item_count() - 1) {
+            if (i < select_statement.order_by_item_count() - 1) {
                 oss_ << ", ";
             }
         }
     }
 
     // 格式化 LIMIT, OFFSET 子句
-    if (statement.limit().has_value()) {
-        oss_ << " LIMIT " << *statement.limit();
+    if (select_statement.limit().has_value()) {
+        oss_ << " LIMIT " << *select_statement.limit();
     }
-    if (statement.offset().has_value()) {
-        oss_ << " OFFSET " << *statement.offset();
+    if (select_statement.offset().has_value()) {
+        oss_ << " OFFSET " << *select_statement.offset();
     }
 }
 
-void AstStatementFormatter::visit(const AstShowStatement & statement)
+void AstStatementFormatter::visit(const AstShowStatement & show_statement)
 {
-    const AstShowStatementOperation & operation = statement.operation();
+    const AstShowStatementOperation & operation = show_statement.operation();
     std::visit([this](const auto & op) {
         using T = std::decay_t<decltype(op)>;
 
@@ -333,29 +333,29 @@ void AstStatementFormatter::visit(const AstShowStatement & statement)
     }, operation);
 }
 
-void AstStatementFormatter::visit(const AstUpdateStatement & statement)
+void AstStatementFormatter::visit(const AstUpdateStatement & update_statement)
 {
-    oss_ << "UPDATE " << statement.collection_name() << " SET ";
+    oss_ << "UPDATE " << update_statement.collection_name() << " SET ";
 
     // 格式化 SET 子句
-    for (std::size_t i = 0; i < statement.assignment_count(); ++i) {
-        const AstUpdateAssignment & assignment = statement.assignment_at(i);
+    for (std::size_t i = 0; i < update_statement.assignment_count(); ++i) {
+        const AstUpdateAssignment & assignment = update_statement.assignment_at(i);
         oss_ << assignment.column_name << " = "
             << expression_formatter_.format(*assignment.value);
-        if (i < statement.assignment_count() - 1) {
+        if (i < update_statement.assignment_count() - 1) {
             oss_ << ", ";
         }
     }
 
     // 格式化 WHERE 子句
-    if (statement.has_where()) {
-        oss_ << " WHERE " << expression_formatter_.format(statement.where_ref());
+    if (update_statement.has_where()) {
+        oss_ << " WHERE " << expression_formatter_.format(update_statement.where_ref());
     }
 }
 
-void AstStatementFormatter::visit(const AstUseStatement & statement)
+void AstStatementFormatter::visit(const AstUseStatement & use_statement)
 {
-    oss_ << "USE " << statement.database_name();
+    oss_ << "USE " << use_statement.database_name();
 }
 
 void AstStatementFormatter::format_column_definition(const AstColumnDefinition & column_def)

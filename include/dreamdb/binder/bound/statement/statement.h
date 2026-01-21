@@ -5,6 +5,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 绑定后的语句类型
  */
@@ -28,7 +30,7 @@ enum class BoundStatementType : std::uint8_t
 class BoundStatement
 {
 protected:
-    explicit BoundStatement(BoundStatementType type) noexcept;
+    explicit BoundStatement(BoundStatementType statement_type) noexcept;
 
 public:
     virtual ~BoundStatement() noexcept = default;
@@ -38,10 +40,16 @@ public:
      * @brief 获取语句类型
      * @return 语句类型
      */
-    BoundStatementType type() const noexcept;
+    BoundStatementType statement_type() const noexcept;
+
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    virtual void accept(BoundStatementVisitor & visitor) const = 0;
 
 private:
-    BoundStatementType type_;          // 语句类型
+    BoundStatementType statement_type_;          // 语句类型
 };
 
 } // namespace dreamdb::binder::bound

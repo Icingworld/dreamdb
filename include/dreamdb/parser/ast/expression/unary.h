@@ -26,21 +26,21 @@ enum class AstUnaryOperatorType : std::uint8_t
 class AstUnaryExpression final : public AstExpression
 {
 public:
-    AstUnaryExpression(AstUnaryOperatorType type, std::unique_ptr<AstExpression> operand, std::size_t line, std::size_t column);
+    AstUnaryExpression(AstUnaryOperatorType unary_type, std::unique_ptr<AstExpression> operand, std::size_t line, std::size_t column);
 
     ~AstUnaryExpression() noexcept override = default;
 
 public:
     /**
      * @brief 创建一元表达式
-     * @param type 一元运算符类型
+     * @param unary_type 一元运算符类型
      * @param operand 操作数表达式
      * @param line 行号
      * @param column 列号
      * @return 一元表达式
      */
     static std::unique_ptr<AstUnaryExpression> create(
-        AstUnaryOperatorType type,
+        AstUnaryOperatorType unary_type,
         std::unique_ptr<AstExpression> operand,
         std::size_t line,
         std::size_t column
@@ -51,7 +51,7 @@ public:
      * @brief 获取一元运算符类型
      * @return 运算符类型
      */
-    AstUnaryOperatorType type() const noexcept;
+    AstUnaryOperatorType unary_type() const noexcept;
 
     /**
      * @brief 获取操作数表达式
@@ -66,7 +66,7 @@ public:
     void accept(AstExpressionVisitor & visitor) const override;
 
 private:
-    AstUnaryOperatorType type_;                 // 一元运算符类型
+    AstUnaryOperatorType unary_type_;           // 一元运算符类型
     std::unique_ptr<AstExpression> operand_;    // 操作数表达式
 };
 

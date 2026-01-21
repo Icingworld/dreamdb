@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -26,6 +28,11 @@ BoundUnaryOperatorType BoundUnaryExpression::operator_type() const noexcept
 const BoundExpression & BoundUnaryExpression::operand() const noexcept
 {
     return *operand_;
+}
+
+void BoundUnaryExpression::accept(BoundExpressionVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

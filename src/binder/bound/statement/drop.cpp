@@ -1,5 +1,7 @@
 #include "dreamdb/binder/bound/statement/drop.h"
 
+#include "dreamdb/binder/bound/statement/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -18,6 +20,11 @@ bool BoundDropStatement::if_exists() const noexcept
 const BoundDropOperation & BoundDropStatement::operation() const noexcept
 {
     return operation_;
+}
+
+void BoundDropStatement::accept(BoundStatementVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

@@ -1,5 +1,7 @@
 #include "dreamdb/binder/bound/expression/constant.h"
 
+#include "dreamdb/binder/bound/expression/visitor.h"
+
 namespace dreamdb::binder::bound
 {
 
@@ -15,6 +17,11 @@ BoundConstantExpression::BoundConstantExpression(
 const dreamdb::FieldValue & BoundConstantExpression::value() const noexcept
 {
     return field_value_;
+}
+
+void BoundConstantExpression::accept(BoundExpressionVisitor & visitor) const
+{
+    visitor.visit(*this);
 }
 
 } // namespace dreamdb::binder::bound

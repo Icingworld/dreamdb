@@ -13,6 +13,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 绑定后的选择项
  */
@@ -49,6 +51,13 @@ public:
     );
 
     ~BoundSelectStatement() noexcept override = default;
+
+public:
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    void accept(BoundStatementVisitor & visitor) const override;
 
 public:
     /**

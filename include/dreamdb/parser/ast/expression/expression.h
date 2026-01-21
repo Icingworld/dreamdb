@@ -33,7 +33,7 @@ enum class AstExpressionType : std::uint8_t
 class AstExpression : public AstNode
 {
 protected:
-    AstExpression(AstExpressionType type, std::size_t line, std::size_t column) noexcept;
+    AstExpression(AstExpressionType expression_type, std::size_t line, std::size_t column) noexcept;
 
 public:
     ~AstExpression() noexcept override = default;
@@ -43,7 +43,7 @@ public:
      * @brief 获取表达式类型
      * @return 表达式类型
      */
-    AstExpressionType type() const noexcept;
+    AstExpressionType expression_type() const noexcept;
 
     /**
      * @brief 接受表达式访问者
@@ -52,7 +52,7 @@ public:
     virtual void accept(AstExpressionVisitor & visitor) const = 0;
 
 private:
-    AstExpressionType type_;    // 表达式类型
+    AstExpressionType expression_type_;    // 表达式类型
 };
 
 } // namespace dreamdb::parser::ast

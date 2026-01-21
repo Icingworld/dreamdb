@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "dreamdb/parser/ast/expression/expression.h"
-#include "dreamdb/parser/ast/statement/statement_visitor.h"
+#include "dreamdb/parser/ast/statement/visitor.h"
 
 namespace dreamdb::parser::ast
 {

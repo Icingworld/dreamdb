@@ -6,6 +6,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundStatementVisitor;
+
 /**
  * @brief 绑定后的 USE 语句
  */
@@ -15,6 +17,13 @@ public:
     explicit BoundUseStatement(dreamdb::common::database_id_t database_id) noexcept;
 
     ~BoundUseStatement() noexcept override = default;
+
+public:
+    /**
+     * @brief 接受语句访问者
+     * @param visitor 语句访问者
+     */
+    void accept(BoundStatementVisitor & visitor) const override;
 
 public:
     /**

@@ -9,6 +9,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 绑定后的常量表达式
  */
@@ -53,6 +55,12 @@ public:
      */
     template <typename T>
     const T & value_as() const;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    void accept(BoundExpressionVisitor & visitor) const override;
 
 private:
     dreamdb::FieldValue field_value_;            // 常量值

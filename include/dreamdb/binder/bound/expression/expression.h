@@ -7,6 +7,8 @@
 namespace dreamdb::binder::bound
 {
 
+class BoundExpressionVisitor;
+
 /**
  * @brief 绑定后的表达式类型
  */
@@ -46,6 +48,12 @@ public:
      * @return 逻辑类型
      */
     dreamdb::common::LogicalType logical_type() const noexcept;
+
+    /**
+     * @brief 接受表达式访问者
+     * @param visitor 表达式访问者
+     */
+    virtual void accept(BoundExpressionVisitor & visitor) const = 0;
 
 private:
     BoundExpressionType expression_type_;              // 表达式类型
