@@ -22,7 +22,7 @@ enum class AstColumnModifier : std::uint8_t
     Unique,             // UNIQUE
     PrimaryKey,         // PRIMARY KEY
     AutoIncrement,      // AUTO_INCREMENT
-    Default,            // DEFAULT
+    Default             // DEFAULT
 };
 
 /**

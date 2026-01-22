@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
+#include <limits>
 
 #include "dreamdb/catalog/catalog.h"
 #include "dreamdb/parser/ast/statement/statement.h"
@@ -92,136 +93,129 @@ dreamdb::FieldType parse_field_type(const std::string & type_name)
 }
 
 /**
- * @brief 将 AstColumnDefinition 转换为 Field
+ * @brief 从表达式中提取整数值
+ * @param expression 表达式
+ * @return 整数值，如果表达式不是整数字面量则抛出异常
  */
-dreamdb::Field convert_column_definition_to_field(
-    const dreamdb::parser::ast::AstColumnDefinition & column_def
+int extract_integer_from_expression(const dreamdb::parser::ast::AstExpression & expression)
+{
+    if (expression.expression_type() != dreamdb::parser::ast::AstExpressionType::Literal) {
+        throw std::runtime_error("Expected integer literal expression for column type argument");
+    }
+    
+    const auto & literal_expr = static_cast<const dreamdb::parser::ast::AstLiteralExpression &>(expression);
+    const auto & literal_value = literal_expr.value();
+    
+    if (std::holds_alternative<std::int64_t>(literal_value)) {
+        std::int64_t value = std::get<std::int64_t>(literal_value);
+        if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()) {
+            throw std::runtime_error("Integer value out of range for int type");
+        }
+        return static_cast<int>(value);
+    } else {
+        throw std::runtime_error("Expected integer literal, got other type");
+    }
+}
+
+/**
+ * @brief 从表达式中提取字符串值
+ * @param expression 表达式
+ * @return 字符串值，如果表达式不是字符串字面量则抛出异常
+ */
+std::string extract_string_from_expression(const dreamdb::parser::ast::AstExpression & expression)
+{
+    if (expression.expression_type() != dreamdb::parser::ast::AstExpressionType::Literal) {
+        throw std::runtime_error("Expected string literal expression for column type argument");
+    }
+
+    const auto & literal_expr = static_cast<const dreamdb::parser::ast::AstLiteralExpression &>(expression);
+    const auto & literal_value = literal_expr.value();
+
+    if (std::holds_alternative<std::string>(literal_value)) {
+        return std::get<std::string>(literal_value);
+    } else {
+        throw std::runtime_error("Expected string literal, got other type");
+    }
+}
+
+/**
+ * @brief 将类型名称字符串转换为 LogicalType
+ */
+dreamdb::common::LogicalType parse_logical_type(const std::string & type_name)
+{
+    if (type_name == "TINYINT" || type_name == "tinyint" ||
+        type_name == "SMALLINT" || type_name == "smallint" ||
+        type_name == "INTEGER" || type_name == "integer" || type_name == "INT" || type_name == "int" ||
+        type_name == "BIGINT" || type_name == "bigint") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Integer};
+    } else if (type_name == "FLOAT" || type_name == "float" ||
+               type_name == "DOUBLE" || type_name == "double" ||
+               type_name == "DECIMAL" || type_name == "decimal") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Float};
+    } else if (type_name == "CHAR" || type_name == "char" ||
+               type_name == "VARCHAR" || type_name == "varchar" ||
+               type_name == "ENUM" || type_name == "enum") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::String};
+    } else if (type_name == "BOOLEAN" || type_name == "boolean" || type_name == "BOOL" || type_name == "bool") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Boolean};
+    } else if (type_name == "TIMESTAMP" || type_name == "timestamp") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::String};
+    } else if (type_name == "VECTOR" || type_name == "vector") {
+        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Vector};
+    } else {
+        throw std::runtime_error("Unknown field type: " + type_name);
+    }
+}
+
+/**
+ * @brief 将 AstColumnModifier 转换为 BoundColumnModifier
+ */
+bound::BoundColumnModifier convert_column_modifier(dreamdb::parser::ast::AstColumnModifier modifier)
+{
+    switch (modifier) {
+        case dreamdb::parser::ast::AstColumnModifier::NotNull:
+            return bound::BoundColumnModifier::NotNull;
+        case dreamdb::parser::ast::AstColumnModifier::Unique:
+            return bound::BoundColumnModifier::Unique;
+        case dreamdb::parser::ast::AstColumnModifier::PrimaryKey:
+            return bound::BoundColumnModifier::PrimaryKey;
+        case dreamdb::parser::ast::AstColumnModifier::AutoIncrement:
+            return bound::BoundColumnModifier::AutoIncrement;
+        case dreamdb::parser::ast::AstColumnModifier::Default:
+            return bound::BoundColumnModifier::Default;
+        default:
+            throw std::runtime_error("Unknown column modifier");
+    }
+}
+
+/**
+ * @brief 将 AstColumnDefinition 转换为 BoundColumnDefinition
+ * @param column_def AST 列定义
+ * @param bind_expr_func 绑定表达式的函数对象
+ */
+template<typename BindExprFunc>
+bound::BoundColumnDefinition convert_column_definition_to_bound(
+    const dreamdb::parser::ast::AstColumnDefinition & column_def,
+    BindExprFunc && bind_expr_func
 )
 {
-    // 解析字段类型
-    auto field_type = parse_field_type(column_def.type_name());
+    bound::BoundColumnDefinition bound_def;
+    bound_def.name = column_def.name();
+    bound_def.type = parse_logical_type(column_def.type_name());
 
-    // 解析修饰符
-    bool is_nullable = true;
-    bool is_primary = false;
-    bool is_auto_increment = false;
+    // 转换修饰符
     for (std::size_t i = 0; i < column_def.modifier_count(); ++i) {
-        auto modifier = column_def.modifier_at(i);
-        switch (modifier) {
-            case dreamdb::parser::ast::AstColumnModifier::NotNull:
-                is_nullable = false;
-                break;
-            case dreamdb::parser::ast::AstColumnModifier::PrimaryKey:
-                is_primary = true;
-                break;
-            case dreamdb::parser::ast::AstColumnModifier::AutoIncrement:
-                is_auto_increment = true;
-                break;
-            case dreamdb::parser::ast::AstColumnModifier::Unique:
-            case dreamdb::parser::ast::AstColumnModifier::Default:
-                // 这些修饰符在 Field 中没有对应属性，暂时忽略
-                break;
-        }
+        bound_def.modifiers.push_back(convert_column_modifier(column_def.modifier_at(i)));
     }
 
-    // 获取注释
-    std::string comment = column_def.has_comment() ? column_def.comment() : "";
-
-    // 获取默认值
-    // 注意：默认值表达式需要在执行时计算，Field 结构存储的是值而非表达式
-    // 当前设计：使用 Null 作为占位符，实际默认值在执行时从表达式计算
-    dreamdb::FieldValue default_value = dreamdb::Null();
-
-    // 根据类型创建字段
-    switch (field_type) {
-        case dreamdb::FieldType::TINYINT:
-            return dreamdb::Field::create_tinyint_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value, is_auto_increment
-            );
-        case dreamdb::FieldType::SMALLINT:
-            return dreamdb::Field::create_smallint_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value, is_auto_increment
-            );
-        case dreamdb::FieldType::INTEGER:
-            return dreamdb::Field::create_integer_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value, is_auto_increment
-            );
-        case dreamdb::FieldType::BIGINT:
-            return dreamdb::Field::create_bigint_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value, is_auto_increment
-            );
-        case dreamdb::FieldType::FLOAT:
-            return dreamdb::Field::create_float_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value
-            );
-        case dreamdb::FieldType::DOUBLE:
-            return dreamdb::Field::create_double_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value
-            );
-        case dreamdb::FieldType::DECIMAL: {
-            int precision = 0;
-            int scale = 0;
-            if (column_def.argument_count() >= 1) {
-                // TODO: 需要绑定表达式来获取精度值
-                // 暂时使用默认值
-            }
-            if (column_def.argument_count() >= 2) {
-                // TODO: 需要绑定表达式来获取标度值
-                // 暂时使用默认值
-            }
-            return dreamdb::Field::create_decimal_field(
-                column_def.name(), precision, scale, is_nullable, is_primary, comment, default_value
-            );
-        }
-        case dreamdb::FieldType::CHAR: {
-            int length = 1;
-            if (column_def.argument_count() >= 1) {
-                // TODO: 需要绑定表达式来获取长度值
-                // 暂时使用默认值
-            }
-            return dreamdb::Field::create_char_field(
-                column_def.name(), length, is_nullable, is_primary, comment, default_value
-            );
-        }
-        case dreamdb::FieldType::VARCHAR: {
-            int length = 1;
-            if (column_def.argument_count() >= 1) {
-                // TODO: 需要绑定表达式来获取长度值
-                // 暂时使用默认值
-            }
-            return dreamdb::Field::create_varchar_field(
-                column_def.name(), length, is_nullable, is_primary, comment, default_value
-            );
-        }
-        case dreamdb::FieldType::BOOLEAN:
-            return dreamdb::Field::create_boolean_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value
-            );
-        case dreamdb::FieldType::TIMESTAMP:
-            return dreamdb::Field::create_timestamp_field(
-                column_def.name(), is_nullable, is_primary, comment, default_value
-            );
-        case dreamdb::FieldType::ENUM: {
-            std::vector<std::string> enum_options;
-            // TODO: 需要绑定表达式来获取枚举选项
-            // 暂时使用空列表
-            return dreamdb::Field::create_enum_field(
-                column_def.name(), enum_options, is_nullable, is_primary, comment, default_value
-            );
-        }
-        case dreamdb::FieldType::VECTOR: {
-            int dimension = 0;
-            if (column_def.argument_count() >= 1) {
-                // TODO: 需要绑定表达式来获取维度值
-                // 暂时使用默认值
-            }
-            return dreamdb::Field::create_vector_field(
-                column_def.name(), dimension, is_nullable, is_primary, comment, default_value
-            );
-        }
-        default:
-            throw std::runtime_error("Unsupported field type");
+    // 绑定默认值表达式
+    if (column_def.has_default_value()) {
+        bound_def.default_value = bind_expr_func(*column_def.default_value());
+    } else {
+        bound_def.default_value = nullptr;
     }
+
+    return bound_def;
 }
 
 /**
@@ -475,8 +469,11 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_alter_statement(
 
         if constexpr (std::is_same_v<T, dreamdb::parser::ast::AstAlterAddColumn>) {
             // ALTER ADD COLUMN
-            auto field = convert_column_definition_to_field(op.column_definition);
-            bound::BoundAlterAddColumn bound_operation{std::move(field)};
+            auto bound_def = convert_column_definition_to_bound(
+                op.column_definition,
+                [this](const auto & expr) { return this->bind_expression(expr); }
+            );
+            bound::BoundAlterAddColumn bound_operation{std::move(bound_def)};
 
             // 创建 BoundAlterStatement 语句
             return std::make_unique<bound::BoundAlterStatement>(
@@ -506,8 +503,11 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_alter_statement(
             if (!column_info.has_value()) {
                 throw std::runtime_error("Column " + op.new_definition.name() + " not found");
             }
-            auto field = convert_column_definition_to_field(op.new_definition);
-            bound::BoundAlterModifyColumn bound_operation{column_info->id, std::move(field)};
+            auto bound_def = convert_column_definition_to_bound(
+                op.new_definition,
+                [this](const auto & expr) { return this->bind_expression(expr); }
+            );
+            bound::BoundAlterModifyColumn bound_operation{column_info->id, std::move(bound_def)};
 
             // 创建 BoundAlterStatement 语句
             return std::make_unique<bound::BoundAlterStatement>(
@@ -565,8 +565,11 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_create_statement(
 
             // 转换列定义
             for (const auto & column_def : op.column_definitions) {
-                auto field = convert_column_definition_to_field(column_def);
-                bound_operation.column_definitions.push_back(std::move(field));
+                auto bound_def = convert_column_definition_to_bound(
+                    column_def,
+                    [this](const auto & expr) { return this->bind_expression(expr); }
+                );
+                bound_operation.column_definitions.push_back(std::move(bound_def));
             }
 
             // 创建 BoundCreateStatement 语句

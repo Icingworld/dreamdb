@@ -5,8 +5,8 @@
 #include <variant>
 
 #include "dreamdb/binder/bound/statement/statement.h"
+#include "dreamdb/binder/bound/statement/column_definition.h"
 #include "dreamdb/common/ids.h"
-#include "dreamdb/schema/field.h"
 #include "dreamdb/common/type.h"
 
 namespace dreamdb::binder::bound
@@ -27,8 +27,8 @@ struct BoundCreateDatabase
  */
 struct BoundCreateCollection
 {
-    std::string collection_name;            // 集合名称
-    std::vector<Field> column_definitions;  // 列定义列表 TODO: 需要重新设计一个结构，避免依赖 schema::Field
+    std::string collection_name;                              // 集合名称
+    std::vector<BoundColumnDefinition> column_definitions;    // 列定义列表
 };
 
 /**

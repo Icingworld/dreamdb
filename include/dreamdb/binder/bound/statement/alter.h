@@ -4,8 +4,8 @@
 #include <variant>
 
 #include "dreamdb/binder/bound/statement/statement.h"
+#include "dreamdb/binder/bound/statement/column_definition.h"
 #include "dreamdb/common/ids.h"
-#include "dreamdb/schema/field.h"
 
 namespace dreamdb::binder::bound
 {
@@ -17,7 +17,7 @@ class BoundStatementVisitor;
  */
 struct BoundAlterAddColumn
 {
-    Field column_definition;  // 列定义（在执行时转换）
+    BoundColumnDefinition column_definition;  // 列定义
 };
 
 /**
@@ -34,7 +34,7 @@ struct BoundAlterDropColumn
 struct BoundAlterModifyColumn
 {
     dreamdb::common::column_id_t column_id;  // 列 ID
-    Field new_definition;                     // 新的列定义（在执行时转换）
+    BoundColumnDefinition new_definition;    // 新的列定义
 };
 
 /**

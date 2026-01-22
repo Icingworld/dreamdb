@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <cstddef>
 
 namespace dreamdb::common
 {
