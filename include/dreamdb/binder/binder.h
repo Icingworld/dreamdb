@@ -48,8 +48,9 @@ class BoundExpression;
  */
 struct BinderContext
 {
-    std::optional<std::string> current_database_name;                    // 当前数据库名称
-    std::optional<dreamdb::common::database_id_t> current_database_id;   // 当前数据库 ID
+    std::optional<std::string> current_database_name;                      // 当前数据库名称
+    std::optional<dreamdb::common::database_id_t> current_database_id;     // 当前数据库 ID
+    std::optional<dreamdb::common::collection_id_t> current_collection_id;  // 当前集合 ID（用于列引用解析）
 };
 
 /**
