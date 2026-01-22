@@ -77,6 +77,9 @@ TEST_F(ShowBinderTest, BindShowDatabases)
     // 验证操作类型
     const auto & operation = show_stmt->operation();
     EXPECT_TRUE(std::holds_alternative<dreamdb::binder::bound::BoundShowDatabases>(operation));
+
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW DATABASES");
 }
 
 /**
@@ -110,6 +113,9 @@ TEST_F(ShowBinderTest, BindShowCollectionsWithoutDatabase)
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowCollections>(operation);
     // 应该设置为 nullopt，让 Executor 使用当前数据库
     EXPECT_FALSE(bound_op.database_id.has_value());
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW COLLECTIONS");
 }
 
 /**
@@ -138,6 +144,9 @@ TEST_F(ShowBinderTest, BindShowCollectionsWithDatabase)
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowCollections>(operation);
     EXPECT_TRUE(bound_op.database_id.has_value());
     EXPECT_EQ(bound_op.database_id.value(), 12345);
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW COLLECTIONS FROM database_id:12345");
 }
 
 /**
@@ -192,6 +201,9 @@ TEST_F(ShowBinderTest, BindShowIndexesWithoutDatabase)
     
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowIndexes>(operation);
     EXPECT_EQ(bound_op.collection_id, 99);
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW INDEXES FROM collection_id:99");
 }
 
 /**
@@ -220,6 +232,9 @@ TEST_F(ShowBinderTest, BindShowIndexesWithDatabase)
     
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowIndexes>(operation);
     EXPECT_EQ(bound_op.collection_id, 100);
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW INDEXES FROM collection_id:100");
 }
 
 /**
@@ -324,6 +339,9 @@ TEST_F(ShowBinderTest, BindShowVIndexesWithoutDatabase)
     
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowVIndexes>(operation);
     EXPECT_EQ(bound_op.collection_id, 99);
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW VINDEXES FROM collection_id:99");
 }
 
 /**
@@ -352,6 +370,9 @@ TEST_F(ShowBinderTest, BindShowVIndexesWithDatabase)
     
     const auto & bound_op = std::get<dreamdb::binder::bound::BoundShowVIndexes>(operation);
     EXPECT_EQ(bound_op.collection_id, 100);
+    
+    // 验证格式化输出
+    EXPECT_EQ(printer.format(*bound_show_statement), "SHOW VINDEXES FROM collection_id:100");
 }
 
 /**

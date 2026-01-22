@@ -1,5 +1,8 @@
 #include "dreamdb/binder/bound/debug/expression_formatter.h"
 
+#include <iomanip>
+#include <sstream>
+
 #include "dreamdb/binder/bound/expression/expression.h"
 #include "dreamdb/binder/bound/expression/column_reference.h"
 #include "dreamdb/binder/bound/expression/constant.h"
@@ -11,8 +14,6 @@
 #include "dreamdb/binder/bound/expression/like.h"
 #include "dreamdb/common/decimal.h"
 #include "dreamdb/common/null.h"
-#include <iomanip>
-#include <sstream>
 
 namespace dreamdb::binder::bound
 {
@@ -27,7 +28,7 @@ std::string format_field_value(const dreamdb::FieldValue & value)
 {
     return std::visit([](const auto & v) -> std::string {
         using T = std::decay_t<decltype(v)>;
-        
+
         if constexpr (std::is_same_v<T, std::int8_t>) {
             return std::to_string(static_cast<int>(v));
         } else if constexpr (std::is_same_v<T, std::int16_t>) {
@@ -181,7 +182,7 @@ void BoundExpressionFormatter::visit(const BoundConstantExpression & constant_ex
 void BoundExpressionFormatter::visit(const BoundFunctionCallExpression & function_call_expression)
 {
     oss_ << function_call_expression.function_name() << "(";
-    
+
     // 格式化参数
     for (std::size_t i = 0; i < function_call_expression.argument_count(); ++i) {
         if (i > 0) {
@@ -189,7 +190,7 @@ void BoundExpressionFormatter::visit(const BoundFunctionCallExpression & functio
         }
         function_call_expression.argument_at(i).accept(*this);
     }
-    
+
     oss_ << ")";
 }
 
@@ -197,13 +198,13 @@ void BoundExpressionFormatter::visit(const BoundInExpression & in_expression)
 {
     // 格式化左侧表达式
     in_expression.left().accept(*this);
-    
+
     if (in_expression.is_not()) {
         oss_ << " NOT";
     }
-    
+
     oss_ << " IN (";
-    
+
     // 格式化值列表
     for (std::size_t i = 0; i < in_expression.value_count(); ++i) {
         if (i > 0) {
@@ -211,7 +212,7 @@ void BoundExpressionFormatter::visit(const BoundInExpression & in_expression)
         }
         in_expression.value_at(i).accept(*this);
     }
-    
+
     oss_ << ")";
 }
 
@@ -219,18 +220,18 @@ void BoundExpressionFormatter::visit(const BoundBetweenExpression & between_expr
 {
     // 格式化左侧表达式
     between_expression.left().accept(*this);
-    
+
     if (between_expression.is_not()) {
         oss_ << " NOT";
     }
-    
+
     oss_ << " BETWEEN ";
-    
+
     // 格式化起始值
     between_expression.start().accept(*this);
-    
+
     oss_ << " AND ";
-    
+
     // 格式化结束值
     between_expression.end().accept(*this);
 }
@@ -239,13 +240,13 @@ void BoundExpressionFormatter::visit(const BoundLikeExpression & like_expression
 {
     // 格式化左侧表达式
     like_expression.left().accept(*this);
-    
+
     if (like_expression.is_not()) {
         oss_ << " NOT";
     }
-    
+
     oss_ << " LIKE ";
-    
+
     // 格式化模式表达式
     like_expression.pattern().accept(*this);
 }
@@ -253,12 +254,12 @@ void BoundExpressionFormatter::visit(const BoundLikeExpression & like_expression
 void BoundExpressionFormatter::visit(const BoundUnaryExpression & unary_expression)
 {
     oss_ << format_unary_operator(unary_expression.operator_type());
-    
+
     // 对于 NOT 运算符，后面加空格；对于 +/- 运算符，直接连接
     if (unary_expression.operator_type() == BoundUnaryOperatorType::Not) {
         oss_ << " ";
     }
-    
+
     // 格式化操作数
     unary_expression.operand().accept(*this);
 }
@@ -266,19 +267,19 @@ void BoundExpressionFormatter::visit(const BoundUnaryExpression & unary_expressi
 void BoundExpressionFormatter::visit(const BoundBinaryExpression & binary_expression)
 {
     bool needs_left_paren = needs_parentheses_for_binary(binary_expression.operator_type());
-    
+
     if (needs_left_paren) {
         oss_ << "(";
     }
-    
+
     // 格式化左操作数
     binary_expression.left().accept(*this);
-    
+
     oss_ << " " << format_binary_operator(binary_expression.operator_type()) << " ";
-    
+
     // 格式化右操作数
     binary_expression.right().accept(*this);
-    
+
     if (needs_left_paren) {
         oss_ << ")";
     }

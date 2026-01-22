@@ -33,6 +33,7 @@ add_executable(unit_binder_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/binder/use_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/binder/describe_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/binder/show_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/binder/drop_test.cpp
 )
 
 target_link_libraries(unit_binder_tests PRIVATE
