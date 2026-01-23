@@ -30,7 +30,7 @@ struct BoundSelectItem
 struct BoundOrderByItem
 {
     std::unique_ptr<BoundExpression> expr;  // 排序表达式
-    dreamdb::Direction order;                // 排序方向
+    common::Direction direction;            // 排序方向
 };
 
 /**

@@ -46,10 +46,10 @@ using AstSelectItem = std::variant<
  */
 struct AstOrderByItem
 {
-    AstOrderByItem(std::unique_ptr<AstExpression> expression, Direction direction = Direction::ASC);
+    AstOrderByItem(std::unique_ptr<AstExpression> expression, common::Direction direction = common::Direction::ASC);
 
     std::unique_ptr<AstExpression> expression;  // 排序表达式
-    Direction direction;                        // 排序方向
+    common::Direction direction;                // 排序方向
 };
 
 /**

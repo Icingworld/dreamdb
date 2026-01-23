@@ -88,12 +88,12 @@ std::string format_expression(const BoundExpression & expression, BoundExpressio
 /**
  * @brief 格式化排序方向
  */
-std::string format_direction(dreamdb::Direction direction)
+std::string format_direction(dreamdb::common::Direction direction)
 {
     switch (direction) {
-        case dreamdb::Direction::ASC:
+        case dreamdb::common::Direction::ASC:
             return "ASC";
-        case dreamdb::Direction::DESC:
+        case dreamdb::common::Direction::DESC:
             return "DESC";
         default:
             return "?";
@@ -103,12 +103,12 @@ std::string format_direction(dreamdb::Direction direction)
 /**
  * @brief 格式化索引类型
  */
-std::string format_index_type(dreamdb::IndexType index_type)
+std::string format_index_type(dreamdb::common::IndexType index_type)
 {
     switch (index_type) {
-        case dreamdb::IndexType::BTREE:
+        case dreamdb::common::IndexType::BTREE:
             return "BTREE";
-        case dreamdb::IndexType::HASH:
+        case dreamdb::common::IndexType::HASH:
             return "HASH";
         default:
             return "?";
@@ -118,14 +118,14 @@ std::string format_index_type(dreamdb::IndexType index_type)
 /**
  * @brief 格式化向量索引类型
  */
-std::string format_vindex_type(dreamdb::VIndexType vindex_type)
+std::string format_vindex_type(dreamdb::common::VIndexType vindex_type)
 {
     switch (vindex_type) {
-        case dreamdb::VIndexType::FLAT:
+        case dreamdb::common::VIndexType::FLAT:
             return "FLAT";
-        case dreamdb::VIndexType::IVF_FLAT:
+        case dreamdb::common::VIndexType::IVF_FLAT:
             return "IVF_FLAT";
-        case dreamdb::VIndexType::HNSW:
+        case dreamdb::common::VIndexType::HNSW:
             return "HNSW";
         default:
             return "?";
@@ -157,12 +157,12 @@ void BoundStatementFormatter::visit(const BoundAlterStatement & alter_statement)
         using T = std::decay_t<decltype(op)>;
 
         if constexpr (std::is_same_v<T, BoundAlterAddColumn>) {
-            oss_ << "ADD COLUMN " << op.column_definition.get_name();
+            oss_ << "ADD COLUMN " << op.column_definition.name;
         } else if constexpr (std::is_same_v<T, BoundAlterDropColumn>) {
             oss_ << "DROP COLUMN column_id:" << op.column_id;
         } else if constexpr (std::is_same_v<T, BoundAlterModifyColumn>) {
             oss_ << "MODIFY COLUMN column_id:" << op.column_id 
-                 << " " << op.new_definition.get_name();
+                 << " " << op.new_definition.name;
         } else if constexpr (std::is_same_v<T, BoundAlterRenameColumn>) {
             oss_ << "RENAME COLUMN column_id:" << op.column_id 
                  << " TO " << op.new_name;
@@ -193,8 +193,8 @@ void BoundStatementFormatter::visit(const BoundCreateStatement & create_statemen
                 if (i > 0) {
                     oss_ << ", ";
                 }
-                const auto & field = op.column_definitions[i];
-                oss_ << field.get_name() << " " << static_cast<int>(field.get_type());
+                const auto & col_def = op.column_definitions[i];
+                oss_ << col_def.name << " " << static_cast<int>(col_def.type.type);
             }
             oss_ << ")";
         } else if constexpr (std::is_same_v<T, BoundCreateIndex>) {
@@ -216,14 +216,48 @@ void BoundStatementFormatter::visit(const BoundCreateStatement & create_statemen
                  << " ON collection_id:" << op.collection_id
                  << " column_id:" << op.column_id
                  << " TYPE " << format_vindex_type(op.vindex_type);
-            if (!op.with_options.empty()) {
+            const bool has_with =
+                op.with_options.m.has_value() ||
+                op.with_options.nlist.has_value() ||
+                op.with_options.ef_construction.has_value() ||
+                op.with_options.metric.has_value();
+
+            if (has_with) {
                 oss_ << " WITH (";
-                for (std::size_t i = 0; i < op.with_options.size(); ++i) {
-                    if (i > 0) {
+                bool first = true;
+                auto emit_kv = [this, &first](const std::string & k, const std::string & v) {
+                    if (!first) {
                         oss_ << ", ";
                     }
-                    oss_ << op.with_options[i].first << "=" << op.with_options[i].second;
+                    first = false;
+                    oss_ << k << "=" << v;
+                };
+
+                if (op.with_options.m.has_value()) {
+                    emit_kv("m", std::to_string(op.with_options.m.value()));
                 }
+                if (op.with_options.nlist.has_value()) {
+                    emit_kv("nlist", std::to_string(op.with_options.nlist.value()));
+                }
+                if (op.with_options.ef_construction.has_value()) {
+                    emit_kv("ef_construction", std::to_string(op.with_options.ef_construction.value()));
+                }
+                if (op.with_options.metric.has_value()) {
+                    std::string metric_str;
+                    switch (op.with_options.metric.value()) {
+                    case dreamdb::common::MetricType::L2:
+                        metric_str = "L2";
+                        break;
+                    case dreamdb::common::MetricType::IP:
+                        metric_str = "IP";
+                        break;
+                    case dreamdb::common::MetricType::COSINE:
+                        metric_str = "COSINE";
+                        break;
+                    }
+                    emit_kv("metric", metric_str);
+                }
+
                 oss_ << ")";
             }
             if (create_statement.if_not_exists()) {
@@ -358,7 +392,7 @@ void BoundStatementFormatter::visit(const BoundSelectStatement & select_statemen
             }
             const auto & item = select_statement.order_by_at(i);
             oss_ << format_expression(*item.expr, expression_formatter_) 
-                 << " " << format_direction(item.order);
+                 << " " << format_direction(item.direction);
         }
     }
 

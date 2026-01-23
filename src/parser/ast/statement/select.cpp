@@ -16,7 +16,7 @@ AstSelectExpressionItem::AstSelectExpressionItem(std::unique_ptr<AstExpression> 
     assert(this->expression != nullptr);
 }
 
-AstOrderByItem::AstOrderByItem(std::unique_ptr<AstExpression> expression, Direction direction)
+AstOrderByItem::AstOrderByItem(std::unique_ptr<AstExpression> expression, common::Direction direction)
     : expression(std::move(expression))
     , direction(direction)
 {

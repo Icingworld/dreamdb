@@ -201,11 +201,11 @@ std::unique_ptr<ast::AstStatement> Parser::parse_select_statement()
             auto order_by_clause = parse_expression();
 
             // 解析可选的方向
-            dreamdb::Direction direction = dreamdb::Direction::ASC;
+            dreamdb::common::Direction direction = dreamdb::common::Direction::ASC;
             if (match(TokenType::Desc)) {
-                direction = dreamdb::Direction::DESC;
+                direction = dreamdb::common::Direction::DESC;
             } else if (match(TokenType::Asc)) {
-                direction = dreamdb::Direction::ASC;
+                direction = dreamdb::common::Direction::ASC;
             }
 
             // 创建 ORDER BY 项

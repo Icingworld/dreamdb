@@ -18,7 +18,7 @@ BoundUpdateStatement::BoundUpdateStatement(
     , where_(std::move(where))
 {
     // 更新项不能为空
-    assert(!update_items.empty());
+    assert(!update_items_.empty());
 
     // 每一项更新项的列引用和值表达式不能为空
     for (const auto & update_item : update_items_) {

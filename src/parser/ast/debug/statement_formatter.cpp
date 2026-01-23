@@ -286,9 +286,9 @@ void AstStatementFormatter::visit(const AstSelectStatement & select_statement)
         for (std::size_t i = 0; i < select_statement.order_by_item_count(); ++i) {
             const AstOrderByItem & order_by_item = select_statement.order_by_item_at(i);
             oss_ << expression_formatter_.format(*order_by_item.expression);
-            if (order_by_item.direction == Direction::ASC) {
+            if (order_by_item.direction == dreamdb::common::Direction::ASC) {
                 oss_ << " ASC";
-            } else if (order_by_item.direction == Direction::DESC) {
+            } else if (order_by_item.direction == dreamdb::common::Direction::DESC) {
                 oss_ << " DESC";
             }
             if (i < select_statement.order_by_item_count() - 1) {

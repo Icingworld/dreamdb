@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <limits>
+#include <algorithm>
 
 #include "dreamdb/catalog/catalog.h"
 #include "dreamdb/parser/ast/statement/statement.h"
@@ -59,34 +60,32 @@ namespace
 /**
  * @brief 将类型名称字符串转换为 FieldType 枚举
  */
-dreamdb::FieldType parse_field_type(const std::string & type_name)
+dreamdb::common::FieldType parse_field_type(const std::string & type_name)
 {
     if (type_name == "TINYINT" || type_name == "tinyint") {
-        return dreamdb::FieldType::TINYINT;
+        return dreamdb::common::FieldType::TinyInt;
     } else if (type_name == "SMALLINT" || type_name == "smallint") {
-        return dreamdb::FieldType::SMALLINT;
+        return dreamdb::common::FieldType::SmallInt;
     } else if (type_name == "INTEGER" || type_name == "integer" || type_name == "INT" || type_name == "int") {
-        return dreamdb::FieldType::INTEGER;
+        return dreamdb::common::FieldType::Int;
     } else if (type_name == "BIGINT" || type_name == "bigint") {
-        return dreamdb::FieldType::BIGINT;
+        return dreamdb::common::FieldType::BigInt;
     } else if (type_name == "FLOAT" || type_name == "float") {
-        return dreamdb::FieldType::FLOAT;
+        return dreamdb::common::FieldType::Float;
     } else if (type_name == "DOUBLE" || type_name == "double") {
-        return dreamdb::FieldType::DOUBLE;
-    } else if (type_name == "DECIMAL" || type_name == "decimal") {
-        return dreamdb::FieldType::DECIMAL;
+        return dreamdb::common::FieldType::Double;
     } else if (type_name == "CHAR" || type_name == "char") {
-        return dreamdb::FieldType::CHAR;
+        return dreamdb::common::FieldType::Char;
     } else if (type_name == "VARCHAR" || type_name == "varchar") {
-        return dreamdb::FieldType::VARCHAR;
+        return dreamdb::common::FieldType::VarChar;
     } else if (type_name == "BOOLEAN" || type_name == "boolean" || type_name == "BOOL" || type_name == "bool") {
-        return dreamdb::FieldType::BOOLEAN;
+        return dreamdb::common::FieldType::Boolean;
     } else if (type_name == "TIMESTAMP" || type_name == "timestamp") {
-        return dreamdb::FieldType::TIMESTAMP;
+        return dreamdb::common::FieldType::Timestamp;
     } else if (type_name == "ENUM" || type_name == "enum") {
-        return dreamdb::FieldType::ENUM;
+        return dreamdb::common::FieldType::Enum;
     } else if (type_name == "VECTOR" || type_name == "vector") {
-        return dreamdb::FieldType::VECTOR;
+        return dreamdb::common::FieldType::Vector;
     } else {
         throw std::runtime_error("Unknown field type: " + type_name);
     }
@@ -139,53 +138,72 @@ std::string extract_string_from_expression(const dreamdb::parser::ast::AstExpres
 }
 
 /**
- * @brief 将类型名称字符串转换为 LogicalType
+ * @brief 将字符串解析为 MetricType
  */
-dreamdb::common::LogicalType parse_logical_type(const std::string & type_name)
+dreamdb::common::MetricType parse_metric_type_from_string(std::string value)
 {
-    if (type_name == "TINYINT" || type_name == "tinyint" ||
-        type_name == "SMALLINT" || type_name == "smallint" ||
-        type_name == "INTEGER" || type_name == "integer" || type_name == "INT" || type_name == "int" ||
-        type_name == "BIGINT" || type_name == "bigint") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Integer};
-    } else if (type_name == "FLOAT" || type_name == "float" ||
-               type_name == "DOUBLE" || type_name == "double" ||
-               type_name == "DECIMAL" || type_name == "decimal") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Float};
-    } else if (type_name == "CHAR" || type_name == "char" ||
-               type_name == "VARCHAR" || type_name == "varchar" ||
-               type_name == "ENUM" || type_name == "enum") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::String};
-    } else if (type_name == "BOOLEAN" || type_name == "boolean" || type_name == "BOOL" || type_name == "bool") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Boolean};
-    } else if (type_name == "TIMESTAMP" || type_name == "timestamp") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::String};
-    } else if (type_name == "VECTOR" || type_name == "vector") {
-        return dreamdb::common::LogicalType{dreamdb::common::LogicalTypeId::Vector};
-    } else {
-        throw std::runtime_error("Unknown field type: " + type_name);
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+
+    if (value == "l2") {
+        return dreamdb::common::MetricType::L2;
     }
+    if (value == "ip") {
+        return dreamdb::common::MetricType::IP;
+    }
+    if (value == "cosine") {
+        return dreamdb::common::MetricType::COSINE;
+    }
+
+    throw std::runtime_error("Unknown metric type: " + value);
 }
 
 /**
- * @brief 将 AstColumnModifier 转换为 BoundColumnModifier
+ * @brief 解析 BoundFieldType，包括类型和参数
+ * @param column_def AST 列定义
+ * @return BoundFieldType
  */
-bound::BoundColumnModifier convert_column_modifier(dreamdb::parser::ast::AstColumnModifier modifier)
+bound::BoundFieldType parse_bound_field_type(const dreamdb::parser::ast::AstColumnDefinition & column_def)
 {
-    switch (modifier) {
-        case dreamdb::parser::ast::AstColumnModifier::NotNull:
-            return bound::BoundColumnModifier::NotNull;
-        case dreamdb::parser::ast::AstColumnModifier::Unique:
-            return bound::BoundColumnModifier::Unique;
-        case dreamdb::parser::ast::AstColumnModifier::PrimaryKey:
-            return bound::BoundColumnModifier::PrimaryKey;
-        case dreamdb::parser::ast::AstColumnModifier::AutoIncrement:
-            return bound::BoundColumnModifier::AutoIncrement;
-        case dreamdb::parser::ast::AstColumnModifier::Default:
-            return bound::BoundColumnModifier::Default;
-        default:
-            throw std::runtime_error("Unknown column modifier");
+    bound::BoundFieldType bound_type;
+    bound_type.type = parse_field_type(column_def.type_name());
+    
+    // 根据类型解析参数
+    const auto & type_name = column_def.type_name();
+    const std::size_t arg_count = column_def.argument_count();
+    
+    if (type_name == "CHAR" || type_name == "char" || 
+        type_name == "VARCHAR" || type_name == "varchar") {
+        // CHAR/VARCHAR 需要一个长度参数
+        if (arg_count >= 1) {
+            bound_type.length = extract_integer_from_expression(column_def.argument_at(0));
+        }
+    } else if (type_name == "DECIMAL" || type_name == "decimal") {
+        // DECIMAL 需要精度和小数位数参数
+        if (arg_count >= 1) {
+            bound_type.precision = extract_integer_from_expression(column_def.argument_at(0));
+        }
+        if (arg_count >= 2) {
+            bound_type.scale = extract_integer_from_expression(column_def.argument_at(1));
+        }
+    } else if (type_name == "ENUM" || type_name == "enum") {
+        // ENUM 需要字符串列表参数
+        std::vector<std::string> enum_values;
+        for (std::size_t i = 0; i < arg_count; ++i) {
+            enum_values.push_back(extract_string_from_expression(column_def.argument_at(i)));
+        }
+        if (!enum_values.empty()) {
+            bound_type.enum_values = std::move(enum_values);
+        }
+    } else if (type_name == "VECTOR" || type_name == "vector") {
+        // VECTOR 需要一个维度参数
+        if (arg_count >= 1) {
+            bound_type.dimension = extract_integer_from_expression(column_def.argument_at(0));
+        }
     }
+    
+    return bound_type;
 }
 
 /**
@@ -201,18 +219,60 @@ bound::BoundColumnDefinition convert_column_definition_to_bound(
 {
     bound::BoundColumnDefinition bound_def;
     bound_def.name = column_def.name();
-    bound_def.type = parse_logical_type(column_def.type_name());
+    bound_def.type = parse_bound_field_type(column_def);
+
+    // 初始化修饰符为未设置状态
+    bound_def.not_null = std::nullopt;
+    bound_def.unique = std::nullopt;
+    bound_def.primary_key = std::nullopt;
+    bound_def.auto_increment = std::nullopt;
+    bound_def.default_value = nullptr;
+
+    // 跟踪是否已经遇到过 DEFAULT 修饰符
+    bool has_default_modifier = false;
 
     // 转换修饰符
     for (std::size_t i = 0; i < column_def.modifier_count(); ++i) {
-        bound_def.modifiers.push_back(convert_column_modifier(column_def.modifier_at(i)));
+        auto modifier = column_def.modifier_at(i);
+        switch (modifier) {
+            case dreamdb::parser::ast::AstColumnModifier::NotNull:
+                if (bound_def.not_null.has_value()) {
+                    throw std::runtime_error("Duplicate NOT NULL modifier for column: " + bound_def.name);
+                }
+                bound_def.not_null = true;
+                break;
+            case dreamdb::parser::ast::AstColumnModifier::Unique:
+                if (bound_def.unique.has_value()) {
+                    throw std::runtime_error("Duplicate UNIQUE modifier for column: " + bound_def.name);
+                }
+                bound_def.unique = true;
+                break;
+            case dreamdb::parser::ast::AstColumnModifier::PrimaryKey:
+                if (bound_def.primary_key.has_value()) {
+                    throw std::runtime_error("Duplicate PRIMARY KEY modifier for column: " + bound_def.name);
+                }
+                bound_def.primary_key = true;
+                break;
+            case dreamdb::parser::ast::AstColumnModifier::AutoIncrement:
+                if (bound_def.auto_increment.has_value()) {
+                    throw std::runtime_error("Duplicate AUTO_INCREMENT modifier for column: " + bound_def.name);
+                }
+                bound_def.auto_increment = true;
+                break;
+            case dreamdb::parser::ast::AstColumnModifier::Default:
+                if (has_default_modifier) {
+                    throw std::runtime_error("Duplicate DEFAULT modifier for column: " + bound_def.name);
+                }
+                has_default_modifier = true;
+                break;
+            default:
+                throw std::runtime_error("Unknown column modifier");
+        }
     }
 
     // 绑定默认值表达式
     if (column_def.has_default_value()) {
         bound_def.default_value = bind_expr_func(*column_def.default_value());
-    } else {
-        bound_def.default_value = nullptr;
     }
 
     return bound_def;
@@ -221,16 +281,16 @@ bound::BoundColumnDefinition convert_column_definition_to_bound(
 /**
  * @brief 将字符串索引类型转换为 IndexType 枚举
  */
-dreamdb::IndexType parse_index_type(const std::optional<std::string> & index_type_str)
+dreamdb::common::IndexType parse_index_type(const std::optional<std::string> & index_type_str)
 {
     if (!index_type_str.has_value()) {
-        return dreamdb::IndexType::BTREE;  // 默认类型
+        return dreamdb::common::IndexType::BTREE;  // 默认类型
     }
     const std::string & type = index_type_str.value();
     if (type == "BTREE" || type == "btree" || type == "B-TREE" || type == "b-tree") {
-        return dreamdb::IndexType::BTREE;
+        return dreamdb::common::IndexType::BTREE;
     } else if (type == "HASH" || type == "hash") {
-        return dreamdb::IndexType::HASH;
+        return dreamdb::common::IndexType::HASH;
     } else {
         throw std::runtime_error("Unknown index type: " + type);
     }
@@ -239,18 +299,18 @@ dreamdb::IndexType parse_index_type(const std::optional<std::string> & index_typ
 /**
  * @brief 将字符串向量索引类型转换为 VIndexType 枚举
  */
-dreamdb::VIndexType parse_vindex_type(const std::optional<std::string> & vindex_type_str)
+dreamdb::common::VIndexType parse_vindex_type(const std::optional<std::string> & vindex_type_str)
 {
     if (!vindex_type_str.has_value()) {
-        return dreamdb::VIndexType::FLAT;  // 默认类型
+        return dreamdb::common::VIndexType::FLAT;  // 默认类型
     }
     const std::string & type = vindex_type_str.value();
     if (type == "FLAT" || type == "flat") {
-        return dreamdb::VIndexType::FLAT;
+        return dreamdb::common::VIndexType::FLAT;
     } else if (type == "IVF_FLAT" || type == "ivf_flat" || type == "IVF-FLAT" || type == "ivf-flat") {
-        return dreamdb::VIndexType::IVF_FLAT;
+        return dreamdb::common::VIndexType::IVF_FLAT;
     } else if (type == "HNSW" || type == "hnsw") {
-        return dreamdb::VIndexType::HNSW;
+        return dreamdb::common::VIndexType::HNSW;
     } else {
         throw std::runtime_error("Unknown vector index type: " + type);
     }
@@ -641,18 +701,61 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_create_statement(
             bound_operation.vindex_name = op.vindex_name;
 
             // 处理 WITH 子句选项
-            // 注意：WITH 选项的值是表达式，需要在执行时计算
-            // 当前设计：将表达式转换为字符串表示，由执行器处理
-            // TODO: 考虑是否需要将表达式绑定后存储，或保持当前设计在执行时处理
             for (const auto & with_option : op.with_clauses) {
-                // 绑定表达式以验证其有效性，但值需要在执行时计算
-                auto bound_value = bind_expression(*with_option.value);
-                if (!bound_value) {
-                    throw std::runtime_error("Failed to bind WITH option value for key: " + with_option.key);
+                // WITH 选项属于 DDL 配置，绑定阶段要求可静态解析（字面量）
+                std::string key = with_option.key;
+                std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+
+                if (key == "m") {
+                    // HNSW 索引支持 m 参数，IVF_FLAT 不支持
+                    if (bound_operation.vindex_type == common::VIndexType::IVF_FLAT) {
+                        throw std::runtime_error("WITH option m is not allowed for IVF_FLAT index");
+                    }
+                    if (bound_operation.with_options.m.has_value()) {
+                        throw std::runtime_error("Duplicate WITH option: m");
+                    }
+                    int v = extract_integer_from_expression(*with_option.value);
+                    if (v < 0) {
+                        throw std::runtime_error("WITH option m must be non-negative");
+                    }
+                    bound_operation.with_options.m = static_cast<std::size_t>(v);
+                } else if (key == "nlist") {
+                    // IVF_FLAT 索引支持 nlist 参数，HNSW 不支持
+                    if (bound_operation.vindex_type == common::VIndexType::HNSW) {
+                        throw std::runtime_error("WITH option nlist is not allowed for HNSW index");
+                    }
+                    if (bound_operation.with_options.nlist.has_value()) {
+                        throw std::runtime_error("Duplicate WITH option: nlist");
+                    }
+                    int v = extract_integer_from_expression(*with_option.value);
+                    if (v < 0) {
+                        throw std::runtime_error("WITH option nlist must be non-negative");
+                    }
+                    bound_operation.with_options.nlist = static_cast<std::size_t>(v);
+                } else if (key == "ef_construction") {
+                    // HNSW 索引支持 ef_construction 参数，IVF_FLAT 不支持
+                    if (bound_operation.vindex_type == common::VIndexType::IVF_FLAT) {
+                        throw std::runtime_error("WITH option ef_construction is not allowed for IVF_FLAT index");
+                    }
+                    if (bound_operation.with_options.ef_construction.has_value()) {
+                        throw std::runtime_error("Duplicate WITH option: ef_construction");
+                    }
+                    int v = extract_integer_from_expression(*with_option.value);
+                    if (v < 0) {
+                        throw std::runtime_error("WITH option ef_construction must be non-negative");
+                    }
+                    bound_operation.with_options.ef_construction = static_cast<std::size_t>(v);
+                } else if (key == "metric" || key == "metric_type") {
+                    if (bound_operation.with_options.metric.has_value()) {
+                        throw std::runtime_error("Duplicate WITH option: metric");
+                    }
+                    std::string v = extract_string_from_expression(*with_option.value);
+                    bound_operation.with_options.metric = parse_metric_type_from_string(std::move(v));
+                } else {
+                    throw std::runtime_error("Unknown WITH option key: " + with_option.key);
                 }
-                // 当前设计：存储键和空字符串，值在执行时从表达式计算
-                // 如果需要，可以存储表达式的字符串表示或序列化形式
-                bound_operation.with_options.push_back({with_option.key, ""});
             }
 
             // 创建 BoundCreateStatement 语句
@@ -1151,7 +1254,7 @@ std::unique_ptr<bound::BoundStatement> Binder::bind_select_statement(
         }
         bound::BoundOrderByItem bound_item;
         bound_item.expr = std::move(bound_expr);
-        bound_item.order = order_by_item.direction;  // Direction 类型相同，直接使用
+        bound_item.direction = order_by_item.direction;  // Direction 类型相同，直接使用
         bound_order_by.push_back(std::move(bound_item));
     }
 

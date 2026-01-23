@@ -12,7 +12,6 @@
 #include "dreamdb/binder/bound/expression/in.h"
 #include "dreamdb/binder/bound/expression/between.h"
 #include "dreamdb/binder/bound/expression/like.h"
-#include "dreamdb/common/decimal.h"
 #include "dreamdb/common/null.h"
 
 namespace dreamdb::binder::bound
@@ -65,9 +64,6 @@ std::string format_field_value(const dreamdb::FieldValue & value)
                 s.pop_back();
             }
             return s;
-        } else if constexpr (std::is_same_v<T, dreamdb::Decimal>) {
-            // Decimal 类型可能需要特殊处理，这里先简单转换
-            return v.to_string();
         } else if constexpr (std::is_same_v<T, std::string>) {
             return "'" + v + "'";
         } else if constexpr (std::is_same_v<T, bool>) {

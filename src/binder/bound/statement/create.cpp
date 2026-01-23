@@ -37,11 +37,6 @@ BoundCreateStatement::BoundCreateStatement(
         } else if constexpr (std::is_same_v<T, BoundCreateVIndex>) {
             // 向量索引名称不能为空
             assert(!operation.vindex_name.empty());
-
-            // WITH 子句选项不能为空
-            assert(!operation.with_options.empty());
-
-            // TODO: 验证 VIndexType 和 WITH 子句选项是否对应
         }
     }, create_operation_);
 }
