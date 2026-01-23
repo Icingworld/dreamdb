@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include "dreamdb/parser/ast/expression/expression.h"
-#include "dreamdb/parser/ast/statement/statement_visitor.h"
+#include "dreamdb/parser/ast/statement/visitor.h"
 #include "dreamdb/parser/ast/statement/column_definition.h"
 #include "dreamdb/parser/ast/debug/expression_formatter.h"
 
@@ -32,25 +32,25 @@ public:
     std::string format(const AstStatement & statement);
 
 private:
-    void visit(const AstAlterStatement & statement) override;
+    void visit(const AstAlterStatement & alter_statement) override;
 
-    void visit(const AstCreateStatement & statement) override;
+    void visit(const AstCreateStatement & create_statement) override;
 
-    void visit(const AstDeleteStatement & statement) override;
+    void visit(const AstDeleteStatement & delete_statement) override;
 
-    void visit(const AstDescribeStatement & statement) override;
+    void visit(const AstDescribeStatement & describe_statement) override;
 
-    void visit(const AstDropStatement & statement) override;
+    void visit(const AstDropStatement & drop_statement) override;
 
-    void visit(const AstInsertStatement & statement) override;
+    void visit(const AstInsertStatement & insert_statement) override;
 
-    void visit(const AstSelectStatement & statement) override;
+    void visit(const AstSelectStatement & select_statement) override;
 
-    void visit(const AstShowStatement & statement) override;
+    void visit(const AstShowStatement & show_statement) override;
 
-    void visit(const AstUpdateStatement & statement) override;
+    void visit(const AstUpdateStatement & update_statement) override;
 
-    void visit(const AstUseStatement & statement) override;
+    void visit(const AstUseStatement & use_statement) override;
 
     /**
      * @brief 格式化列定义

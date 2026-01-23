@@ -1,27 +1,27 @@
-#include "dreamdb/parser/parser.h"
+﻿#include "dreamdb/parser/parser.h"
 
 #include <vector>
 
 #include "dreamdb/parser/lexer.h"
-#include "dreamdb/parser/ast/statement/select_statement.h"
-#include "dreamdb/parser/ast/statement/insert_statement.h"
-#include "dreamdb/parser/ast/statement/update_statement.h"
-#include "dreamdb/parser/ast/statement/delete_statement.h"
-#include "dreamdb/parser/ast/statement/drop_statement.h"
-#include "dreamdb/parser/ast/statement/create_statement.h"
-#include "dreamdb/parser/ast/statement/alter_statement.h"
-#include "dreamdb/parser/ast/statement/use_statement.h"
-#include "dreamdb/parser/ast/statement/show_statement.h"
-#include "dreamdb/parser/ast/statement/describe_statement.h"
-#include "dreamdb/parser/ast/expression/binary_expression.h"
-#include "dreamdb/parser/ast/expression/unary_expression.h"
-#include "dreamdb/parser/ast/expression/in_expression.h"
-#include "dreamdb/parser/ast/expression/between_expression.h"
-#include "dreamdb/parser/ast/expression/like_expression.h"
-#include "dreamdb/parser/ast/expression/literal_expression.h"
-#include "dreamdb/parser/ast/expression/vector_expression.h"
-#include "dreamdb/parser/ast/expression/column_reference_expression.h"
-#include "dreamdb/parser/ast/expression/function_call_expression.h"
+#include "dreamdb/parser/ast/statement/select.h"
+#include "dreamdb/parser/ast/statement/insert.h"
+#include "dreamdb/parser/ast/statement/update.h"
+#include "dreamdb/parser/ast/statement/delete.h"
+#include "dreamdb/parser/ast/statement/drop.h"
+#include "dreamdb/parser/ast/statement/create.h"
+#include "dreamdb/parser/ast/statement/alter.h"
+#include "dreamdb/parser/ast/statement/use.h"
+#include "dreamdb/parser/ast/statement/show.h"
+#include "dreamdb/parser/ast/statement/describe.h"
+#include "dreamdb/parser/ast/expression/binary.h"
+#include "dreamdb/parser/ast/expression/unary.h"
+#include "dreamdb/parser/ast/expression/in.h"
+#include "dreamdb/parser/ast/expression/between.h"
+#include "dreamdb/parser/ast/expression/like.h"
+#include "dreamdb/parser/ast/expression/literal.h"
+#include "dreamdb/parser/ast/expression/vector.h"
+#include "dreamdb/parser/ast/expression/column_reference.h"
+#include "dreamdb/parser/ast/expression/function_call.h"
 
 namespace dreamdb::parser
 {
@@ -201,11 +201,11 @@ std::unique_ptr<ast::AstStatement> Parser::parse_select_statement()
             auto order_by_clause = parse_expression();
 
             // 解析可选的方向
-            dreamdb::Direction direction = dreamdb::Direction::ASC;
+            dreamdb::common::Direction direction = dreamdb::common::Direction::ASC;
             if (match(TokenType::Desc)) {
-                direction = dreamdb::Direction::DESC;
+                direction = dreamdb::common::Direction::DESC;
             } else if (match(TokenType::Asc)) {
-                direction = dreamdb::Direction::ASC;
+                direction = dreamdb::common::Direction::ASC;
             }
 
             // 创建 ORDER BY 项

@@ -3,7 +3,7 @@
 #include <string>
 #include <sstream>
 
-#include "dreamdb/parser/ast/expression/expression_visitor.h"
+#include "dreamdb/parser/ast/expression/visitor.h"
 
 namespace dreamdb::parser::ast
 {
@@ -29,23 +29,23 @@ public:
     std::string format(const AstExpression & expression);
 
 private:
-    void visit(const AstLiteralExpression & expression) override;
+    void visit(const AstLiteralExpression & literal_expression) override;
 
-    void visit(const AstColumnReferenceExpression & expression) override;
+    void visit(const AstColumnReferenceExpression & column_reference_expression) override;
 
-    void visit(const AstUnaryExpression & expression) override;
+    void visit(const AstUnaryExpression & unary_expression) override;
 
-    void visit(const AstBinaryExpression & expression) override;
+    void visit(const AstBinaryExpression & binary_expression) override;
 
-    void visit(const AstFunctionCallExpression & expression) override;
+    void visit(const AstFunctionCallExpression & function_call_expression) override;
 
-    void visit(const AstInExpression & expression) override;
+    void visit(const AstInExpression & in_expression) override;
 
-    void visit(const AstBetweenExpression & expression) override;
+    void visit(const AstBetweenExpression & between_expression) override;
 
-    void visit(const AstLikeExpression & expression) override;
+    void visit(const AstLikeExpression & like_expression) override;
 
-    void visit(const AstVectorExpression & expression) override;
+    void visit(const AstVectorExpression & vector_expression) override;
 
 private:
     std::ostringstream oss_;     // 格式化后的表达式字符串流

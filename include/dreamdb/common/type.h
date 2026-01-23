@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace dreamdb
+namespace dreamdb::common
 {
 
 /**
@@ -10,19 +10,18 @@ namespace dreamdb
  */
 enum class FieldType : std::uint8_t
 {
-    TINYINT,            // 8 位整数
-    SMALLINT,           // 16 位整数
-    INTEGER,            // 32 位整数
-    BIGINT,             // 64 位整数
-    FLOAT,              // 浮点数
-    DOUBLE,             // 双精度浮点数
-    DECIMAL,            // 高精度浮点数
-    CHAR,               // 定长字符串
-    VARCHAR,            // 变长字符串
-    BOOLEAN,            // 布尔值
-    TIMESTAMP,          // 时间戳
-    ENUM,               // 枚举
-    VECTOR              // float 向量
+    TinyInt,            // 8 位整数
+    SmallInt,           // 16 位整数
+    Int,                // 32 位整数
+    BigInt,             // 64 位整数
+    Float,              // 浮点数
+    Double,             // 双精度浮点数
+    Char,               // 定长字符串
+    VarChar,            // 变长字符串
+    Boolean,            // 布尔值
+    Timestamp,          // 时间戳
+    Enum,               // 枚举
+    Vector              // float 向量
 };
 
 /**
@@ -74,4 +73,4 @@ enum class SegmentStatus : std::uint8_t
     DROPPED             // 已删除
 };
 
-} // namespace dreamdb
+} // namespace dreamdb::common

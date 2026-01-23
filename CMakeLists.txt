@@ -48,17 +48,17 @@ include(cmake/proto/proto.cmake)
 
 set(PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(PROTO_FILES
-  "${PROTO_ROOT}/dreamdb/protocol/message.proto"
+  	"${PROTO_ROOT}/dreamdb/protocol/message.proto"
 )
 
 # 生成到 build tree
 set(PROTO_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 dreamdb_protobuf_generate_cpp(
-  PROTO_GEN_SRCS PROTO_GEN_HDRS
-  PROTO_ROOT "${PROTO_ROOT}"
-  OUT_DIR "${PROTO_GEN_DIR}"
-  PROTOS ${PROTO_FILES}
+	PROTO_GEN_SRCS PROTO_GEN_HDRS
+	PROTO_ROOT "${PROTO_ROOT}"
+	OUT_DIR "${PROTO_GEN_DIR}"
+	PROTOS ${PROTO_FILES}
 )
 
 # 确保生成的目录存在，以便 IDE 能够识别（即使在首次配置时文件还未生成）
@@ -70,36 +70,37 @@ file(MAKE_DIRECTORY "${PROTO_GEN_DIR}")
 
 # 添加全部头文件
 file(GLOB_RECURSE DREAMDB_HEADERS
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.inl"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.hpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/dreamdb/*.inl"
 )
 
 # 添加指定部分源文件
 file(GLOB_RECURSE DREAMDB_SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/parser/*.cpp"
+  	"${CMAKE_CURRENT_SOURCE_DIR}/src/parser/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/binder/*.cpp"
 )
 
 list(FILTER DREAMDB_SOURCES EXCLUDE REGEX ".*\\.pb\\.cc$")
 list(FILTER DREAMDB_HEADERS EXCLUDE REGEX ".*\\.pb\\.h$")
 
 add_library(dreamdb STATIC
-  ${DREAMDB_SOURCES}
-  ${DREAMDB_HEADERS}
-  ${PROTO_GEN_SRCS}
-  ${PROTO_GEN_HDRS}
+	${DREAMDB_SOURCES}
+	${DREAMDB_HEADERS}
+	${PROTO_GEN_SRCS}
+	${PROTO_GEN_HDRS}
 )
 
 # 添加 include 路径
 # 注意：generated 目录必须作为 PUBLIC 包含路径，这样依赖 dreamdb 的目标也能找到生成的头文件
 target_include_directories(dreamdb PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  "${PROTO_GEN_DIR}"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include"
+	"${PROTO_GEN_DIR}"
 )
 
 target_link_libraries(dreamdb PUBLIC
-  dreamdb::protobuf
-  dreamdb::asio
+	dreamdb::protobuf
+	dreamdb::asio
 )
 
 # ============================================================================

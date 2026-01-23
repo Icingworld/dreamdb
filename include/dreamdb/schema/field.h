@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "dreamdb/common/type.h"
-#include "dreamdb/common/decimal.h"
 #include "dreamdb/common/null.h"
 
 namespace dreamdb
@@ -23,7 +22,6 @@ using FieldValue = std::variant<
     std::int64_t,                   // BIGINT, TIMESTAMP
     float,                          // FLOAT
     double,                         // DOUBLE
-    Decimal,                        // DECIMAL
     std::string,                    // CHAR, VARCHAR, ENUM
     bool,                           // BOOLEAN
     std::vector<float>,             // VECTOR
@@ -38,7 +36,7 @@ class Field
 public:
     Field(
         const std::string & name,
-        FieldType type,
+        common::FieldType type,
         int length,
         int precision,
         const std::vector<std::string> & options,
@@ -72,7 +70,7 @@ public:
      * @brief 设置字段类型
      * @param type 字段类型
      */
-    void set_type(FieldType type);
+    void set_type(common::FieldType type);
 
     /**
      * @brief 设置字段长度
@@ -132,7 +130,7 @@ public:
      * @brief 获取字段类型
      * @return 字段类型
      */
-    FieldType get_type() const;
+    common::FieldType get_type() const;
 
     /**
      * @brief 获取字段长度
@@ -256,19 +254,6 @@ public:
     );
 
     /**
-     * @brief 创建 DECIMAL 字段
-     */
-    static Field create_decimal_field(
-        const std::string & name = "",
-        int precision = 0,
-        int scale = 0,
-        bool is_nullable = true,
-        bool is_primary = false,
-        const std::string & comment = "",
-        const FieldValue & default_value = Null()
-    );
-
-    /**
      * @brief 创建 CHAR 字段
      */
     static Field create_char_field(
@@ -341,7 +326,7 @@ public:
 private:
     // 基本属性
     std::string name_;                                      // 字段名称
-    FieldType type_;                                        // 字段类型
+    common::FieldType type_;                                // 字段类型
     int length_;                                            // 字段长度
     int precision_;                                         // 字段小数点位数
     std::optional<std::vector<std::string>> options_;       // ENUM 字段选项
