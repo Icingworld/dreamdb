@@ -59,6 +59,12 @@ public:
      */
     void accept(BoundExpressionVisitor & visitor) const override;
 
+    /**
+     * @brief 克隆表达式
+     * @return 克隆后的表达式
+     */
+    std::unique_ptr<BoundExpression> clone() const override;
+
 private:
     std::string function_name_;                                      // 函数名称
     std::vector<std::unique_ptr<BoundExpression>> arguments_;       // 参数列表

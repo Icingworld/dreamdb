@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/expression.h"
+
 namespace dreamdb::planner::logical
 {
 
@@ -12,8 +14,8 @@ LogicalAggregate::LogicalAggregate(std::vector<std::unique_ptr<
     , group_by_(std::move(group_by))
     , aggregate_items_(std::move(items))
 {
-    // 分组表达式不能为空
-    assert(!group_by_.empty());
+    // 注意：当只有聚合函数而没有 GROUP BY 子句时，group_by_ 可以为空
+    // 这表示对整个结果集进行聚合
 
     // 聚合表达式项不能为空
     assert(!aggregate_items_.empty());

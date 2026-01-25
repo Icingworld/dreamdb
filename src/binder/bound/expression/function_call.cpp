@@ -47,4 +47,20 @@ void BoundFunctionCallExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundFunctionCallExpression::clone() const
+{
+    std::vector<std::unique_ptr<BoundExpression>> cloned_arguments;
+    cloned_arguments.reserve(argument_count());
+    for (std::size_t i = 0; i < argument_count(); ++i) {
+        cloned_arguments.push_back(argument_at(i).clone());
+    }
+
+    return std::make_unique<BoundFunctionCallExpression>(
+        function_name(),
+        std::move(cloned_arguments),
+        logical_type(),
+        is_aggregate()
+    );
+}
+
 } // namespace dreamdb::binder::bound

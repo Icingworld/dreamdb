@@ -10,8 +10,8 @@ LogicalScan::LogicalScan(common::collection_id_t collection_id, std::vector<comm
     , collection_id_(collection_id)
     , column_ids_(std::move(column_ids))
 {
-    // 字段 ID 不能为空
-    assert(!column_ids.empty());
+    // 注意：column_ids 可以为空（例如，没有 WHERE 子句的 DELETE 语句不需要扫描任何列）
+    // column_at() 方法已经有边界检查，确保访问安全
 
     // Scan 算子不能持有子算子
     assert(child_count() == 0);

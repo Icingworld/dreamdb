@@ -54,6 +54,12 @@ public:
      */
     void accept(BoundExpressionVisitor & visitor) const override;
 
+    /**
+     * @brief 克隆表达式
+     * @return 克隆后的表达式
+     */
+    std::unique_ptr<BoundExpression> clone() const override;
+
 private:
     BoundUnaryOperatorType operator_type_;         // 一元运算符类型
     std::unique_ptr<BoundExpression> operand_;     // 操作数表达式

@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/expression.h"
+
 namespace dreamdb::planner::logical
 {
 
@@ -13,8 +15,8 @@ LogicalUpdate::LogicalUpdate(dreamdb::common::collection_id_t collection_id, std
     // 更新项不能为空
     assert(!update_items_.empty());
 
-    // Update 算子必须有且只有一个子算子
-    assert(child_count() == 1);
+    // 注意：子节点是在创建后通过 add_child() 添加的
+    // 因此不能在构造函数中检查 child_count()
 }
 
 dreamdb::common::collection_id_t LogicalUpdate::collection_id() const noexcept

@@ -79,6 +79,7 @@ file(GLOB_RECURSE DREAMDB_HEADERS
 file(GLOB_RECURSE DREAMDB_SOURCES
   	"${CMAKE_CURRENT_SOURCE_DIR}/src/parser/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/binder/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/planner/logical/*.cpp"
 )
 
 list(FILTER DREAMDB_SOURCES EXCLUDE REGEX ".*\\.pb\\.cc$")

@@ -48,4 +48,20 @@ void BoundInExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundInExpression::clone() const
+{
+    std::vector<std::unique_ptr<BoundExpression>> cloned_values;
+    cloned_values.reserve(value_count());
+    for (std::size_t i = 0; i < value_count(); ++i) {
+        cloned_values.push_back(value_at(i).clone());
+    }
+
+    return std::make_unique<BoundInExpression>(
+        left().clone(),
+        std::move(cloned_values),
+        logical_type(),
+        is_not()
+    );
+}
+
 } // namespace dreamdb::binder::bound

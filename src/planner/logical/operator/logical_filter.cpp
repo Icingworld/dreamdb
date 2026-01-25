@@ -17,8 +17,8 @@ LogicalFilter::LogicalFilter(std::unique_ptr<dreamdb::binder::bound::BoundExpres
     // 谓词表达式必须是 Boolean 类型结果
     assert(predicate_->logical_type().id == dreamdb::common::LogicalTypeId::Boolean);
 
-    // Filter 算子必须有且只有一个子算子
-    assert(child_count() == 1);
+    // 注意：子节点是在创建后通过 add_child() 添加的
+    // 因此不能在构造函数中检查 child_count()
 }
 
 const dreamdb::binder::bound::BoundExpression & LogicalFilter::predicate() const noexcept

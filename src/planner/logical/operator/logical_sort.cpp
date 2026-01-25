@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "dreamdb/binder/bound/expression/expression.h"
+
 namespace dreamdb::planner::logical
 {
 
@@ -12,8 +14,8 @@ LogicalSort::LogicalSort(std::vector<LogicalSortItem> sort_items)
     // 排序项不能为空
     assert(!sort_items_.empty());
 
-    // Sort 算子必须有且只有一个子算子
-    assert(child_count() == 1);
+    // 注意：子节点是在创建后通过 add_child() 添加的
+    // 因此不能在构造函数中检查 child_count()
 }
 
 std::size_t LogicalSort::sort_item_count() const noexcept
