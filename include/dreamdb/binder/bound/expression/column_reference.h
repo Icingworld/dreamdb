@@ -32,6 +32,12 @@ public:
      */
     void accept(BoundExpressionVisitor & visitor) const override;
 
+    /**
+     * @brief 克隆表达式
+     * @return 克隆后的表达式
+     */
+    std::unique_ptr<BoundExpression> clone() const override;
+
 private:
     dreamdb::common::column_id_t column_id_;  // 列 ID
 };

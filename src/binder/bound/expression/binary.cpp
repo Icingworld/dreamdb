@@ -43,4 +43,14 @@ void BoundBinaryExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundBinaryExpression::clone() const
+{
+    return std::make_unique<BoundBinaryExpression>(
+        operator_type(),
+        left().clone(),
+        right().clone(),
+        logical_type()
+    );
+}
+
 } // namespace dreamdb::binder::bound

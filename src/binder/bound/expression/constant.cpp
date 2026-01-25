@@ -24,4 +24,12 @@ void BoundConstantExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundConstantExpression::clone() const
+{
+    return std::make_unique<BoundConstantExpression>(
+        value(),  // 复制 FieldValue
+        logical_type()
+    );
+}
+
 } // namespace dreamdb::binder::bound

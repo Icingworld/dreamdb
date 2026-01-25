@@ -50,4 +50,15 @@ void BoundBetweenExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundBetweenExpression::clone() const
+{
+    return std::make_unique<BoundBetweenExpression>(
+        left().clone(),
+        start().clone(),
+        end().clone(),
+        logical_type(),
+        is_not()
+    );
+}
+
 } // namespace dreamdb::binder::bound

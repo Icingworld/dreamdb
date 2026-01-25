@@ -24,4 +24,12 @@ void BoundColumnReferenceExpression::accept(BoundExpressionVisitor & visitor) co
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundColumnReferenceExpression::clone() const
+{
+    return std::make_unique<BoundColumnReferenceExpression>(
+        column_id(),
+        logical_type()
+    );
+}
+
 } // namespace dreamdb::binder::bound

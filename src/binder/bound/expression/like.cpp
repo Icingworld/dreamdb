@@ -42,4 +42,14 @@ void BoundLikeExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundLikeExpression::clone() const
+{
+    return std::make_unique<BoundLikeExpression>(
+        left().clone(),
+        pattern().clone(),
+        logical_type(),
+        is_not()
+    );
+}
+
 } // namespace dreamdb::binder::bound

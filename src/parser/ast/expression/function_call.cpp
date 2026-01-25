@@ -20,9 +20,7 @@ AstFunctionCallExpression::AstFunctionCallExpression(
     // 函数名不能为空
     assert(!function_name_.empty());
 
-    // 参数列表不能为空
-    assert(!arguments_.empty());
-
+    // 注意：参数列表可以为空（例如 COUNT(*) 在某些实现中可能没有参数）
     // 参数列表中的每个参数都不能为空
     for (const auto & argument : arguments_) {
         assert(argument != nullptr);

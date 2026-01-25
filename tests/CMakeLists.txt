@@ -50,3 +50,19 @@ target_link_libraries(unit_binder_tests PRIVATE
 )
 
 add_test(NAME unit_binder_tests COMMAND unit_binder_tests)
+
+# 添加 logical planner 测试目录
+add_executable(unit_logical_planner_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/planner/logical/delete_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/planner/logical/select_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/planner/logical/update_test.cpp
+)
+
+target_link_libraries(unit_logical_planner_tests PRIVATE
+    dreamdb
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+)
+
+add_test(NAME unit_logical_planner_tests COMMAND unit_logical_planner_tests)

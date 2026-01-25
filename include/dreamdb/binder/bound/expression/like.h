@@ -50,6 +50,12 @@ public:
      */
     void accept(BoundExpressionVisitor & visitor) const override;
 
+    /**
+     * @brief 克隆表达式
+     * @return 克隆后的表达式
+     */
+    std::unique_ptr<BoundExpression> clone() const override;
+
 private:
     std::unique_ptr<BoundExpression> left_;        // 左侧表达式
     std::unique_ptr<BoundExpression> pattern_;     // 模式表达式

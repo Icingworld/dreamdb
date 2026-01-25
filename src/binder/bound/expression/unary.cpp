@@ -35,4 +35,13 @@ void BoundUnaryExpression::accept(BoundExpressionVisitor & visitor) const
     visitor.visit(*this);
 }
 
+std::unique_ptr<BoundExpression> BoundUnaryExpression::clone() const
+{
+    return std::make_unique<BoundUnaryExpression>(
+        operator_type(),
+        operand().clone(),
+        logical_type()
+    );
+}
+
 } // namespace dreamdb::binder::bound
