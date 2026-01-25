@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 #include "dreamdb/common/logical_type.h"
 
@@ -54,6 +55,12 @@ public:
      * @param visitor 表达式访问者
      */
     virtual void accept(BoundExpressionVisitor & visitor) const = 0;
+
+    /**
+     * @brief 克隆表达式
+     * @return 克隆后的表达式
+     */
+    virtual std::unique_ptr<BoundExpression> clone() const = 0;
 
 private:
     BoundExpressionType expression_type_;              // 表达式类型

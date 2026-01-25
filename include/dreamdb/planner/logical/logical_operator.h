@@ -64,6 +64,12 @@ public:
     const LogicalOutputSchema & output_schema() const noexcept;
 
     /**
+     * @brief 添加子节点
+     * @param child 子节点
+     */
+    void add_child(std::unique_ptr<LogicalOperator> child);
+
+    /**
      * @brief 获取子节点数量
      * @return 子节点数量
      */

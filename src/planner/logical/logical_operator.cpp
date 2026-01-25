@@ -20,6 +20,11 @@ const LogicalOutputSchema & LogicalOperator::output_schema() const noexcept
     return output_schema_;
 }
 
+void LogicalOperator::add_child(std::unique_ptr<LogicalOperator> child)
+{
+    children_.push_back(std::move(child));
+}
+
 std::size_t LogicalOperator::child_count() const noexcept
 {
     return children_.size();
