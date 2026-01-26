@@ -32,7 +32,7 @@ public:
      */
     void close(ExecutionContext & context) override;
 
-private:
+protected:
     std::unique_ptr<PhysicalOperator> child_;    // 子算子
 };
 

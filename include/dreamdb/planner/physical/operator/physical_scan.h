@@ -49,10 +49,10 @@ public:
     /**
      * @brief 获取下一行
      * @param context 执行上下文
-     * @param rowOut 行输出
+     * @param row 行输出
      * @return 是否还有下一行
      */
-    bool next(ExecutionContext & context, RowOut & rowOut) override;
+    bool next(ExecutionContext & context, Row & row) override;
 
     /**
      * @brief 关闭算子

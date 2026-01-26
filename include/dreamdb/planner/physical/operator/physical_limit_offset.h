@@ -1,30 +1,27 @@
 #pragma once
 
+#include <optional>
+
 #include "dreamdb/planner/physical/operator/physical_unary_operator.h"
 #include "dreamdb/planner/physical/physical_operator.h"
-
-namespace dreamdb::binder::bound
-{
-
-class BoundExpression;
-
-} // namespace dreamdb::binder::bound
 
 namespace dreamdb::planner::physical
 {
 
 /**
- * @brief 物理过滤算子
+ * @brief 物理限制偏移算子
+ * @details 用于限制和偏移结果的算子，实现 LIMIT 和 OFFSET 功能
  */
-class PhysicalFilter final : public PhysicalUnaryOperator
+class PhysicalLimitOffset final : public PhysicalUnaryOperator
 {
 public:
-    explicit PhysicalFilter(
+    explicit PhysicalLimitOffset(
         std::unique_ptr<PhysicalOperator> child,
-        std::unique_ptr<dreamdb::binder::bound::BoundExpression> predicate
+        std::optional<std::size_t> limit,
+        std::optional<std::size_t> offset
     );
 
-    ~PhysicalFilter() override = default;
+    ~PhysicalLimitOffset() override = default;
 
 public:
     /**
@@ -36,7 +33,7 @@ public:
     /**
      * @brief 获取下一行
      * @param context 执行上下文
-     * @param row 当前行
+     * @param row 当前行（输出参数）
      * @return 是否还有下一行
      */
     bool next(ExecutionContext & context, Row & row) override;
@@ -48,16 +45,10 @@ public:
     void close(ExecutionContext & context) override;
 
 private:
-    /**
-     * @brief 评估过滤条件
-     * @param context 执行上下文
-     * @param row 当前行
-     * @return 是否满足过滤条件
-     */
-    bool evaluate(ExecutionContext & context, const Row & row) const;
-
-private:
-    std::unique_ptr<dreamdb::binder::bound::BoundExpression> predicate_;  // 过滤条件
+    std::optional<std::size_t> limit_;       // 限制行数
+    std::optional<std::size_t> offset_;      // 偏移行数
+    std::size_t skipped_count_;              // 已跳过的行数
+    std::size_t returned_count_;             // 已返回的行数
 };
 
 } // namespace dreamdb::planner::physical

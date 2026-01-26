@@ -32,11 +32,11 @@ void PhysicalScan::open(ExecutionContext & context)
     (void)context;
 }
 
-bool PhysicalScan::next(ExecutionContext & context, RowOut & rowOut)
+bool PhysicalScan::next(ExecutionContext & context, Row & row)
 {
     // TODO: 实现获取下一行
     (void)context;
-    (void)rowOut;
+    (void)row;
     return false;
 }
 

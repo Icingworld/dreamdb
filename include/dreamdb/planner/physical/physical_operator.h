@@ -1,7 +1,11 @@
 #pragma once
 
+#include <vector>
+
+#include "dreamdb/schema/field.h"
+
 class ExecutionContext;
-class RowOut;
+using Row = std::vector<dreamdb::FieldValue>;
 
 namespace dreamdb::planner::physical
 {
@@ -27,7 +31,7 @@ public:
      * @param rowOut 行输出
      * @return 是否还有下一行
      */
-    virtual bool next(ExecutionContext & context, RowOut & rowOut) = 0;
+    virtual bool next(ExecutionContext & context, Row & row) = 0;
 
     /**
      * @brief 关闭算子
