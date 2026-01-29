@@ -15,7 +15,7 @@ class BoundExpressionVisitor;
 class BoundColumnReferenceExpression final : public BoundExpression
 {
 public:
-    explicit BoundColumnReferenceExpression(dreamdb::common::column_id_t column_id, dreamdb::common::LogicalType logical_type) noexcept;
+    explicit BoundColumnReferenceExpression(dreamdb::common::column_oid_t column_id, dreamdb::common::LogicalType logical_type) noexcept;
 
     ~BoundColumnReferenceExpression() noexcept override = default;
 
@@ -24,7 +24,7 @@ public:
      * @brief 获取列 ID
      * @return 列 ID
      */
-    dreamdb::common::column_id_t column_id() const noexcept;
+    dreamdb::common::column_oid_t column_id() const noexcept;
 
     /**
      * @brief 接受表达式访问者
@@ -39,7 +39,7 @@ public:
     std::unique_ptr<BoundExpression> clone() const override;
 
 private:
-    dreamdb::common::column_id_t column_id_;  // 列 ID
+    dreamdb::common::column_oid_t column_id_;  // 列 ID
 };
 
 } // namespace dreamdb::binder::bound

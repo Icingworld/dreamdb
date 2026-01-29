@@ -6,7 +6,7 @@ namespace dreamdb::binder::bound
 {
 
 BoundColumnReferenceExpression::BoundColumnReferenceExpression(
-    dreamdb::common::column_id_t column_id,
+    dreamdb::common::column_oid_t column_id,
     dreamdb::common::LogicalType logical_type
 ) noexcept
     : BoundExpression(BoundExpressionType::ColumnReference, logical_type)
@@ -14,7 +14,7 @@ BoundColumnReferenceExpression::BoundColumnReferenceExpression(
 {
 }
 
-dreamdb::common::column_id_t BoundColumnReferenceExpression::column_id() const noexcept
+dreamdb::common::column_oid_t BoundColumnReferenceExpression::column_id() const noexcept
 {
     return column_id_;
 }

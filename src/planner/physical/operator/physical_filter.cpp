@@ -12,12 +12,12 @@ PhysicalFilter::PhysicalFilter(
 {
 }
 
-void PhysicalFilter::open(ExecutionContext & context)
+void PhysicalFilter::open(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::open(context);
 }
 
-bool PhysicalFilter::next(ExecutionContext & context, Row & row)
+bool PhysicalFilter::next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row)
 {
     while (child_->next(context, row)) {
         if (evaluate(context, row)) {
@@ -27,12 +27,12 @@ bool PhysicalFilter::next(ExecutionContext & context, Row & row)
     return false;
 }
 
-void PhysicalFilter::close(ExecutionContext & context)
+void PhysicalFilter::close(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::close(context);
 }
 
-bool PhysicalFilter::evaluate(ExecutionContext & context, const Row & row) const
+bool PhysicalFilter::evaluate(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & row) const
 {
     // TODO: 评估过滤条件
     (void)context;

@@ -44,7 +44,7 @@ public:
      * @brief 打开算子
      * @param context 执行上下文
      */
-    void open(ExecutionContext & context) override;
+    void open(dreamdb::executor::ExecutionContext & context) override;
 
     /**
      * @brief 获取下一行
@@ -52,13 +52,13 @@ public:
      * @param row 当前行（输出参数）
      * @return 是否还有下一行
      */
-    bool next(ExecutionContext & context, Row & row) override;
+    bool next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row) override;
 
     /**
      * @brief 关闭算子
      * @param context 执行上下文
      */
-    void close(ExecutionContext & context) override;
+    void close(dreamdb::executor::ExecutionContext & context) override;
 
 private:
     /**
@@ -68,7 +68,7 @@ private:
      * @param row2 第二行
      * @return 如果 row1 < row2 返回 true，否则返回 false
      */
-    bool compare_rows(ExecutionContext & context, const Row & row1, const Row & row2) const;
+    bool compare_rows(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & row1, const dreamdb::storage::Row & row2) const;
 
     /**
      * @brief 评估排序键
@@ -77,16 +77,16 @@ private:
      * @param sort_item_index 排序项索引
      * @return 排序键的值
      */
-    dreamdb::FieldValue evaluate_sort_key(
-        ExecutionContext & context,
-        const Row & row,
+    dreamdb::common::FieldValue evaluate_sort_key(
+        dreamdb::executor::ExecutionContext & context,
+        const dreamdb::storage::Row & row,
         std::size_t sort_item_index
     ) const;
 
 private:
-    std::vector<PhysicalSortItem> sort_items_;    // 排序项列表
-    std::vector<Row> sorted_rows_;                 // 排序后的行
-    std::size_t current_index_;                     // 当前返回的行索引
+    std::vector<PhysicalSortItem> sort_items_;               // 排序项列表
+    std::vector<dreamdb::storage::Row> sorted_rows_;         // 排序后的行
+    std::size_t current_index_;                              // 当前返回的行索引
 };
 
 } // namespace dreamdb::planner::physical

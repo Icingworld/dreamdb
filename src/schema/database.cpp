@@ -1,46 +1,25 @@
 #include "dreamdb/schema/database.h"
 
-#include "dreamdb/schema/collection_manager.h"
+#include <cassert>
 
-namespace dreamdb
+namespace dreamdb::schema
 {
 
-Database::~Database() = default;
-
-Database::Database(const std::string & name)
-    : name_(name)
-    , collection_manager_(std::make_unique<CollectionManager>())
+Database::Database(dreamdb::common::database_id_t id, std::string name)
+    : id_(id), name_(std::move(name))
 {
+    // 数据库名称不能为空
+    assert(!name_.empty());
 }
 
-const std::string & Database::get_name() const
+dreamdb::common::database_id_t Database::id() const noexcept
+{
+    return id_;
+}
+
+const std::string & Database::name() const noexcept
 {
     return name_;
 }
 
-Collection * Database::create_collection(const std::string & name, const std::vector<Field> & schema)
-{
-    return collection_manager_->create_collection(name, schema);
-}
-
-bool Database::drop_collection(const std::string & name)
-{
-    return collection_manager_->drop_collection(name);
-}
-
-Collection * Database::get_collection(const std::string & name)
-{
-    return collection_manager_->get_collection(name);
-}
-
-bool Database::has_collection(const std::string & name) const
-{
-    return collection_manager_->has_collection(name);
-}
-
-std::vector<std::string> Database::get_collections() const
-{
-    return collection_manager_->get_collections();
-}
-
-} // namespace dreamdb
+} // namespace dreamdb::schema

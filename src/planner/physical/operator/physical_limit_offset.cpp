@@ -16,14 +16,14 @@ PhysicalLimitOffset::PhysicalLimitOffset(
 {
 }
 
-void PhysicalLimitOffset::open(ExecutionContext & context)
+void PhysicalLimitOffset::open(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::open(context);
     skipped_count_ = 0;
     returned_count_ = 0;
 }
 
-bool PhysicalLimitOffset::next(ExecutionContext & context, Row & row)
+bool PhysicalLimitOffset::next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row)
 {
     // 首先跳过 offset 行
     while (offset_.has_value() && skipped_count_ < offset_.value()) {
@@ -49,7 +49,7 @@ bool PhysicalLimitOffset::next(ExecutionContext & context, Row & row)
     return true;
 }
 
-void PhysicalLimitOffset::close(ExecutionContext & context)
+void PhysicalLimitOffset::close(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::close(context);
     skipped_count_ = 0;

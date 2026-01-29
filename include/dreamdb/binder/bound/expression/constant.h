@@ -4,7 +4,7 @@
 
 #include "dreamdb/binder/bound/expression/expression.h"
 #include "dreamdb/common/logical_type.h"
-#include "dreamdb/schema/field.h"
+#include "dreamdb/common/type.h"
 
 namespace dreamdb::binder::bound
 {
@@ -18,7 +18,7 @@ class BoundConstantExpression final : public BoundExpression
 {
 public:
     explicit BoundConstantExpression(
-        dreamdb::FieldValue field_value,
+        dreamdb::common::FieldValue field_value,
         dreamdb::common::LogicalType logical_type
     );
 
@@ -29,7 +29,7 @@ public:
      * @brief 获取常量值
      * @return 常量值
      */
-    const dreamdb::FieldValue & value() const noexcept;
+    const dreamdb::common::FieldValue & value() const noexcept;
 
     /**
      * @brief 判断字段类型是否为指定类型
@@ -69,7 +69,7 @@ public:
     std::unique_ptr<BoundExpression> clone() const override;
 
 private:
-    dreamdb::FieldValue field_value_;            // 常量值
+    dreamdb::common::FieldValue field_value_;            // 常量值
 };
 
 // 模板实现

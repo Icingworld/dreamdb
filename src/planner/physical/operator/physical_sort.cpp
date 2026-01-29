@@ -15,13 +15,13 @@ PhysicalSort::PhysicalSort(
 {
 }
 
-void PhysicalSort::open(ExecutionContext & context)
+void PhysicalSort::open(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::open(context);
 
     // 收集所有行
     sorted_rows_.clear();
-    Row row;
+    dreamdb::storage::Row row;
     while (child_->next(context, row)) {
         sorted_rows_.push_back(row);
     }
@@ -31,7 +31,7 @@ void PhysicalSort::open(ExecutionContext & context)
     std::sort(
         sorted_rows_.begin(),
         sorted_rows_.end(),
-        [this, &context](const Row & row1, const Row & row2) {
+        [this, &context](const dreamdb::storage::Row & row1, const dreamdb::storage::Row & row2) {
             return compare_rows(context, row1, row2);
         }
     );
@@ -40,7 +40,7 @@ void PhysicalSort::open(ExecutionContext & context)
     current_index_ = 0;
 }
 
-bool PhysicalSort::next(ExecutionContext & context, Row & row)
+bool PhysicalSort::next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row)
 {
     (void)context;
 
@@ -55,14 +55,14 @@ bool PhysicalSort::next(ExecutionContext & context, Row & row)
     return true;
 }
 
-void PhysicalSort::close(ExecutionContext & context)
+void PhysicalSort::close(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::close(context);
     sorted_rows_.clear();
     current_index_ = 0;
 }
 
-bool PhysicalSort::compare_rows(ExecutionContext & context, const Row & row1, const Row & row2) const
+bool PhysicalSort::compare_rows(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & row1, const dreamdb::storage::Row & row2) const
 {
     // 按照所有排序项进行比较
     for (std::size_t i = 0; i < sort_items_.size(); ++i) {
@@ -104,9 +104,9 @@ bool PhysicalSort::compare_rows(ExecutionContext & context, const Row & row1, co
     return false;
 }
 
-dreamdb::FieldValue PhysicalSort::evaluate_sort_key(
-    ExecutionContext & context,
-    const Row & row,
+dreamdb::common::FieldValue PhysicalSort::evaluate_sort_key(
+    dreamdb::executor::ExecutionContext & context,
+    const dreamdb::storage::Row & row,
     std::size_t sort_item_index
 ) const
 {

@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "dreamdb/common/ids.h"
-#include "dreamdb/catalog/column_info.h"
+#include "dreamdb/schema/column_definition.h"
 
 namespace dreamdb::catalog
 {
@@ -45,7 +45,7 @@ public:
      * @param column_name 列名称
      * @return 列信息
      */
-    virtual std::optional<column_info_t> resolve_column(
+    virtual std::optional<dreamdb::schema::ColumnDefinition> resolve_column(
         const dreamdb::common::collection_id_t collection_id,
         const std::string & column_name
     ) const = 0;
@@ -78,7 +78,7 @@ public:
      * @return 列信息列表
      * @details 该接口用于 SELECT * 投影类型和 INSERT 省略列名的场景
      */
-    virtual std::vector<column_info_t> get_columns(
+    virtual std::vector<dreamdb::schema::ColumnDefinition> get_columns(
         const dreamdb::common::collection_id_t collection_id
     ) const = 0;
 };

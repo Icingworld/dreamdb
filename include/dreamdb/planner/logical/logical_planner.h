@@ -50,7 +50,7 @@ public:
     void visit(const dreamdb::binder::bound::BoundBinaryExpression & binary_expression) override;
 
 public:
-    std::vector<dreamdb::common::column_id_t> column_ids;
+    std::vector<dreamdb::common::column_oid_t> column_ids;
 };
 
 /**
@@ -106,7 +106,7 @@ private:
      * @param bound_expression 绑定后的表达式
      * @return 列 ID 列表
      */
-    static std::vector<dreamdb::common::column_id_t> collect_column_ids(
+    static std::vector<dreamdb::common::column_oid_t> collect_column_ids(
         const dreamdb::binder::bound::BoundExpression & bound_expression
     );
 };

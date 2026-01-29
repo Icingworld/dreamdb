@@ -18,7 +18,7 @@ namespace dreamdb::planner::logical
  */
 struct LogicalUpdateItem
 {
-    dreamdb::common::column_id_t column_id;  // 列 ID
+    dreamdb::common::column_oid_t column_id;  // 列 ID
     std::unique_ptr<dreamdb::binder::bound::BoundExpression> expression;  // 更新值表达式
 };
 

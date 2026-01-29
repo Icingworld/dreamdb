@@ -15,7 +15,8 @@ class PhysicalScan final : public PhysicalOperator
 {
 public:
     explicit PhysicalScan(
-        dreamdb::common::collection_id_t collection_id, std::vector<dreamdb::common::column_id_t> column_ids
+        dreamdb::common::collection_id_t collection_id,
+        std::vector<dreamdb::common::column_oid_t> column_ids
     );
 
     ~PhysicalScan() override = default;
@@ -38,13 +39,13 @@ public:
      * @param index 列索引
      * @return 列 ID
      */
-    dreamdb::common::column_id_t column_id_at(std::size_t index) const;
+    dreamdb::common::column_oid_t column_id_at(std::size_t index) const;
 
     /**
      * @brief 打开算子
      * @param context 执行上下文
      */
-    void open(ExecutionContext & context) override;
+    void open(dreamdb::executor::ExecutionContext & context) override;
 
     /**
      * @brief 获取下一行
@@ -52,17 +53,17 @@ public:
      * @param row 行输出
      * @return 是否还有下一行
      */
-    bool next(ExecutionContext & context, Row & row) override;
+    bool next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row) override;
 
     /**
      * @brief 关闭算子
      * @param context 执行上下文
      */
-    void close(ExecutionContext & context) override;
+    void close(dreamdb::executor::ExecutionContext & context) override;
 
 private:
-    dreamdb::common::collection_id_t collection_id_;          // 集合 ID
-    std::vector<dreamdb::common::column_id_t> column_ids_;    // 列 ID 列表
+    dreamdb::common::collection_id_t collection_id_;           // 集合 ID
+    std::vector<dreamdb::common::column_oid_t> column_ids_;    // 列 ID 列表
 };
 
 } // namespace dreamdb::planner::physical

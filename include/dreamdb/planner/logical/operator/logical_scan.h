@@ -15,7 +15,7 @@ namespace dreamdb::planner::logical
 class LogicalScan final : public LogicalOperator
 {
 public:
-    LogicalScan(common::collection_id_t collection_id, std::vector<common::column_id_t> column_ids);
+    LogicalScan(dreamdb::common::collection_id_t collection_id, std::vector<dreamdb::common::column_oid_t> column_ids);
 
     ~LogicalScan() noexcept override = default;
 
@@ -37,11 +37,11 @@ public:
      * @param index 列索引
      * @return 列 ID
      */
-    common::column_id_t column_at(std::size_t index) const noexcept;
+    dreamdb::common::column_oid_t column_at(std::size_t index) const noexcept;
 
 private:
     common::collection_id_t collection_id_;              // 集合 ID
-    std::vector<common::column_id_t> column_ids_;        // 字段 ID 列表
+    std::vector<dreamdb::common::column_oid_t> column_ids_;        // 字段 ID 列表
 };
 
 } // namespace dreamdb::planner::logical

@@ -13,13 +13,13 @@ PhysicalProject::PhysicalProject(
 {
 }
 
-void PhysicalProject::open(ExecutionContext & context)
+void PhysicalProject::open(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::open(context);
-    input_row_.clear();
+    input_row_.values.clear();
 }
 
-bool PhysicalProject::next(ExecutionContext & context, Row & row)
+bool PhysicalProject::next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row)
 {
     // 从子算子获取下一行
     if (!child_->next(context, input_row_)) {
@@ -31,17 +31,17 @@ bool PhysicalProject::next(ExecutionContext & context, Row & row)
     return true;
 }
 
-void PhysicalProject::close(ExecutionContext & context)
+void PhysicalProject::close(dreamdb::executor::ExecutionContext & context)
 {
     PhysicalUnaryOperator::close(context);
-    input_row_.clear();
+    input_row_.values.clear();
 }
 
-void PhysicalProject::evaluate(ExecutionContext & context, const Row & input_row, Row & output_row) const
+void PhysicalProject::evaluate(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & input_row, dreamdb::storage::Row & output_row) const
 {
     // 清空输出行
-    output_row.clear();
-    output_row.reserve(project_items_.size());
+    output_row.values.clear();
+    output_row.values.reserve(project_items_.size());
 
     // 对每个投影项计算表达式
     for (const auto & project_item : project_items_) {
@@ -61,7 +61,7 @@ void PhysicalProject::evaluate(ExecutionContext & context, const Row & input_row
         (void)project_item;
 
         // 占位符：返回 NULL 值
-        output_row.push_back(dreamdb::Null{});
+        output_row.values.push_back(dreamdb::Null{});
     }
 }
 

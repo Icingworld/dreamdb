@@ -8,12 +8,12 @@ PhysicalUnaryOperator::PhysicalUnaryOperator(std::unique_ptr<PhysicalOperator> c
 {
 }
 
-void PhysicalUnaryOperator::open(ExecutionContext & context)
+void PhysicalUnaryOperator::open(dreamdb::executor::ExecutionContext & context)
 {
     child_->open(context);
 }
 
-void PhysicalUnaryOperator::close(ExecutionContext & context)
+void PhysicalUnaryOperator::close(dreamdb::executor::ExecutionContext & context)
 {
     child_->close(context);
 }

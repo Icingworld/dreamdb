@@ -113,7 +113,7 @@ void BoundColumnCollector::visit(
     binary_expression.right().accept(*this);
 }
 
-std::vector<dreamdb::common::column_id_t> LogicalPlanner::collect_column_ids(
+std::vector<dreamdb::common::column_oid_t> LogicalPlanner::collect_column_ids(
     const dreamdb::binder::bound::BoundExpression & bound_expression
 )
 {
@@ -121,12 +121,12 @@ std::vector<dreamdb::common::column_id_t> LogicalPlanner::collect_column_ids(
     bound_expression.accept(collector);
 
     // 去重处理：使用 unordered_set 去重，然后转回 vector
-    std::unordered_set<dreamdb::common::column_id_t> unique_column_ids(
+    std::unordered_set<dreamdb::common::column_oid_t> unique_column_ids(
         collector.column_ids.begin(),
         collector.column_ids.end()
     );
 
-    std::vector<dreamdb::common::column_id_t> result(
+    std::vector<dreamdb::common::column_oid_t> result(
         unique_column_ids.begin(),
         unique_column_ids.end()
     );
@@ -171,7 +171,7 @@ std::unique_ptr<LogicalOperator> LogicalPlanner::plan_select(
     const auto collection_id = select_statement.collection_id();
 
     // 收集所有需要的列 ID
-    std::unordered_set<dreamdb::common::column_id_t> required_columns_set;
+    std::unordered_set<dreamdb::common::column_oid_t> required_columns_set;
 
     // 从 SELECT 列表中收集
     for (std::size_t i = 0; i < select_statement.select_item_count(); ++i) {
@@ -209,7 +209,7 @@ std::unique_ptr<LogicalOperator> LogicalPlanner::plan_select(
     }
 
     // 转换为有序的列 ID 列表
-    std::vector<dreamdb::common::column_id_t> required_columns_ids(
+    std::vector<dreamdb::common::column_oid_t> required_columns_ids(
         required_columns_set.begin(),
         required_columns_set.end()
     );
@@ -344,7 +344,7 @@ std::unique_ptr<LogicalOperator> LogicalPlanner::plan_delete(
     const auto collection_id = delete_statement.collection_id();
 
     // 准备 Scan 算子所需的列数组
-    std::vector<dreamdb::common::column_id_t> required_columns_ids;
+    std::vector<dreamdb::common::column_oid_t> required_columns_ids;
 
     // 获取 WHERE 子句
     // 如果不存在 WHERE 子句，则表明不需要扫描任何列，删除所有数据
@@ -393,7 +393,7 @@ std::unique_ptr<LogicalOperator> LogicalPlanner::plan_update(
     const auto collection_id = update_statement.collection_id();
 
     // 准备 Scan 算子所需的列数组
-    std::unordered_set<dreamdb::common::column_id_t> required_columns_set;
+    std::unordered_set<dreamdb::common::column_oid_t> required_columns_set;
 
     // 从 WHERE 子句中收集列引用
     if (update_statement.has_where()) {
@@ -434,7 +434,7 @@ std::unique_ptr<LogicalOperator> LogicalPlanner::plan_update(
     }
 
     // 转换为有序的列 ID 列表
-    std::vector<dreamdb::common::column_id_t> required_columns_ids(
+    std::vector<dreamdb::common::column_oid_t> required_columns_ids(
         required_columns_set.begin(),
         required_columns_set.end()
     );

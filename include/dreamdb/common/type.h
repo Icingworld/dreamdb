@@ -1,6 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
+#include <string>
+#include <vector>
+
+#include "dreamdb/common/null.h"
 
 namespace dreamdb::common
 {
@@ -23,6 +28,22 @@ enum class FieldType : std::uint8_t
     Enum,               // 枚举
     Vector              // float 向量
 };
+
+/**
+ * @brief 字段值类型
+ */
+using FieldValue = std::variant<
+    std::int8_t,                    // TINYINT
+    std::int16_t,                   // SMALLINT
+    std::int32_t,                   // INTEGER
+    std::int64_t,                   // BIGINT, TIMESTAMP
+    float,                          // FLOAT
+    double,                         // DOUBLE
+    std::string,                    // CHAR, VARCHAR, ENUM
+    bool,                           // BOOLEAN
+    std::vector<float>,             // VECTOR
+    Null                            // NULL
+>;
 
 /**
  * @brief 标量索引类型

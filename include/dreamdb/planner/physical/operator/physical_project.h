@@ -46,7 +46,7 @@ public:
      * @brief 打开算子
      * @param context 执行上下文
      */
-    void open(ExecutionContext & context) override;
+    void open(dreamdb::executor::ExecutionContext & context) override;
 
     /**
      * @brief 获取下一行
@@ -54,13 +54,13 @@ public:
      * @param row 当前行（输出参数）
      * @return 是否还有下一行
      */
-    bool next(ExecutionContext & context, Row & row) override;
+    bool next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row) override;
 
     /**
      * @brief 关闭算子
      * @param context 执行上下文
      */
-    void close(ExecutionContext & context) override;
+    void close(dreamdb::executor::ExecutionContext & context) override;
 
 private:
     /**
@@ -69,11 +69,11 @@ private:
      * @param input_row 输入行
      * @param output_row 输出行（输出参数）
      */
-    void evaluate(ExecutionContext & context, const Row & input_row, Row & output_row) const;
+    void evaluate(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & input_row, dreamdb::storage::Row & output_row) const;
 
 private:
     std::vector<PhysicalProjectItem> project_items_;    // 投影项列表
-    Row input_row_;                                     // 临时存储输入行
+    dreamdb::storage::Row input_row_;                   // 临时存储输入行
 };
 
 } // namespace dreamdb::planner::physical

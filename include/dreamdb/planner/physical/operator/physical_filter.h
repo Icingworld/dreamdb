@@ -31,7 +31,7 @@ public:
      * @brief 打开算子
      * @param context 执行上下文
      */
-    void open(ExecutionContext & context) override;
+    void open(dreamdb::executor::ExecutionContext & context) override;
 
     /**
      * @brief 获取下一行
@@ -39,13 +39,13 @@ public:
      * @param row 当前行
      * @return 是否还有下一行
      */
-    bool next(ExecutionContext & context, Row & row) override;
+    bool next(dreamdb::executor::ExecutionContext & context, dreamdb::storage::Row & row) override;
 
     /**
      * @brief 关闭算子
      * @param context 执行上下文
      */
-    void close(ExecutionContext & context) override;
+    void close(dreamdb::executor::ExecutionContext & context) override;
 
 private:
     /**
@@ -54,7 +54,7 @@ private:
      * @param row 当前行
      * @return 是否满足过滤条件
      */
-    bool evaluate(ExecutionContext & context, const Row & row) const;
+    bool evaluate(dreamdb::executor::ExecutionContext & context, const dreamdb::storage::Row & row) const;
 
 private:
     std::unique_ptr<dreamdb::binder::bound::BoundExpression> predicate_;  // 过滤条件

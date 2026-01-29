@@ -24,13 +24,13 @@ public:
      * @brief 打开算子
      * @param context 执行上下文
      */
-    void open(ExecutionContext & context) override;
+    void open(dreamdb::executor::ExecutionContext & context) override;
 
     /**
      * @brief 关闭算子
      * @param context 执行上下文
      */
-    void close(ExecutionContext & context) override;
+    void close(dreamdb::executor::ExecutionContext & context) override;
 
 protected:
     std::unique_ptr<PhysicalOperator> child_;    // 子算子
